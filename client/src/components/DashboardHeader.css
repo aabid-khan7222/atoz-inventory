@@ -1,0 +1,342 @@
+.dashboard-header {
+  background: #e60000;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 1000;
+  height: 80px;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+/* ================= LEFT ================= */
+
+.dashboard-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dashboard-logo-wrapper {
+  height: 50px;
+  width: auto;
+  display: flex;
+  align-items: center;
+}
+
+.dashboard-logo {
+  height: 50px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 5px;
+}
+
+.dashboard-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.dashboard-role-badge {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* ================= RIGHT (FIXED AREA) ================= */
+
+.dashboard-header-right {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: nowrap;
+  z-index: 1000;
+}
+
+/* ================= NOTIFICATION ICON ================= */
+
+.notification-icon-wrapper {
+  position: relative;
+}
+
+.notification-icon-button {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.notification-icon-button:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.notification-icon-button:active {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.notification-icon-button svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ff4444;
+  color: white;
+  border-radius: 50%;
+  min-width: 18px;
+  height: 18px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border: 2px solid #e60000;
+}
+
+/* ================= THEME BUTTON ================= */
+
+.theme-toggle-button {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.theme-toggle-button:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.theme-toggle-button:active {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.theme-toggle-button .theme-icon {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+}
+
+[data-theme="dark"] .theme-toggle-button {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* ================= CART ================= */
+
+.cart-icon-button {
+  position: relative;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+}
+
+.cart-icon-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.cart-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ff4444;
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ================= USER INFO ================= */
+
+.user-info {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  min-height: 40px;
+  gap: 0.6rem;
+  cursor: pointer;
+  padding: 0 0.75rem;
+  margin: 0;
+  border-radius: 10px;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+.user-info:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.dashboard-avatar-img,
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  object-fit: cover;
+}
+
+.user-avatar {
+  background: rgba(255, 255, 255, 0.2);
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.user-role {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+.dropdown-arrow {
+  transition: transform 0.2s ease;
+}
+
+.dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* ================= DROPDOWN ================= */
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  background: white;
+  border-radius: 8px;
+  min-width: 200px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 1001;
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+/* Ensure dropdown doesn't overflow viewport */
+@media (max-width: 400px) {
+  .dropdown-menu {
+    right: 0;
+    left: auto;
+    min-width: 180px;
+  }
+}
+
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dropdown-item:hover {
+  background: #f5f5f5;
+}
+
+.dropdown-item.logout {
+  color: #e60000;
+}
+
+.dropdown-item svg {
+  flex-shrink: 0;
+  display: block;
+  vertical-align: middle;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 0.25rem 0;
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 768px) {
+  .dashboard-header {
+    padding: 1rem;
+  }
+
+  .user-details {
+    display: none;
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "common": {
+    "loading": "لوڈ ہو رہا ہے...",
+    "error": "خرابی",
+    "success": "کامیابی",
+    "save": "محفوظ کریں",
+    "cancel": "منسوخ کریں",
+    "delete": "حذف کریں",
+    "edit": "ترمیم کریں",
+    "back": "واپس",
+    "submit": "جمع کریں",
+    "search": "تلاش کریں",
+    "clear": "صاف کریں",
+    "close": "بند کریں",
+    "yes": "ہاں",
+    "no": "نہیں"
+  },
+  "login": {
+    "title": "A TO Z BATTERY",
+    "subtitle": "مجاز ایکسائیڈ ڈیلر",
+    "email": "ای میل",
+    "password": "پاس ورڈ",
+    "enterEmail": "اپنا ای میل درج کریں",
+    "enterPassword": "اپنا پاس ورڈ درج کریں",
+    "login": "لاگ ان",
+    "loggingIn": "لاگ ان ہو رہا ہے...",
+    "invalidCredentials": "غلط ای میل یا پاس ورڈ"
+  },
+  "dashboard": {
+    "title": "ڈیش بورڈ",
+    "welcome": "خوش آمدید",
+    "browseProducts": "مصنوعات براؤز کریں",
+    "myOrders": "میرے آرڈر",
+    "chargingServices": "چارجنگ کی خدمات",
+    "history": "تاریخ",
+    "products": "مصنوعات",
+    "orders": "آرڈر",
+    "charging": "چارجنگ",
+    "featuredProducts": "نمایاں مصنوعات",
+    "totalPurchase": "کل خریداری",
+    "totalInvoices": "کل انوائسز",
+    "pendingAmount": "زیر التواء رقم",
+    "monthlyPurchaseOverview": "ماہانہ خریداری کا جائزہ",
+    "offersAndUpdates": "آفرز اور اپ ڈیٹس",
+    "allCategories": "تمام زمرے",
+    "periods": {
+      "currentMonth": "موجودہ مہینہ",
+      "lastMonth": "پچھلا مہینہ",
+      "last2Months": "آخری 2 ماہ",
+      "last6Months": "آخری 6 ماہ",
+      "last1Year": "آخری 1 سال",
+      "last2Years": "آخری 2 سال",
+      "allTime": "ہر وقت"
+    }
+  },
+  "products": {
+    "title": "مصنوعات",
+    "browseProducts": "مصنوعات براؤز کریں",
+    "addProduct": "مصنوعات شامل کریں",
+    "productList": "مصنوعات کی فہرست",
+    "noProducts": "کوئی مصنوعات نہیں ملی",
+    "loadingProducts": "مصنوعات لوڈ ہو رہی ہیں...",
+    "failedToLoad": "مصنوعات لوڈ کرنے میں ناکام",
+    "searchPlaceholder": "سیریز یا بیٹری کے نام سے تلاش کریں...",
+    "backToCategories": "زمرہ جات پر واپس جائیں",
+    "noSearchResults": "کوئی مصنوعات نہیں ملی",
+    "tryDifferentTerm": "مختلف اصطلاح سے تلاش کریں یا تمام مصنوعات دیکھنے کے لیے اپنی تلاش صاف کریں۔",
+    "productCode": "مصنوعات کوڈ:",
+    "ahVa": "Ah/VA:",
+    "warranty": "وارنٹی:",
+    "inStock": "اسٹاک میں",
+    "outOfStock": "اسٹاک ختم",
+    "units": "یونٹس",
+    "mrp": "ایم آر پی:",
+    "sellingPrice": "فروخت کی قیمت:",
+    "saveAmount": "بچائیں",
+    "buyNow": "ابھی خریدیں",
+    "productsCount": "مصنوعات",
+    "category": {
+      "carTruckTractor": "کار، ٹرک اور ٹریکٹر",
+      "bike": "بائک بیٹری",
+      "upsInverter": "یو پی ایس اور انورٹر",
+      "description": {
+        "carTruckTractor": "کار، ٹرک اور ٹریکٹر کے لیے پریمیم بیٹریاں",
+        "bike": "موٹرسائیکل اور سکوٹر کے لیے اعلی کارکردگی والی بیٹریاں",
+        "upsInverter": "گھر اور دفتر کے لیے قابل اعتماد بیک اپ بجلی کے حل"
+      }
+    },
+    "hero": {
+      "badge": "مجاز ایکسائیڈ ڈیلر",
+      "title": "A TO Z BATTERY",
+      "subtitle": "پریمیم ایکسائیڈ بیٹریوں کے لیے آپ کا قابل اعتماد پارٹنر",
+      "description": "ہم EXIDE BATTERY کے مجاز ڈیلر ہیں، وارنٹی اور بہترین کسٹمر سروس کے ساتھ اصلی مصنوعات پیش کرتے ہیں۔ اپنی تمام ضروریات کے لیے ہماری وسیع رینج میں سے منتخب کریں۔"
+    },
+    "browseByCategory": "زمرہ کے لحاظ سے براؤز کریں"
+  },
+  "settings": {
+    "title": "ترتیبات",
+    "subtitle": "اپنی زبان، تھیم اور سیکیورٹی ترجیحات کو کنٹرول کریں۔",
+    "language": {
+      "title": "زبان",
+      "description": "ایپلیکیشن انٹرفیس کے لیے زبان منتخب کریں۔",
+      "note": "ہم آپ کی پسند صرف اس ڈیوائس پر محفوظ کرتے ہیں (localStorage)۔"
+    },
+    "theme": {
+      "title": "تھیم",
+      "description": "پوری ایپ کے لیے لائٹ اور ڈارک موڈ کے درمیان سوئچ کریں۔",
+      "lightMode": "لائٹ موڈ",
+      "darkMode": "ڈارک موڈ"
+    },
+    "notifications": {
+      "title": "اطلاعات",
+      "description": "کنٹرول کریں کہ ہم آپ کو اہم اپ ڈیٹس کیسے بھیجتے ہیں۔",
+      "emailAlerts": "ای میل الرٹس",
+      "smsAlerts": "ایس ایم ایس الرٹس",
+      "twoFactor": "دو مرحلہ تصدیق"
+    },
+    "security": {
+      "title": "سیکیورٹی",
+      "description": "اپنا پاس ورڈ تبدیل کریں یا تمام ڈیوائسز سے سائن آؤٹ کریں۔",
+      "changePassword": "پاس ورڈ تبدیل کریں",
+      "logoutAll": "تمام ڈیوائسز سے لاگ آؤٹ کریں",
+      "currentPassword": "موجودہ پاس ورڈ",
+      "newPassword": "نیا پاس ورڈ",
+      "confirmPassword": "نیا پاس ورڈ کی تصدیق کریں",
+      "passwordUpdated": "پاس ورڈ کامیابی سے اپ ڈیٹ ہو گیا۔ براہ کرم دوبارہ لاگ ان کریں۔",
+      "allFieldsRequired": "تمام فیلڈز درکار ہیں۔",
+      "passwordMinLength": "نیا پاس ورڈ کم از کم 8 حروف کا ہونا چاہیے۔",
+      "passwordMismatch": "نیا پاس ورڈ اور تصدیق پاس ورڈ مماثل ہونا چاہیے۔",
+      "logoutConfirm": "تمام ڈیوائسز سے لاگ آؤٹ کریں؟",
+      "logoutDescription": "یہ آپ کو تمام لاگ ان براؤزرز اور ڈیوائسز سے سائن آؤٹ کر دے گا۔",
+      "logoutEverywhere": "ہاں، ہر جگہ لاگ آؤٹ کریں",
+      "loggingOut": "لاگ آؤٹ ہو رہا ہے...",
+      "saving": "محفوظ ہو رہا ہے...",
+      "savePassword": "پاس ورڈ محفوظ کریں"
+    }
+  },
+  "addProduct": {
+    "title": "مصنوعات شامل کریں",
+    "sku": "SKU",
+    "name": "نام",
+    "quantity": "مقدار",
+    "price": "قیمت",
+    "category": "زمرہ",
+    "skuRequired": "SKU اور نام درکار ہیں",
+    "validPriceRequired": "درست قیمت درکار ہے",
+    "failedToCreate": "مصنوعات بنانے میں ناکام۔ براہ کرم دوبارہ کوشش کریں۔"
+  }
+}
+

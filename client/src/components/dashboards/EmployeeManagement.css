@@ -1,0 +1,73 @@
+.employee-management {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.employee-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.employee-management-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.back-button {
+  padding: 8px 16px;
+  background: var(--azb-bg-card);
+  border: 1px solid var(--azb-border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.back-button:hover {
+  background: var(--azb-bg-hover);
+}
+
+.employee-management-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--azb-border);
+}
+
+.employee-management-tabs button {
+  padding: 12px 24px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--azb-text-secondary);
+  transition: all 0.2s;
+  margin-bottom: -2px;
+}
+
+.employee-management-tabs button:hover {
+  color: var(--azb-text-main);
+}
+
+.employee-management-tabs button.active {
+  color: var(--azb-primary);
+  border-bottom-color: var(--azb-primary);
+}
+
+.employee-management-content {
+  background: var(--azb-bg-card);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .employee-management-content {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+

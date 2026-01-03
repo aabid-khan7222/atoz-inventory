@@ -1,0 +1,47 @@
+.searchable-select-container {
+  position: relative;
+  width: 100%;
+}
+
+.searchable-select-trigger {
+  user-select: none;
+}
+
+.searchable-select-trigger.open {
+  border-color: var(--corp-primary) !important;
+}
+
+.searchable-select-dropdown {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scrollbar styling for dropdown */
+.searchable-select-dropdown > div::-webkit-scrollbar {
+  width: 6px;
+}
+
+.searchable-select-dropdown > div::-webkit-scrollbar-track {
+  background: var(--corp-bg-tertiary);
+  border-radius: 3px;
+}
+
+.searchable-select-dropdown > div::-webkit-scrollbar-thumb {
+  background: var(--corp-border);
+  border-radius: 3px;
+}
+
+.searchable-select-dropdown > div::-webkit-scrollbar-thumb:hover {
+  background: var(--corp-text-muted);
+}
+

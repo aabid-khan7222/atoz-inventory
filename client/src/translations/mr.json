@@ -1,0 +1,150 @@
+{
+  "common": {
+    "loading": "लोड होत आहे...",
+    "error": "त्रुटी",
+    "success": "यशस्वी",
+    "save": "जतन करा",
+    "cancel": "रद्द करा",
+    "delete": "हटवा",
+    "edit": "संपादन करा",
+    "back": "मागे",
+    "submit": "सबमिट करा",
+    "search": "शोधा",
+    "clear": "साफ करा",
+    "close": "बंद करा",
+    "yes": "होय",
+    "no": "नाही"
+  },
+  "login": {
+    "title": "A TO Z BATTERY",
+    "subtitle": "अधिकृत एक्साइड डीलर",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "enterEmail": "आपले ईमेल प्रविष्ट करा",
+    "enterPassword": "आपला पासवर्ड प्रविष्ट करा",
+    "login": "लॉगिन",
+    "loggingIn": "लॉगिन होत आहे...",
+    "invalidCredentials": "अवैध ईमेल किंवा पासवर्ड"
+  },
+  "dashboard": {
+    "title": "डॅशबोर्ड",
+    "welcome": "स्वागत आहे",
+    "browseProducts": "उत्पादने ब्राउझ करा",
+    "myOrders": "माझे ऑर्डर",
+    "chargingServices": "चार्जिंग सेवा",
+    "history": "इतिहास",
+    "products": "उत्पादने",
+    "orders": "ऑर्डर",
+    "charging": "चार्जिंग",
+    "featuredProducts": "वैशिष्ट्यीकृत उत्पादने",
+    "totalPurchase": "एकूण खरेदी",
+    "totalInvoices": "एकूण बीजक",
+    "pendingAmount": "प्रलंबित रक्कम",
+    "monthlyPurchaseOverview": "मासिक खरेदी विहंगावलोकन",
+    "offersAndUpdates": "ऑफर आणि अपडेट्स",
+    "allCategories": "सर्व श्रेणी",
+    "periods": {
+      "currentMonth": "चालू महिना",
+      "lastMonth": "मागील महिना",
+      "last2Months": "मागील २ महिने",
+      "last6Months": "मागील ६ महिने",
+      "last1Year": "मागील १ वर्ष",
+      "last2Years": "मागील २ वर्षे",
+      "allTime": "सर्व वेळ"
+    }
+  },
+  "products": {
+    "title": "उत्पादने",
+    "browseProducts": "उत्पादने ब्राउझ करा",
+    "addProduct": "उत्पादन जोडा",
+    "productList": "उत्पादन यादी",
+    "noProducts": "उत्पादने सापडली नाहीत",
+    "loadingProducts": "उत्पादने लोड होत आहेत...",
+    "failedToLoad": "उत्पादने लोड करण्यात अयशस्वी",
+    "searchPlaceholder": "मालिका किंवा बॅटरी नावाने शोधा...",
+    "backToCategories": "श्रेणींवर परत जा",
+    "noSearchResults": "उत्पादने सापडली नाहीत",
+    "tryDifferentTerm": "वेगळ्या शब्दाने शोधा किंवा सर्व उत्पादने पाहण्यासाठी आपली शोध साफ करा।",
+    "productCode": "उत्पादन कोड:",
+    "ahVa": "Ah/VA:",
+    "warranty": "हमी:",
+    "inStock": "स्टॉकमध्ये",
+    "outOfStock": "स्टॉक संपला",
+    "units": "युनिट्स",
+    "mrp": "एमआरपी:",
+    "sellingPrice": "विक्री किंमत:",
+    "saveAmount": "जतन करा",
+    "buyNow": "आत्ता खरेदी करा",
+    "productsCount": "उत्पादने",
+    "category": {
+      "carTruckTractor": "कार, ट्रक आणि ट्रॅक्टर",
+      "bike": "बाइक बॅटरी",
+      "upsInverter": "यूपीएस आणि इन्व्हर्टर",
+      "description": {
+        "carTruckTractor": "कार, ट्रक आणि ट्रॅक्टरसाठी प्रीमियम बॅटरी",
+        "bike": "मोटारसायकल आणि स्कूटरसाठी उच्च कामगिरी बॅटरी",
+        "upsInverter": "घर आणि कार्यालयासाठी विश्वासार्ह बॅकअप वीज उपाय"
+      }
+    },
+    "hero": {
+      "badge": "अधिकृत एक्साइड डीलर",
+      "title": "A TO Z BATTERY",
+      "subtitle": "प्रीमियम एक्साइड बॅटरीसाठी आपला विश्वासार्ह भागीदार",
+      "description": "आम्ही EXIDE BATTERY चे अधिकृत डीलर आहोत, हमी आणि उत्कृष्ट ग्राहक सेवेसह प्रामाणिक उत्पादने ऑफर करतो. आपल्या सर्व गरजांसाठी आमच्या विस्तृत श्रेणीतून निवडा।"
+    },
+    "browseByCategory": "श्रेणीनुसार ब्राउझ करा"
+  },
+  "settings": {
+    "title": "सेटिंग्ज",
+    "subtitle": "आपली भाषा, थीम आणि सुरक्षा प्राधान्ये नियंत्रित करा।",
+    "language": {
+      "title": "भाषा",
+      "description": "अनुप्रयोग इंटरफेससाठी भाषा निवडा।",
+      "note": "आम्ही आपली निवड फक्त या डिव्हाइसवर संग्रहित करतो (localStorage)।"
+    },
+    "theme": {
+      "title": "थीम",
+      "description": "संपूर्ण ऍपसाठी लाइट आणि डार्क मोड दरम्यान स्विच करा।",
+      "lightMode": "लाइट मोड",
+      "darkMode": "डार्क मोड"
+    },
+    "notifications": {
+      "title": "सूचना",
+      "description": "आम्ही आपल्याला महत्त्वाचे अपडेट कसे पाठवतो ते नियंत्रित करा।",
+      "emailAlerts": "ईमेल अलर्ट",
+      "smsAlerts": "एसएमएस अलर्ट",
+      "twoFactor": "दोन-चरणीय सत्यापन"
+    },
+    "security": {
+      "title": "सुरक्षा",
+      "description": "आपला पासवर्ड बदला किंवा सर्व उपकरणांवरून साइन आउट करा।",
+      "changePassword": "पासवर्ड बदला",
+      "logoutAll": "सर्व उपकरणांवरून लॉगआउट करा",
+      "currentPassword": "वर्तमान पासवर्ड",
+      "newPassword": "नवीन पासवर्ड",
+      "confirmPassword": "नवीन पासवर्डची पुष्टी करा",
+      "passwordUpdated": "पासवर्ड यशस्वीरित्या अपडेट केला. कृपया पुन्हा लॉगिन करा।",
+      "allFieldsRequired": "सर्व फील्ड आवश्यक आहेत।",
+      "passwordMinLength": "नवीन पासवर्ड किमान 8 वर्ण लांब असावा।",
+      "passwordMismatch": "नवीन पासवर्ड आणि पुष्टी पासवर्ड जुळले पाहिजे।",
+      "logoutConfirm": "सर्व उपकरणांवरून लॉगआउट करायचे?",
+      "logoutDescription": "हे आपल्याला सर्व लॉग-इन ब्राउझर आणि उपकरणांवरून साइन आउट करेल।",
+      "logoutEverywhere": "होय, सर्वत्र लॉगआउट करा",
+      "loggingOut": "लॉगआउट होत आहे...",
+      "saving": "जतन होत आहे...",
+      "savePassword": "पासवर्ड जतन करा"
+    }
+  },
+  "addProduct": {
+    "title": "उत्पादन जोडा",
+    "sku": "SKU",
+    "name": "नाव",
+    "quantity": "प्रमाण",
+    "price": "किंमत",
+    "category": "श्रेणी",
+    "skuRequired": "SKU आणि नाव आवश्यक आहे",
+    "validPriceRequired": "वैध किंमत आवश्यक आहे",
+    "failedToCreate": "उत्पादन तयार करण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा।"
+  }
+}
+

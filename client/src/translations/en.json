@@ -1,0 +1,158 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "submit": "Submit",
+    "search": "Search",
+    "clear": "Clear",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "login": {
+    "title": "A TO Z BATTERY",
+    "subtitle": "Authorised Exide Dealer",
+    "email": "Email",
+    "password": "Password",
+    "enterEmail": "Enter your email",
+    "enterPassword": "Enter your password",
+    "login": "Login",
+    "loggingIn": "Logging in...",
+    "invalidCredentials": "Invalid email or password"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome",
+    "welcomeTo": "Welcome to A TO Z Battery",
+    "browseProducts": "Browse Products",
+    "myOrders": "My Orders",
+    "chargingServices": "Charging Services",
+    "history": "History",
+    "products": "Products",
+    "orders": "Orders",
+    "charging": "Charging",
+    "featuredProducts": "Featured Products",
+    "totalPurchase": "Total Purchase",
+    "totalInvoices": "Total Invoices",
+    "pendingAmount": "Pending Amount",
+    "monthlyPurchaseOverview": "Monthly Purchase Overview",
+    "offersAndUpdates": "Offers & Updates",
+    "allCategories": "All Categories",
+    "periods": {
+      "currentMonth": "Current Month",
+      "lastMonth": "Last Month",
+      "last2Months": "Last 2 Months",
+      "last6Months": "Last 6 Months",
+      "last1Year": "Last 1 Year",
+      "last2Years": "Last 2 Years",
+      "allTime": "All Time"
+    },
+    "browseRange": "Browse our range of Exide batteries and services.",
+    "viewOrderHistory": "View your order history and track current orders.",
+    "bookCharging": "Book battery charging services.",
+    "serviceHistory": "Service History",
+    "viewCompleteHistory": "View your complete service and purchase history.",
+    "welcomeMessage": "Welcome!",
+    "selectMenuItem": "Select a menu item to get started."
+  },
+  "products": {
+    "title": "Products",
+    "browseProducts": "Browse Products",
+    "addProduct": "Add Product",
+    "productList": "Product List",
+    "noProducts": "No products found",
+    "loadingProducts": "Loading products...",
+    "failedToLoad": "Failed to load products",
+    "searchPlaceholder": "Search by series or battery name...",
+    "backToCategories": "Back to Categories",
+    "noSearchResults": "No products found",
+    "tryDifferentTerm": "Try searching with a different term or clear your search to see all products.",
+    "productCode": "Product Code:",
+    "ahVa": "Ah/VA:",
+    "warranty": "Warranty:",
+    "inStock": "In Stock",
+    "outOfStock": "Out of Stock",
+    "units": "units",
+    "mrp": "MRP:",
+    "sellingPrice": "Selling Price:",
+    "saveAmount": "Save",
+    "buyNow": "Buy Now",
+    "productsCount": "Products",
+    "category": {
+      "carTruckTractor": "Car, Truck & Tractor",
+      "bike": "Bike Battery",
+      "upsInverter": "Inverter & Battery",
+      "description": {
+        "carTruckTractor": "Premium batteries for cars, trucks, and tractors",
+        "bike": "High-performance batteries for motorcycles and scooters",
+        "upsInverter": "Reliable power backup solutions for home and office"
+      }
+    },
+    "hero": {
+      "badge": "Authorized Exide Dealer",
+      "title": "A TO Z BATTERY",
+      "subtitle": "Your Trusted Partner for Premium Exide Batteries",
+      "description": "We are an authorized dealer of EXIDE BATTERY, offering genuine products with warranty and excellent customer service. Choose from our wide range of high-quality batteries for all your needs."
+    },
+    "browseByCategory": "Browse by Category"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Control your language, theme and security preferences.",
+    "language": {
+      "title": "Language",
+      "description": "Choose the language for the application interface.",
+      "note": "We store your choice only on this device (localStorage)."
+    },
+    "theme": {
+      "title": "Theme",
+      "description": "Switch between light and dark mode for the whole app.",
+      "lightMode": "Light mode",
+      "darkMode": "Dark mode"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "Control how we send you important updates.",
+      "emailAlerts": "Email alerts",
+      "smsAlerts": "SMS alerts",
+      "twoFactor": "Two-step verification"
+    },
+    "security": {
+      "title": "Security",
+      "description": "Change your password or sign out from all devices.",
+      "changePassword": "Change password",
+      "logoutAll": "Logout from all devices",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "passwordUpdated": "Password updated successfully. Please login again.",
+      "allFieldsRequired": "All fields are required.",
+      "passwordMinLength": "New password must be at least 8 characters long.",
+      "passwordMismatch": "New password and confirm password must match.",
+      "logoutConfirm": "Logout from all devices?",
+      "logoutDescription": "This will sign you out from all logged-in browsers and devices.",
+      "logoutEverywhere": "Yes, logout everywhere",
+      "loggingOut": "Logging out...",
+      "saving": "Saving...",
+      "savePassword": "Save password"
+    }
+  },
+  "addProduct": {
+    "title": "Add Product",
+    "sku": "SKU",
+    "name": "Name",
+    "quantity": "Quantity",
+    "price": "Price",
+    "category": "Category",
+    "skuRequired": "SKU and name are required",
+    "validPriceRequired": "Valid price is required",
+    "failedToCreate": "Failed to create product. Please try again."
+  }
+}
+

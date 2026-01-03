@@ -1,0 +1,489 @@
+@media print {
+  .invoice-actions {
+    display: none !important;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+
+  .invoice-container {
+    margin: 0;
+    padding: 0;
+    max-width: 100%;
+    background-color: white;
+  }
+
+  .invoice-page {
+    width: 210mm;
+    height: 238mm;
+    min-height: 238mm;
+    max-height: 238mm;
+    margin: 0;
+    padding: 0;
+    background: white;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Ensure all table elements have transparent background and black text in print */
+  .invoice-page * {
+    color: #000 !important;
+    background-color: transparent !important;
+  }
+
+  /* Ensure logo displays in print */
+  .company-logo {
+    max-width: 60px !important;
+    max-height: 50px !important;
+    width: auto !important;
+    height: auto !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Items table - all cells */
+  .invoice-page .items-table th,
+  .invoice-page .items-table td,
+  .invoice-page .items-table .description-cell,
+  .items-table th,
+  .items-table td,
+  .items-table .description-cell {
+    background-color: transparent !important;
+    background: transparent !important;
+    color: #000 !important;
+  }
+
+  /* Totals table - all elements */
+  .invoice-page .totals-table,
+  .invoice-page .totals-table tr,
+  .invoice-page .totals-table td,
+  .invoice-page .totals-table .label-cell,
+  .invoice-page .totals-table .grand-total,
+  .invoice-page .totals-table *,
+  .totals-table,
+  .totals-table tr,
+  .totals-table td,
+  .totals-table .label-cell,
+  .totals-table .grand-total,
+  .totals-table * {
+    background-color: transparent !important;
+    background: transparent !important;
+    color: #000 !important;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 5mm 5mm 3mm 5mm;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.invoice-container {
+  padding: 10px;
+  max-width: 210mm;
+  margin: 0 auto;
+  background-color: #fff;
+  color: #000 !important;
+}
+
+.invoice-actions {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn-primary {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-primary:hover {
+  background-color: #1d4ed8;
+}
+
+.btn-secondary {
+  background-color: #6b7280;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-secondary:hover {
+  background-color: #4b5563;
+}
+
+.invoice-page {
+  width: 210mm;
+  height: 238mm;
+  min-height: 238mm;
+  max-height: 238mm;
+  position: relative;
+  overflow: visible;
+  padding: 0;
+  margin: 0;
+  background-color: #fff !important;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  color: #000 !important;
+}
+
+.invoice-page * {
+  color: #000 !important;
+}
+
+/* Ensure all table cells have transparent background in preview */
+.invoice-page .items-table th,
+.invoice-page .items-table td,
+.invoice-page .items-table .description-cell {
+  background-color: transparent !important;
+  background: transparent !important;
+  color: #000 !important;
+}
+
+.invoice-page .totals-table,
+.invoice-page .totals-table tr,
+.invoice-page .totals-table td,
+.invoice-page .totals-table .label-cell,
+.invoice-page .totals-table .grand-total,
+.invoice-page .totals-table * {
+  background-color: transparent !important;
+  background: transparent !important;
+  color: #000 !important;
+}
+
+.invoice-page strong {
+  color: #000 !important;
+  font-weight: bold;
+}
+
+.invoice-title {
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  padding-top: 2px;
+  color: #000;
+}
+
+.seller-buyer-section {
+  display: table;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.seller-box {
+  display: table-cell;
+  width: 50%;
+  vertical-align: top;
+  padding-right: 6px;
+  border: 1px solid #000;
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.company-logo {
+  max-width: 60px;
+  max-height: 50px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.invoice-details-box {
+  display: table-cell;
+  width: 50%;
+  vertical-align: top;
+  padding-left: 6px;
+  border: 1px solid #000;
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.section-title {
+  font-weight: bold;
+  margin-bottom: 3px;
+  font-size: 12px;
+  color: #000;
+}
+
+.seller-info {
+  font-size: 9px;
+  line-height: 1.2;
+  color: #000;
+}
+
+.buyer-section {
+  width: 100%;
+  border: 1px solid #000;
+  padding: 6px;
+  margin-bottom: 6px;
+  box-sizing: border-box;
+}
+
+.buyer-info-row {
+  display: table;
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+.buyer-label {
+  display: table-cell;
+  width: 120px;
+  font-weight: bold;
+  color: #000;
+}
+
+.buyer-value {
+  display: table-cell;
+  color: #000;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 6px;
+  page-break-inside: avoid;
+}
+
+.items-table th,
+.items-table td {
+  border: 1px solid #000;
+  padding: 3px;
+  text-align: left;
+  font-size: 8px;
+}
+
+.items-table th {
+  background-color: transparent;
+  font-weight: bold;
+  text-align: center;
+  color: #000;
+}
+
+.items-table td {
+  text-align: center;
+  color: #000;
+  background-color: transparent;
+}
+
+.items-table .description-cell {
+  text-align: left;
+  color: #000;
+  background-color: transparent;
+}
+
+.totals-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 15px;
+  background-color: transparent;
+}
+
+.totals-table tr {
+  color: #000 !important;
+  background-color: transparent;
+}
+
+.totals-table tr td {
+  color: #000 !important;
+  background-color: transparent;
+}
+
+.totals-table td {
+  border: 1px solid #000;
+  padding: 3px;
+  text-align: right;
+  font-size: 9px;
+  color: #000 !important;
+  background-color: transparent;
+}
+
+.totals-table .label-cell {
+  text-align: left;
+  font-weight: bold;
+  width: 150px;
+  color: #000 !important;
+  background-color: transparent;
+}
+
+.totals-table .grand-total {
+  font-weight: bold;
+  font-size: 10px;
+  color: #000 !important;
+  background-color: transparent;
+}
+
+.amount-in-words {
+  border: 1px solid #000;
+  padding: 4px;
+  margin-bottom: 4px;
+  font-size: 9px;
+  font-weight: bold;
+  color: #000;
+  background-color: transparent;
+}
+
+.bank-details {
+  border: 1px solid #000;
+  padding: 4px;
+  margin-bottom: 4px;
+  font-size: 9px;
+  color: #000;
+  background-color: transparent;
+}
+
+.bank-details strong {
+  display: inline-block;
+  width: 120px;
+  color: #000;
+}
+
+.invoice-footer {
+  width: 100%;
+  text-align: center;
+  font-size: 8px;
+  padding-top: 3px;
+  margin-top: 4px;
+  border-top: 1px solid #000;
+  color: #000;
+}
+
+.footer-line {
+  margin: 1px 0;
+  color: #000;
+}
+
+.authorized-signatory {
+  text-align: right;
+  margin-top: 6px;
+  font-weight: bold;
+  color: #000;
+}
+
+table,
+tr,
+td {
+  page-break-inside: avoid;
+}
+
+.loading,
+.error {
+  text-align: center;
+  padding: 40px;
+  font-size: 18px;
+}
+
+.error {
+  color: #dc2626;
+}
+
+/* -------------------------------------------------- */
+/* Mobile-friendly layout (screen only, not print)    */
+/* -------------------------------------------------- */
+@media screen and (max-width: 768px) {
+  .invoice-container {
+    max-width: 100%;
+    padding: 8px;
+    margin: 0;
+  }
+
+  .invoice-actions {
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .invoice-page {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: auto;
+    max-height: none;
+    padding: 8px;
+    box-sizing: border-box;
+    font-size: 11px;
+  }
+
+  .seller-buyer-section {
+    display: block;
+  }
+
+  .seller-box,
+  .invoice-details-box {
+    display: block;
+    width: 100%;
+    padding-right: 0;
+    padding-left: 0;
+    margin-bottom: 6px;
+  }
+
+  .company-logo {
+    max-width: 50px;
+    max-height: 40px;
+  }
+
+  .buyer-label {
+    width: 100px;
+  }
+
+  .items-table th,
+  .items-table td {
+    font-size: 9px;
+    padding: 4px 3px;
+  }
+
+  .totals-table td {
+    font-size: 9px;
+    padding: 4px 3px;
+  }
+
+  .amount-in-words,
+  .bank-details {
+    font-size: 9px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .invoice-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+    text-align: center;
+  }
+
+  .invoice-title {
+    font-size: 18px;
+  }
+
+  .buyer-label {
+    width: 90px;
+  }
+}
