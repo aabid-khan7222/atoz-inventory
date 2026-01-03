@@ -210,7 +210,13 @@ const checkExpiringGuaranteesDaily = async () => {
 const DAILY_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 setInterval(checkExpiringGuaranteesDaily, DAILY_INTERVAL);
 
+app.get("/", (req, res) => {
+  res.send("A TO Z Inventory Backend is running 🚀");
+});
+
+
 app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+  console.log(`Server running on port ${port}`);
+
   console.log(`Scheduled task: Checking for expiring guarantees daily`);
 });
