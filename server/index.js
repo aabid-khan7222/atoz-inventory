@@ -214,6 +214,13 @@ app.get("/", (req, res) => {
   res.send("A TO Z Inventory Backend is running 🚀");
 });
 
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    service: "A TO Z Inventory Backend",
+    time: new Date().toISOString()
+  });
+});
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
