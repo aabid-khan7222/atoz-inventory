@@ -59,7 +59,7 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/commission-agents', commissionAgentsRouter);
 app.use('/api/employees', employeesRouter);
 
-const port = process.env.PORT || 4000;
+const PORT = process.env.PORT || 4000;
 
 // Scheduled task to check for expiring guarantees daily
 // This runs every 24 hours (86400000 ms)
@@ -208,6 +208,7 @@ const checkExpiringGuaranteesDaily = async () => {
 // Schedule the check to run daily at midnight (or adjust interval as needed)
 // For testing, you can use a shorter interval like 60000 (1 minute)
 const DAILY_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+
 setInterval(checkExpiringGuaranteesDaily, DAILY_INTERVAL);
 
 app.get("/", (req, res) => {
@@ -222,8 +223,6 @@ app.get("/health", (req, res) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-
-  console.log(`Scheduled task: Checking for expiring guarantees daily`);
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
