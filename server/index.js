@@ -26,16 +26,30 @@ const employeesRouter = require('./routes/employees');
 
 const cors = require("cors");
 
-app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://atoz-inventory.vercel.app"
-  ],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://atoz-inventory.vercel.app",
+];
 
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // allow server-to-server, Postman, curl
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(null, true); // ❗ IMPORTANT (no hard block)
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// VERY IMPORTANT
 app.options("*", cors());
 
 
