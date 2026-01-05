@@ -26,27 +26,39 @@ const employeesRouter = require("./routes/employees");
 
 const app = express();
 
-/* =======================
-   CORS – FINAL & SAFE
-======================= */
+// =======================
+// 🔥 FINAL CORS FIX
+// =======================
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://atoz-inventory.vercel.app",
+];
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://atoz-inventory.vercel.app",
-    ],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // Postman / server calls
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("CORS blocked"));
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-/* =======================
-   Middlewares
-======================= */
+// ❌ YE LINE BILKUL NAHI HONI CHAHIYE
+// app.options("*", cors());
+
 app.use(express.json());
 
-/* =======================
-   Routes
-======================= */
+// =======================
+// ROUTES
+// =======================
 app.use("/api/products", productsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
@@ -68,6 +80,10 @@ app.use("/api/commission-agents", commissionAgentsRouter);
 app.use("/api/employees", employeesRouter);
 
 const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log("Server running on port", PORT);
+});
+
 
 
 // Scheduled task to check for expiring guarantees daily
