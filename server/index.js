@@ -24,20 +24,32 @@ const reportsRouter = require('./routes/reports');
 const commissionAgentsRouter = require('./routes/commissionAgents');
 const employeesRouter = require('./routes/employees');
 
-const app = express();
+const cors = require("cors");
 
-// middlewares
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://atoz-inventory.vercel.app"
+];
+
 app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (Postman, curl, mobile apps)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("CORS not allowed"), false);
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-app.use(express.json());
+app.options("*", cors());
 
-// simple test: server alive?
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true });
-});
+
 
 app.use('/api/products', productsRouter);
 app.use('/api/auth', authRouter);
