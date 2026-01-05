@@ -1,81 +1,74 @@
 // index.js
-// .env file load
-require('dotenv').config();
+require("dotenv").config();
 
-const express = require('express');
-const cors = require('cors');
-const productsRouter = require('./routes/products');
-const authRouter = require('./routes/auth');
-const adminRouter = require('./routes/admin');
-const usersRouter = require('./routes/users');
-const inventoryRouter = require('./routes/inventory');
-const dashboardRouter = require('./routes/dashboard');
-const salesRouter = require('./routes/sales');
-const adminSalesRouter = require('./routes/adminSales');
-const notificationsRouter = require('./routes/notifications');
-const salesTypesRouter = require('./routes/salesTypes');
-const purchasesRouter = require('./routes/purchases');
-const invoicesRouter = require('./routes/invoices');
-const guaranteeWarrantyRouter = require('./routes/guaranteeWarranty');
-const chargingServicesRouter = require('./routes/chargingServices');
-const serviceRequestsRouter = require('./routes/serviceRequests');
-const companyReturnsRouter = require('./routes/companyReturns');
-const reportsRouter = require('./routes/reports');
-const commissionAgentsRouter = require('./routes/commissionAgents');
-const employeesRouter = require('./routes/employees');
-
+const express = require("express");
 const cors = require("cors");
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://atoz-inventory.vercel.app",
-];
+const productsRouter = require("./routes/products");
+const authRouter = require("./routes/auth");
+const adminRouter = require("./routes/admin");
+const usersRouter = require("./routes/users");
+const inventoryRouter = require("./routes/inventory");
+const dashboardRouter = require("./routes/dashboard");
+const salesRouter = require("./routes/sales");
+const adminSalesRouter = require("./routes/adminSales");
+const notificationsRouter = require("./routes/notifications");
+const salesTypesRouter = require("./routes/salesTypes");
+const purchasesRouter = require("./routes/purchases");
+const invoicesRouter = require("./routes/invoices");
+const guaranteeWarrantyRouter = require("./routes/guaranteeWarranty");
+const chargingServicesRouter = require("./routes/chargingServices");
+const serviceRequestsRouter = require("./routes/serviceRequests");
+const companyReturnsRouter = require("./routes/companyReturns");
+const reportsRouter = require("./routes/reports");
+const commissionAgentsRouter = require("./routes/commissionAgents");
+const employeesRouter = require("./routes/employees");
 
+const app = express();
+
+/* =======================
+   CORS – FINAL & SAFE
+======================= */
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // allow server-to-server, Postman, curl
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(null, true); // ❗ IMPORTANT (no hard block)
-    },
+    origin: [
+      "http://localhost:5173",
+      "https://atoz-inventory.vercel.app",
+    ],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// VERY IMPORTANT
-app.options("*", cors());
+/* =======================
+   Middlewares
+======================= */
+app.use(express.json());
 
-
-
-
-app.use('/api/products', productsRouter);
-app.use('/api/auth', authRouter);
-app.use('/api/admin', adminRouter);
-app.use('/api/users', usersRouter);
-app.use('/api/inventory', inventoryRouter);
-app.use('/api/dashboard', dashboardRouter);
-app.use('/api/sales', salesRouter);
-app.use('/api/admin-sales', adminSalesRouter);
-app.use('/api/notifications', notificationsRouter);
-app.use('/api/sales-types', salesTypesRouter);
-app.use('/api/purchases', purchasesRouter);
-app.use('/api/invoices', invoicesRouter);
-app.use('/api/guarantee-warranty', guaranteeWarrantyRouter);
-app.use('/api/charging-services', chargingServicesRouter);
-app.use('/api/service-requests', serviceRequestsRouter);
-app.use('/api/company-returns', companyReturnsRouter);
-app.use('/api/reports', reportsRouter);
-app.use('/api/commission-agents', commissionAgentsRouter);
-app.use('/api/employees', employeesRouter);
+/* =======================
+   Routes
+======================= */
+app.use("/api/products", productsRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/admin", adminRouter);
+app.use("/api/users", usersRouter);
+app.use("/api/inventory", inventoryRouter);
+app.use("/api/dashboard", dashboardRouter);
+app.use("/api/sales", salesRouter);
+app.use("/api/admin-sales", adminSalesRouter);
+app.use("/api/notifications", notificationsRouter);
+app.use("/api/sales-types", salesTypesRouter);
+app.use("/api/purchases", purchasesRouter);
+app.use("/api/invoices", invoicesRouter);
+app.use("/api/guarantee-warranty", guaranteeWarrantyRouter);
+app.use("/api/charging-services", chargingServicesRouter);
+app.use("/api/service-requests", serviceRequestsRouter);
+app.use("/api/company-returns", companyReturnsRouter);
+app.use("/api/reports", reportsRouter);
+app.use("/api/commission-agents", commissionAgentsRouter);
+app.use("/api/employees", employeesRouter);
 
 const PORT = process.env.PORT || 4000;
+
 
 // Scheduled task to check for expiring guarantees daily
 // This runs every 24 hours (86400000 ms)
