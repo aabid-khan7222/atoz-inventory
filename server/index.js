@@ -54,7 +54,24 @@ app.use(cors({
   credentials: true
 }));
 
-/* ================== ROUTES ================== */
+/* ================== ROOT ROUTES (Must be first) ================== */
+app.get("/", (req, res) => {
+  res.send("A TO Z Inventory Backend is running 🚀");
+});
+
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    service: "A TO Z Inventory Backend",
+    time: new Date().toISOString()
+  });
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({ ok: true, status: "OK", service: "A TO Z Inventory Backend" });
+});
+
+/* ================== API ROUTES ================== */
 app.use("/api/products", productsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
@@ -75,10 +92,6 @@ app.use("/api/reports", reportsRouter);
 app.use("/api/commission-agents", commissionAgentsRouter);
 app.use("/api/employees", employeesRouter);
 
-/* ================== HEALTH ================== */
-app.get("/api/health", (req, res) => {
-  res.json({ ok: true });
-});
 
 
 
@@ -238,15 +251,28 @@ const DAILY_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 setInterval(checkExpiringGuaranteesDaily, DAILY_INTERVAL);
 console.log("Scheduled task: Checking for expiring guarantees daily");
 
-app.get("/", (req, res) => {
-  res.send("A TO Z Inventory Backend is running 🚀");
+/* ================== 404 HANDLER ================== */
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Not Found",
+    message: `Route ${req.method} ${req.path} not found`,
+    availableRoutes: [
+      "GET /",
+      "GET /health",
+      "GET /api/health",
+      "GET /api/products",
+      "POST /api/auth/login",
+      "GET /api/dashboard/overview"
+    ]
+  });
 });
 
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "OK",
-    service: "A TO Z Inventory Backend",
-    time: new Date().toISOString()
+/* ================== ERROR HANDLER ================== */
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || "Internal Server Error",
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
   });
 });
 
