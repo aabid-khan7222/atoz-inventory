@@ -34,34 +34,86 @@ router.post("/login", async (req, res) => {
     const trimmedEmail = (email || "").trim().toLowerCase();
 
     // NOTE: yaha roles join kiya hai taaki role_name bhi mil jaye
-    const query = `
-      SELECT 
-        u.id,
-        u.full_name,
-        u.email,
-        u.password,
-        u.role_id,
-        u.is_active,
-        r.role_name
-      FROM users u
-      JOIN roles r ON u.role_id = r.id
-      WHERE LOWER(u.email) = $1
-      LIMIT 1;
-    `;
-    const result = await db.query(query, [trimmedEmail]);
-
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: "Invalid email or password" });
+    // Try with JOIN first, fallback to simple query if roles table doesn't exist
+    let result;
+    let user;
+    
+    try {
+      const query = `
+        SELECT 
+          u.id,
+          u.full_name,
+          u.email,
+          u.password,
+          u.role_id,
+          u.is_active,
+          r.role_name
+        FROM users u
+        JOIN roles r ON u.role_id = r.id
+        WHERE LOWER(u.email) = $1
+        LIMIT 1;
+      `;
+      result = await db.query(query, [trimmedEmail]);
+      
+      if (result.rows.length === 0) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+      
+      user = result.rows[0];
+    } catch (dbError) {
+      // If JOIN fails (roles table might not exist), try without JOIN
+      console.warn("Login: Roles JOIN failed, trying without JOIN:", dbError.message);
+      try {
+        const simpleQuery = `
+          SELECT 
+            id,
+            full_name,
+            email,
+            password,
+            role_id,
+            is_active
+          FROM users
+          WHERE LOWER(email) = $1
+          LIMIT 1;
+        `;
+        result = await db.query(simpleQuery, [trimmedEmail]);
+        
+        if (result.rows.length === 0) {
+          return res.status(401).json({ error: "Invalid email or password" });
+        }
+        
+        user = result.rows[0];
+        // Set default role_name if not available
+        user.role_name = user.role_id === 1 ? 'Super Admin' : user.role_id === 2 ? 'Admin' : 'Customer';
+      } catch (simpleError) {
+        console.error("Login: Database query failed:", simpleError);
+        return res.status(500).json({ 
+          error: "Database error", 
+          details: process.env.NODE_ENV === 'production' ? undefined : simpleError.message 
+        });
+      }
     }
 
-    const user = result.rows[0];
-
     const storedPassword = (user.password || "").trim();
+    
+    if (!storedPassword) {
+      console.error("Login: User found but password field is empty for email:", trimmedEmail);
+      return res.status(500).json({ error: "Account configuration error" });
+    }
+    
     let isMatch = false;
 
     // plain + bcrypt dono support
     if (storedPassword.startsWith("$2")) {
-      isMatch = await bcrypt.compare(password, storedPassword);
+      try {
+        isMatch = await bcrypt.compare(password, storedPassword);
+      } catch (bcryptError) {
+        console.error("Login: bcrypt.compare failed:", bcryptError);
+        return res.status(500).json({ 
+          error: "Password verification error",
+          details: process.env.NODE_ENV === 'production' ? undefined : bcryptError.message
+        });
+      }
     } else {
       isMatch = storedPassword === password;
     }
@@ -142,7 +194,25 @@ router.post("/login", async (req, res) => {
       } : {}),
     };
 
-    const token = signAuthToken(payload);
+    // Verify JWT_SECRET is set
+    if (!process.env.JWT_SECRET) {
+      console.error("Login: JWT_SECRET is not set in environment variables");
+      return res.status(500).json({ 
+        error: "Server configuration error",
+        details: process.env.NODE_ENV === 'production' ? undefined : "JWT_SECRET missing"
+      });
+    }
+
+    let token;
+    try {
+      token = signAuthToken(payload);
+    } catch (jwtError) {
+      console.error("Login: JWT token generation failed:", jwtError);
+      return res.status(500).json({ 
+        error: "Token generation error",
+        details: process.env.NODE_ENV === 'production' ? undefined : jwtError.message
+      });
+    }
 
     // safeUser me password nahi bhej rahe
     const safeUser = payload;
@@ -153,7 +223,16 @@ router.post("/login", async (req, res) => {
     });
   } catch (err) {
     console.error("POST /api/auth/login error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    console.error("Error stack:", err.stack);
+    console.error("Error details:", {
+      message: err.message,
+      code: err.code,
+      name: err.name
+    });
+    return res.status(500).json({ 
+      error: "Internal server error",
+      details: process.env.NODE_ENV === 'production' ? undefined : err.message
+    });
   }
 });
 

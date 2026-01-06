@@ -7,15 +7,27 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 
 // Create JWT from a user row
 function signAuthToken(user) {
+  // Ensure JWT_SECRET is set
+  if (!JWT_SECRET || JWT_SECRET === "dev-secret-change-me") {
+    console.warn("WARNING: JWT_SECRET is using default value. Set JWT_SECRET in environment variables for production!");
+  }
+
   const payload = {
     id: user.id,
     full_name: user.full_name,
     email: user.email,
     // force number so role checks are reliable
     role_id: Number(user.role_id) || 3,
+    // Include role_name if available
+    ...(user.role_name && { role_name: user.role_name }),
   };
 
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  try {
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  } catch (error) {
+    console.error("signAuthToken error:", error);
+    throw new Error("Failed to generate authentication token");
+  }
 }
 
 // Try to attach user if a token is present. Does not block unauthenticated requests.
