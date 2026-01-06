@@ -512,7 +512,7 @@ const ProductManagement = () => {
         // Purchase fields (for stock creation)
         purchase_value: qty > 0 ? purchaseValue : null,
         discount_amount: qty > 0 ? purchaseDiscountAmount : null,
-        discount_percent: qty > 0 ? purchaseDiscountPercent : null
+        purchase_discount_percent: qty > 0 ? purchaseDiscountPercent : null
       };
 
       console.log('Creating product with data:', productData);

@@ -26,39 +26,31 @@ const employeesRouter = require("./routes/employees");
 
 const app = express();
 
-// =======================
-// 🔥 FINAL CORS FIX
-// =======================
+/* ================== MUST BE FIRST ================== */
+app.use(express.json());
+
 const allowedOrigins = [
   "http://localhost:5173",
   "https://atoz-inventory.vercel.app",
 ];
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // Postman / server calls
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // render / curl / postman
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("CORS blocked"), false);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+app.use(cors(corsOptions));
+/* ================== CORS END ================== */
 
-      return callback(new Error("CORS blocked"));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
-
-// ❌ YE LINE BILKUL NAHI HONI CHAHIYE
-// app.options("*", cors());
-
-app.use(express.json());
-
-// =======================
-// ROUTES
-// =======================
+/* ================== ROUTES ================== */
 app.use("/api/products", productsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
@@ -79,10 +71,13 @@ app.use("/api/reports", reportsRouter);
 app.use("/api/commission-agents", commissionAgentsRouter);
 app.use("/api/employees", employeesRouter);
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+/* ================== HEALTH ================== */
+app.get("/api/health", (req, res) => {
+  res.json({ ok: true });
 });
+
+
+
 
 
 
@@ -248,6 +243,7 @@ app.get("/health", (req, res) => {
   });
 });
 
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
