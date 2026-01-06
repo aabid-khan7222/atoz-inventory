@@ -494,60 +494,72 @@ const ProductManagement = () => {
         // Single MRP
         mrp: mrp,
         // B2C Pricing
-        selling_price: finalB2cSellingPrice,
-        discount_percent: finalB2cDiscountPercent,
-        discount: finalB2cDiscountAmount,
-        // B2B Pricing
-        b2b_selling_price: finalB2bSellingPrice,
-        b2b_discount_percent: finalB2bDiscountPercent,
-        b2b_discount: finalB2bDiscountAmount,
-        ah_va: newProduct.ah_va.trim() || null,
-        warranty: newProduct.warranty.trim() || null,
-        qty: qty,
-        purchase_date: qty > 0 ? newProduct.purchase_date : null,
-        purchased_from: qty > 0 ? (newProduct.purchased_from.trim() || null) : null,
-        serial_numbers: qty > 0 && Array.isArray(newProduct.serial_numbers) && newProduct.serial_numbers.length === qty 
-          ? newProduct.serial_numbers.filter(sn => sn.trim() !== '')
-          : [],
-        // Purchase fields (for stock creation)
-        purchase_value: qty > 0 ? purchaseValue : null,
-        discount_amount: qty > 0 ? purchaseDiscountAmount : null,
-        purchase_discount_percent: qty > 0 ? purchaseDiscountPercent : null
-      };
+selling_price: finalB2cSellingPrice,
+discount_percent: finalB2cDiscountPercent,
+discount: finalB2cDiscountAmount,
 
-      console.log('Creating product with data:', productData);
-      console.log('User role:', user?.role_id, 'Token exists:', !!authToken);
-      
-      await api.createProduct(productData);
-      
-      // Close modal first
-      setShowAddProductModal(false);
-      
-      // Clear saved state after successful submission
-      sessionStorage.removeItem('productManagementState');
-      
-      // Reset form
-      setNewProduct({
-        sku: '',
-        name: '',
-        series: '',
-        mrp: '',
-        b2c_sellingPrice: '',
-        b2c_discountPercent: '0',
-        b2c_discountAmount: '0',
-        b2b_sellingPrice: '',
-        b2b_discountPercent: '0',
-        b2b_discountAmount: '0',
-        ah_va: '',
-        warranty: '',
-        qty: '0',
-        purchase_date: new Date().toISOString().split('T')[0],
-        purchased_from: '',
-        serial_numbers: []
-      });
-      
-      // Refresh products list
-      await fetchProducts();
+// B2B Pricing
+b2b_selling_price: finalB2bSellingPrice,
+b2b_discount_percent: finalB2bDiscountPercent,
+b2b_discount: finalB2bDiscountAmount,
+
+ah_va: newProduct.ah_va.trim() || null,
+warranty: newProduct.warranty.trim() || null,
+qty: qty,
+
+purchase_date: qty > 0 ? newProduct.purchase_date : null,
+purchased_from:
+  qty > 0
+    ? (newProduct.purchased_from.trim() || null)
+    : null,
+
+serial_numbers:
+  qty > 0 &&
+  Array.isArray(newProduct.serial_numbers) &&
+  newProduct.serial_numbers.length === qty
+    ? newProduct.serial_numbers.filter(sn => sn.trim() !== '')
+    : [],
+
+// Purchase fields (for stock creation)
+purchase_value: qty > 0 ? purchaseValue : null,
+discount_amount: qty > 0 ? purchaseDiscountAmount : null,
+purchase_discount_percent: qty > 0 ? purchaseDiscountPercent : null
+};
+
+console.log('Creating product with data:', productData);
+console.log('User role:', user?.role_id, 'Token exists:', !!authToken);
+
+await api.createProduct(productData);
+
+// Close modal first
+setShowAddProductModal(false);
+
+// Clear saved state after successful submission
+sessionStorage.removeItem('productManagementState');
+
+// Reset form
+setNewProduct({
+  sku: '',
+  name: '',
+  series: '',
+  mrp: '',
+  b2c_sellingPrice: '',
+  b2c_discountPercent: '0',
+  b2c_discountAmount: '0',
+  b2b_sellingPrice: '',
+  b2b_discountPercent: '0',
+  b2b_discountAmount: '0',
+  ah_va: '',
+  warranty: '',
+  qty: '0',
+  purchase_date: new Date().toISOString().split('T')[0],
+  purchased_from: '',
+  serial_numbers: []
+});
+
+// Refresh products list
+await fetchProducts();
+
       
       // Show success message
       setError('');
