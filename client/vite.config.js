@@ -15,5 +15,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false, // Disable sourcemaps in production for smaller builds
+    // Ensure public assets are copied correctly
+    copyPublicDir: true,
   },
+  // Base path - empty for root deployment
+  base: '/',
 })
