@@ -1,27 +1,36 @@
-// db.js
-// .env file se variables load karo
-require('dotenv').config();
+// server/db.js
+// env file se variables load karo
+require("dotenv").config();
 
 // pg se Pool class lo
-const { Pool } = require('pg');
+const { Pool } = require("pg");
 
-// PostgreSQL se connection banao
-// Render PostgreSQL requires SSL connections in production
+// Base config
 const poolConfig = {
   connectionString: process.env.DATABASE_URL,
 };
 
-// Enable SSL for production (Render, Railway, etc.)
-// In development, SSL is optional
-if (process.env.NODE_ENV === 'production' || process.env.DATABASE_URL?.includes('render.com') || process.env.DATABASE_URL?.includes('railway.app')) {
+// ✅ Render / Railway / Production PostgreSQL requires SSL
+if (process.env.NODE_ENV === "production") {
   poolConfig.ssl = {
-    rejectUnauthorized: false // Required for Render/Railway PostgreSQL
+    rejectUnauthorized: false,
   };
 }
 
+// Create pool
 const pool = new Pool(poolConfig);
 
-// helper: db.query(sql, params) use karenge
+// Optional: test connection once (helps debugging)
+pool.on("connect", () => {
+  console.log("✅ PostgreSQL connected successfully");
+});
+
+pool.on("error", (err) => {
+  console.error("❌ PostgreSQL pool error", err);
+  process.exit(1);
+});
+
+// helper: db.query(sql, params)
 module.exports = {
   query: (text, params) => pool.query(text, params),
   pool,
