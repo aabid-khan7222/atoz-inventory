@@ -26,29 +26,33 @@ const employeesRouter = require("./routes/employees");
 
 const app = express();
 
-/* ================== MUST BE FIRST ================== */
 app.use(express.json());
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://atoz-inventory.vercel.app",
-];
+// CORS configuration - supports both localhost and production
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+  : ["http://localhost:5173", "http://localhost:3000"];
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // render / curl / postman
-    if (allowedOrigins.includes(origin)) {
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // In development, allow localhost
+    if (process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
-    return callback(new Error("CORS blocked"), false);
+    
+    // In production, check against allowed origins
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
   },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
-
-app.use(cors(corsOptions));
-/* ================== CORS END ================== */
+  credentials: true
+}));
 
 /* ================== ROUTES ================== */
 app.use("/api/products", productsRouter);
@@ -223,6 +227,8 @@ const checkExpiringGuaranteesDaily = async () => {
 };
 
 // Run the check immediately on server start (optional, can be removed if desired)
+// Currently commented out because the scheduled task (setInterval below) handles this automatically
+// Uncomment this line if you want to run the check immediately on server startup in addition to the scheduled runs
 // checkExpiringGuaranteesDaily();
 
 // Schedule the check to run daily at midnight (or adjust interval as needed)
@@ -230,6 +236,7 @@ const checkExpiringGuaranteesDaily = async () => {
 const DAILY_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 
 setInterval(checkExpiringGuaranteesDaily, DAILY_INTERVAL);
+console.log("Scheduled task: Checking for expiring guarantees daily");
 
 app.get("/", (req, res) => {
   res.send("A TO Z Inventory Backend is running 🚀");
@@ -245,5 +252,5 @@ app.get("/health", (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

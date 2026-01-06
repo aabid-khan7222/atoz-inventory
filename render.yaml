@@ -1,0 +1,37 @@
+services:
+  # Backend Service
+  - type: web
+    name: atoz-inventory-backend
+    env: node
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        sync: false  # Set this in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true  # Auto-generate secure secret
+      - key: ALLOWED_ORIGINS
+        sync: false  # Set this after frontend is deployed (e.g., https://your-frontend.onrender.com)
+    
+  # Frontend Service
+  - type: web
+    name: atoz-inventory-frontend
+    env: static
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: ./client/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false  # Set this to your backend URL (e.g., https://atoz-inventory-backend.onrender.com/api)
+
+  # PostgreSQL Database
+  - type: pspg
+    name: atoz-inventory-db
+    plan: free
+    databaseName: atoz_inventory
+    user: atoz_user
+

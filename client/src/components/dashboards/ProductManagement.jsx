@@ -494,37 +494,26 @@ const ProductManagement = () => {
         // Single MRP
         mrp: mrp,
         // B2C Pricing
-selling_price: finalB2cSellingPrice,
-discount_percent: finalB2cDiscountPercent,
-discount: finalB2cDiscountAmount,
-
-// B2B Pricing
-b2b_selling_price: finalB2bSellingPrice,
-b2b_discount_percent: finalB2bDiscountPercent,
-b2b_discount: finalB2bDiscountAmount,
-
-ah_va: newProduct.ah_va.trim() || null,
-warranty: newProduct.warranty.trim() || null,
-qty: qty,
-
-purchase_date: qty > 0 ? newProduct.purchase_date : null,
-purchased_from:
-  qty > 0
-    ? (newProduct.purchased_from.trim() || null)
-    : null,
-
-serial_numbers:
-  qty > 0 &&
-  Array.isArray(newProduct.serial_numbers) &&
-  newProduct.serial_numbers.length === qty
-    ? newProduct.serial_numbers.filter(sn => sn.trim() !== '')
-    : [],
-
-// Purchase fields (for stock creation)
-purchase_value: qty > 0 ? purchaseValue : null,
-discount_amount: qty > 0 ? purchaseDiscountAmount : null,
-purchase_discount_percent: qty > 0 ? purchaseDiscountPercent : null
-};
+        selling_price: finalB2cSellingPrice,
+        discount_percent: finalB2cDiscountPercent,
+        discount: finalB2cDiscountAmount,
+        // B2B Pricing
+        b2b_selling_price: finalB2bSellingPrice,
+        b2b_discount_percent: finalB2bDiscountPercent,
+        b2b_discount: finalB2bDiscountAmount,
+        ah_va: newProduct.ah_va.trim() || null,
+        warranty: newProduct.warranty.trim() || null,
+        qty: qty,
+        purchase_date: qty > 0 ? newProduct.purchase_date : null,
+        purchased_from: qty > 0 ? (newProduct.purchased_from.trim() || null) : null,
+        serial_numbers: qty > 0 && Array.isArray(newProduct.serial_numbers) && newProduct.serial_numbers.length === qty 
+          ? newProduct.serial_numbers.filter(sn => sn.trim() !== '')
+          : [],
+        // Purchase fields (for stock creation)
+        purchase_value: qty > 0 ? purchaseValue : null,
+        purchase_discount_amount: qty > 0 ? purchaseDiscountAmount : null,
+        purchase_discount_percent: qty > 0 ? purchaseDiscountPercent : null
+      };
 
 console.log('Creating product with data:', productData);
 console.log('User role:', user?.role_id, 'Token exists:', !!authToken);
