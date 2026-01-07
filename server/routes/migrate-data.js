@@ -149,46 +149,20 @@ router.post("/migrate-data", async (req, res) => {
       let skipped = 0;
       const errors = [];
       
+      // Build SKU to product_id mapping first (to avoid foreign key errors)
+      console.log(`🔍 Building product SKU to ID mapping...`);
+      const productMap = {};
+      const productResult = await client.query('SELECT id, sku FROM products');
+      productResult.rows.forEach(row => {
+        productMap[row.sku] = row.id;
+      });
+      console.log(`✅ Mapped ${Object.keys(productMap).length} products`);
+      
       for (const sale of data.sales_item) {
+        // Use SAVEPOINT to handle errors per record without aborting entire transaction
+        const savepointName = `sp_sale_${inserted + skipped}`;
         try {
-          // First, ensure sales_id exists (create if not exists)
-          let salesIdValue = sale.sales_id;
-          if (sale.invoice_number && sale.sales_id) {
-            // Check if sales_id record exists
-            const salesIdCheck = await client.query(
-              'SELECT id FROM sales_id WHERE id = $1 OR invoice_number = $2',
-              [sale.sales_id, sale.invoice_number]
-            );
-            
-            if (salesIdCheck.rows.length === 0 && sale.invoice_number) {
-              // Create sales_id record
-              const salesIdResult = await client.query(`
-                INSERT INTO sales_id (
-                  invoice_number, customer_id, customer_name, customer_mobile_number,
-                  customer_vehicle_number, sales_type, sales_type_id, created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                ON CONFLICT (invoice_number) DO UPDATE SET id = sales_id.id
-                RETURNING id
-              `, [
-                sale.invoice_number, sale.customer_id || null, sale.customer_name, sale.customer_mobile_number,
-                sale.customer_vehicle_number || null, sale.sales_type || 'retail', sale.sales_type_id || 1,
-                sale.created_at || new Date(), sale.updated_at || new Date()
-              ]);
-              salesIdValue = salesIdResult.rows[0]?.id || sale.sales_id;
-            } else if (salesIdCheck.rows.length > 0) {
-              salesIdValue = salesIdCheck.rows[0].id;
-            }
-          }
-          
-          // Find product_id by SKU if product_id is missing (handle both uppercase and lowercase)
-          let productIdValue = sale.product_id;
-          const skuValue = sale.SKU || sale.sku;
-          if (!productIdValue && skuValue) {
-            const productCheck = await client.query('SELECT id FROM products WHERE sku = $1', [skuValue]);
-            if (productCheck.rows.length > 0) {
-              productIdValue = productCheck.rows[0].id;
-            }
-          }
+          await client.query(`SAVEPOINT ${savepointName}`);
           
           // Handle both uppercase and lowercase field names from export
           const sku = sale.SKU || sale.sku;
@@ -200,6 +174,47 @@ router.post("/migrate-data", async (req, res) => {
           const warranty = sale.WARRANTY || sale.warranty;
           const serialNumber = sale.SERIAL_NUMBER || sale.serial_number;
           const mrp = sale.MRP || sale.mrp;
+          
+          // Find product_id by SKU (ALWAYS use SKU, ignore old product_id)
+          let productIdValue = null;
+          if (sku && productMap[sku]) {
+            productIdValue = productMap[sku];
+          } else if (sku) {
+            // Try case-insensitive match
+            const foundSku = Object.keys(productMap).find(p => p.toLowerCase() === sku.toLowerCase());
+            if (foundSku) {
+              productIdValue = productMap[foundSku];
+            }
+          }
+          
+          // First, ensure sales_id exists (create if not exists)
+          let salesIdValue = sale.sales_id;
+          if (sale.invoice_number) {
+            // Check if sales_id record exists
+            const salesIdCheck = await client.query(
+              'SELECT id FROM sales_id WHERE invoice_number = $1',
+              [sale.invoice_number]
+            );
+            
+            if (salesIdCheck.rows.length === 0) {
+              // Create sales_id record
+              const salesIdResult = await client.query(`
+                INSERT INTO sales_id (
+                  invoice_number, customer_id, customer_name, customer_mobile_number,
+                  customer_vehicle_number, sales_type, sales_type_id, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (invoice_number) DO UPDATE SET id = sales_id.id
+                RETURNING id
+              `, [
+                sale.invoice_number, sale.customer_id || null, sale.customer_name, sale.customer_mobile_number || null,
+                sale.customer_vehicle_number || null, sale.sales_type || 'retail', sale.sales_type_id || 1,
+                sale.created_at || new Date(), sale.updated_at || new Date()
+              ]);
+              salesIdValue = salesIdResult.rows[0]?.id || null;
+            } else {
+              salesIdValue = salesIdCheck.rows[0].id;
+            }
+          }
           
           const result = await client.query(`
             INSERT INTO sales_item (
@@ -215,9 +230,11 @@ router.post("/migrate-data", async (req, res) => {
             sale.customer_vehicle_number || null, sale.sales_type || 'retail', sale.sales_type_id || 1, salesIdValue || null,
             sale.purchase_date || new Date(), sku, series || null, category || null, name, ahVa || null, parseInt(quantity) || 1,
             warranty || null, serialNumber || `SN-${Date.now()}-${Math.random()}`, parseFloat(mrp) || 0, parseFloat(sale.discount_amount) || 0, parseFloat(sale.tax) || 0, parseFloat(sale.final_amount) || 0,
-            sale.payment_method || 'cash', sale.payment_status || 'paid', productIdValue || null, sale.old_battery_trade_in || false,
+            sale.payment_method || 'cash', sale.payment_status || 'paid', productIdValue, sale.old_battery_trade_in || false,
             sale.created_at || new Date(), sale.updated_at || new Date()
           ]);
+          
+          await client.query(`RELEASE SAVEPOINT ${savepointName}`);
           
           if (result.rowCount > 0) {
             inserted++;
@@ -225,8 +242,9 @@ router.post("/migrate-data", async (req, res) => {
             skipped++;
           }
         } catch (err) {
-          console.error(`Error inserting sale ${sale.invoice_number || sale.SKU}:`, err.message);
-          errors.push(`${sale.invoice_number || sale.SKU}: ${err.message}`);
+          await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
+          console.error(`Error inserting sale ${sale.invoice_number || sku}:`, err.message);
+          errors.push(`${sale.invoice_number || sku}: ${err.message}`);
           skipped++;
         }
       }
