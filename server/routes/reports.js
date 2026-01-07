@@ -229,7 +229,7 @@ router.get('/sales/category', requireAuth, requireSuperAdminOrAdmin, async (req,
         SUM(si.final_amount) as total_revenue,
         SUM(si.MRP) as total_mrp,
         SUM(si.discount_amount) as total_discount,
-        ${await buildCommissionSelect()},
+        COALESCE(SUM(CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sales_item' AND column_name = 'commission_amount') THEN si.commission_amount ELSE 0 END), 0) as total_commission,
         SUM(si.tax) as total_tax,
         AVG(si.final_amount) as avg_sale_amount
       FROM sales_item si
