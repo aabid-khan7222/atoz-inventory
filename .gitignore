@@ -5,6 +5,7 @@ server/node_modules/
 
 # Environment variables
 .env
+<<<<<<< HEAD
 .env.local
 .env.development.local
 .env.test.local
@@ -44,3 +45,14 @@ coverage/
 # Misc
 *.pem
 .cache/
+=======
+.env.*
+dist
+
+node_modules
+server/node_modules
+client/node_modules
+.env
+.env.*
+
+>>>>>>> 3a123e4 (fix: SPA routing issues (login 404, base href, router navigation))
