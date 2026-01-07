@@ -48,6 +48,11 @@ app.use(cors({
     // In production, check against allowed origins
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
+    } 
+    // Allow localhost origins for data migration (temporary)
+    else if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:') || origin.startsWith('file://')) {
+      console.log(`Allowing migration from: ${origin}`);
+      callback(null, true);
     } else {
       console.warn(`CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
