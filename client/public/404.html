@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting...</title>
+  <script>
+    // Redirect to index.html for SPA routing
+    // This handles all 404s and lets React Router handle routing
+    window.location.replace('/');
+  </script>
+</head>
+<body>
+  <p>Redirecting...</p>
+  <script>
+    // Fallback if JavaScript is disabled
+    setTimeout(function() {
+      window.location.href = '/';
+    }, 100);
+  </script>
+</body>
+</html>
+

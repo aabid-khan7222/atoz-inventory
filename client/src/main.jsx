@@ -1,7 +1,7 @@
 // client/src/main.jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { HashRouter } from "react-router-dom";
 
 import App from "./App.jsx";
 import { AuthProvider } from "./contexts/AuthContext.jsx";
@@ -11,15 +11,17 @@ import { CartProvider } from "./contexts/CartContext.jsx";
 import "./index.css";
 import "sweetalert2/dist/sweetalert2.min.css";
 
+// Use HashRouter instead of BrowserRouter for Render Static Site compatibility
+// HashRouter uses # in URLs (e.g., /#/login) which doesn't require server-side routing
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
           <CartProvider>
-          <BrowserRouter>
+          <HashRouter>
             <App />
-          </BrowserRouter>
+          </HashRouter>
           </CartProvider>
         </AuthProvider>
       </LanguageProvider>
