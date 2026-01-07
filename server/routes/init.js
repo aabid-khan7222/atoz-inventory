@@ -8,11 +8,21 @@ const router = express.Router();
 
 router.post("/init", async (req, res) => {
   const client = await db.pool.connect();
+  const fs = require('fs');
+  const path = require('path');
   
   try {
-    console.log("🚀 Starting database initialization...");
+    console.log("🚀 Starting complete database initialization...");
     
-    // Create roles table
+    // Read and execute comprehensive base tables migration
+    const baseTablesPath = path.join(__dirname, '../migrations/000_create_all_base_tables.sql');
+    const baseTablesSQL = fs.readFileSync(baseTablesPath, 'utf8');
+    
+    console.log("📋 Creating all base tables...");
+    await client.query(baseTablesSQL);
+    console.log("✅ All base tables created");
+    
+    // Create roles table (if not already created)
     await client.query(`
       CREATE TABLE IF NOT EXISTS roles (
         id SERIAL PRIMARY KEY,
@@ -29,9 +39,9 @@ router.post("/init", async (req, res) => {
         (3, 'Customer')
       ON CONFLICT (id) DO NOTHING;
     `);
-    console.log("✅ Roles table created");
+    console.log("✅ Roles table ready");
     
-    // Create users table
+    // Create users table (if not already created)
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -60,9 +70,9 @@ router.post("/init", async (req, res) => {
       CREATE INDEX IF NOT EXISTS idx_users_role_id ON users(role_id);
       CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
     `);
-    console.log("✅ Users table created");
+    console.log("✅ Users table ready");
     
-    // Create customer_profiles table
+    // Create customer_profiles table (if not already created)
     await client.query(`
       CREATE TABLE IF NOT EXISTS customer_profiles (
         user_id INTEGER PRIMARY KEY,
@@ -82,7 +92,7 @@ router.post("/init", async (req, res) => {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
     `);
-    console.log("✅ Customer profiles table created");
+    console.log("✅ Customer profiles table ready");
     
     // Check if admin exists
     const adminCheck = await client.query(
@@ -101,25 +111,32 @@ router.post("/init", async (req, res) => {
       console.log("ℹ️  Admin user already exists");
     }
     
-    await client.query("COMMIT");
-    
     res.json({
       success: true,
-      message: "Database initialized successfully",
+      message: "Complete database initialized successfully! All tables created.",
       admin: {
         email: "admin@atozinventory.com",
         password: "admin123",
         note: "Please change password after first login"
-      }
+      },
+      tablesCreated: [
+        "roles", "users", "customer_profiles",
+        "product_type", "products", "stock",
+        "sales_types", "sales_id", "sales_item",
+        "purchases", "notifications",
+        "charging_services", "service_requests", "company_returns",
+        "warranty_slabs", "battery_replacements", "stock_history",
+        "employees", "commission_agents", "daily_attendance"
+      ]
     });
     
   } catch (error) {
-    await client.query("ROLLBACK");
     console.error("❌ Initialization failed:", error);
     res.status(500).json({
       success: false,
       error: "Database initialization failed",
-      details: process.env.NODE_ENV === 'production' ? undefined : error.message
+      details: process.env.NODE_ENV === 'production' ? undefined : error.message,
+      stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
     });
   } finally {
     client.release();
