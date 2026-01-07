@@ -1026,20 +1026,40 @@ router.get('/sales-items', requireAuth, requireSuperAdminOrAdmin, async (req, re
     query += ` ORDER BY si.created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(parseInt(limit), offset);
 
-    console.log('Executing sales items query:', query.substring(0, 200));
-    console.log('Query params:', params);
+    console.log('📊 Executing sales items query');
+    console.log('Query:', query);
+    console.log('Params:', params);
+    console.log('Has commission_agents:', hasCommissionAgents);
     
-    const result = await db.query(query, params);
-    console.log(`✅ Fetched ${result.rows.length} sales items`);
-    res.json(result.rows);
+    try {
+      const result = await db.query(query, params);
+      console.log(`✅ Fetched ${result.rows.length} sales items`);
+      res.json(result.rows);
+    } catch (queryErr) {
+      console.error('❌ Query execution failed:', queryErr);
+      console.error('Query:', query);
+      console.error('Params:', params);
+      throw queryErr; // Re-throw to be caught by outer catch
+    }
   } catch (err) {
-    console.error('Error fetching sales items:', err);
+    console.error('❌ Error fetching sales items:', err);
     console.error('Error details:', {
       message: err.message,
       code: err.code,
       detail: err.detail,
       hint: err.hint,
-      stack: err.stack
+      position: err.position,
+      internalPosition: err.internalPosition,
+      internalQuery: err.internalQuery,
+      where: err.where,
+      schema: err.schema,
+      table: err.table,
+      column: err.column,
+      dataType: err.dataType,
+      constraint: err.constraint,
+      file: err.file,
+      line: err.line,
+      routine: err.routine
     });
     res.status(500).json({ 
       error: 'Failed to fetch sales items',
