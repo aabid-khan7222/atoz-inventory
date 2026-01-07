@@ -221,10 +221,19 @@ router.post("/migrate-data", async (req, res) => {
       console.log(`✅ Users: ${inserted} inserted, ${skipped} skipped`);
     }
     
+    // Log detailed results
+    console.log("📊 Migration Summary:", JSON.stringify(results, null, 2));
+    
     res.json({
       success: true,
       message: "Data migration completed successfully!",
-      results
+      results,
+      summary: {
+        totalTables: Object.keys(results).length,
+        totalInserted: Object.values(results).reduce((sum, r) => sum + (r.inserted || 0), 0),
+        totalSkipped: Object.values(results).reduce((sum, r) => sum + (r.skipped || 0), 0),
+        totalRecords: Object.values(results).reduce((sum, r) => sum + (r.total || 0), 0)
+      }
     });
     
   } catch (error) {
