@@ -938,7 +938,7 @@ router.get('/sales-items', requireAuth, requireSuperAdminOrAdmin, async (req, re
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const productTypeId = category && category !== 'all' ? getProductTypeId(category) : null;
 
-    // Check if commission_agents table exists
+    // Check if commission_agents table exists AND sales_item has commission_agent_id column
     let hasCommissionAgents = false;
     try {
       const tableCheck = await db.query(`
@@ -948,9 +948,22 @@ router.get('/sales-items', requireAuth, requireSuperAdminOrAdmin, async (req, re
           AND table_name = 'commission_agents'
         )
       `);
-      hasCommissionAgents = tableCheck.rows[0]?.exists || false;
+      const tableExists = tableCheck.rows[0]?.exists || false;
+      
+      // Also check if sales_item table has commission_agent_id column
+      if (tableExists) {
+        const columnCheck = await db.query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = 'sales_item'
+            AND column_name = 'commission_agent_id'
+          )
+        `);
+        hasCommissionAgents = columnCheck.rows[0]?.exists || false;
+      }
     } catch (checkErr) {
-      console.warn('Could not check commission_agents table:', checkErr.message);
+      console.warn('Could not check commission_agents table/column:', checkErr.message);
     }
 
     let query = `
