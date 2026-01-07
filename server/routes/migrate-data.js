@@ -11,9 +11,13 @@ router.post("/migrate-data", async (req, res) => {
   const client = await db.pool.connect();
   
   try {
+    // Start transaction
+    await client.query('BEGIN');
+    
     const { data } = req.body;
     
     if (!data) {
+      await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
         error: "No data provided. Please send data object with tables."
@@ -21,6 +25,13 @@ router.post("/migrate-data", async (req, res) => {
     }
     
     console.log("🚀 Starting data migration...");
+    console.log("📊 Data received:", {
+      products: data.products?.length || 0,
+      sales: data.sales_item?.length || 0,
+      purchases: data.purchases?.length || 0,
+      users: data.users?.length || 0
+    });
+    
     const results = {};
     
     // Migrate Products
@@ -31,7 +42,8 @@ router.post("/migrate-data", async (req, res) => {
       
       for (const product of data.products) {
         try {
-          await client.query(`
+          // Convert string numbers to actual numbers
+          const result = await client.query(`
             INSERT INTO products (
               sku, series, category, name, qty,
               mrp_price, selling_price, discount, discount_percent,
@@ -60,16 +72,38 @@ router.post("/migrate-data", async (req, res) => {
               product_type_id = EXCLUDED.product_type_id,
               updated_at = CURRENT_TIMESTAMP
           `, [
-            product.sku, product.series, product.category, product.name, product.qty || 0,
-            product.mrp_price, product.selling_price, product.discount || 0, product.discount_percent || 0,
-            product.b2b_selling_price, product.b2b_discount || 0, product.b2b_discount_percent || 0,
-            product.b2b_mrp, product.dp, product.ah_va, product.warranty, product.guarantee_period_months || 0,
-            product.order_index, product.product_type_id,
-            product.created_at || new Date(), product.updated_at || new Date()
+            product.sku || null, 
+            product.series || null, 
+            product.category || null, 
+            product.name || null, 
+            parseInt(product.qty) || 0,
+            parseFloat(product.mrp_price) || 0, 
+            parseFloat(product.selling_price) || 0, 
+            parseFloat(product.discount) || 0, 
+            parseFloat(product.discount_percent) || 0,
+            product.b2b_selling_price ? parseFloat(product.b2b_selling_price) : null, 
+            product.b2b_discount ? parseFloat(product.b2b_discount) : 0, 
+            product.b2b_discount_percent ? parseFloat(product.b2b_discount_percent) : 0,
+            product.b2b_mrp ? parseFloat(product.b2b_mrp) : null, 
+            product.dp ? parseFloat(product.dp) : null, 
+            product.ah_va || null, 
+            product.warranty || null, 
+            parseInt(product.guarantee_period_months) || 0,
+            product.order_index ? parseInt(product.order_index) : null, 
+            parseInt(product.product_type_id) || 1,
+            product.created_at ? new Date(product.created_at) : new Date(), 
+            product.updated_at ? new Date(product.updated_at) : new Date()
           ]);
-          inserted++;
+          
+          // Check row count
+          if (result.rowCount > 0) {
+            inserted++;
+          } else {
+            skipped++;
+          }
         } catch (err) {
-          console.error(`Error inserting product ${product.sku}:`, err.message);
+          console.error(`❌ Error inserting product ${product.sku || 'unknown'}:`, err.message);
+          console.error('Product data:', JSON.stringify(product, null, 2));
           skipped++;
         }
       }
@@ -221,27 +255,41 @@ router.post("/migrate-data", async (req, res) => {
       console.log(`✅ Users: ${inserted} inserted, ${skipped} skipped`);
     }
     
+    // Commit transaction
+    await client.query('COMMIT');
+    
     // Log detailed results
     console.log("📊 Migration Summary:", JSON.stringify(results, null, 2));
     
+    const totalInserted = Object.values(results).reduce((sum, r) => sum + (r.inserted || 0), 0);
+    const totalSkipped = Object.values(results).reduce((sum, r) => sum + (r.skipped || 0), 0);
+    
     res.json({
       success: true,
-      message: "Data migration completed successfully!",
+      message: `Data migration completed! ${totalInserted} records inserted, ${totalSkipped} skipped.`,
       results,
       summary: {
         totalTables: Object.keys(results).length,
-        totalInserted: Object.values(results).reduce((sum, r) => sum + (r.inserted || 0), 0),
-        totalSkipped: Object.values(results).reduce((sum, r) => sum + (r.skipped || 0), 0),
+        totalInserted,
+        totalSkipped,
         totalRecords: Object.values(results).reduce((sum, r) => sum + (r.total || 0), 0)
       }
     });
     
   } catch (error) {
+    // Rollback transaction on error
+    await client.query('ROLLBACK').catch(rollbackErr => {
+      console.error('Rollback error:', rollbackErr);
+    });
+    
     console.error("❌ Migration failed:", error);
+    console.error("Error stack:", error.stack);
+    
     res.status(500).json({
       success: false,
       error: "Data migration failed",
-      details: process.env.NODE_ENV === 'production' ? undefined : error.message
+      details: process.env.NODE_ENV === 'production' ? undefined : error.message,
+      stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
     });
   } finally {
     client.release();
