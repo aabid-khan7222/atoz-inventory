@@ -1138,15 +1138,35 @@ router.get('/summary', requireAuth, requireSuperAdminOrAdmin, async (req, res) =
       WHERE 1=1 ${salesDateFilter}
     `, salesParams);
 
-    // Commission summary
-    const commissionSummary = await db.query(`
-      SELECT 
-        COUNT(*) FILTER (WHERE si.has_commission = true) as total_commission_sales,
-        COALESCE(SUM(si.commission_amount), 0) as total_commission_paid,
-        COUNT(DISTINCT si.commission_agent_id) FILTER (WHERE si.has_commission = true) as unique_agents
-      FROM sales_item si
-      WHERE si.has_commission = true ${salesDateFilter}
-    `, salesParams);
+    // Commission summary - check if commission columns exist
+    let commissionSummary;
+    try {
+      // Check if commission columns exist
+      const columnCheck = await db.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'sales_item' 
+        AND column_name IN ('has_commission', 'commission_amount', 'commission_agent_id')
+      `);
+      const hasCommissionColumns = columnCheck.rows.length >= 2; // At least has_commission and commission_amount
+      
+      if (hasCommissionColumns) {
+        commissionSummary = await db.query(`
+          SELECT 
+            COUNT(*) FILTER (WHERE si.has_commission = true) as total_commission_sales,
+            COALESCE(SUM(si.commission_amount), 0) as total_commission_paid,
+            COUNT(DISTINCT si.commission_agent_id) FILTER (WHERE si.has_commission = true) as unique_agents
+          FROM sales_item si
+          WHERE si.has_commission = true ${salesDateFilter}
+        `, salesParams);
+      } else {
+        // Return empty commission summary if columns don't exist
+        commissionSummary = { rows: [{ total_commission_sales: 0, total_commission_paid: 0, unique_agents: 0 }] };
+      }
+    } catch (commissionErr) {
+      console.warn('Commission columns not available, returning empty summary:', commissionErr.message);
+      commissionSummary = { rows: [{ total_commission_sales: 0, total_commission_paid: 0, unique_agents: 0 }] };
+    }
 
     // Charging services summary
     const chargingSummary = await db.query(`
