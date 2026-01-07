@@ -546,14 +546,14 @@ router.get('/sales-detail', requireAuth, requireSuperAdminOrAdmin, async (req, r
           si.QUANTITY as quantity,
           si.MRP as unit_price,
           si.final_amount as total_price,
-          si.has_commission,
-          si.commission_amount,
+          COALESCE(si.has_commission, false) as has_commission,
+          COALESCE(si.commission_amount, 0) as commission_amount,
           ca.name as commission_agent_name,
           ca.mobile_number as commission_agent_mobile
         FROM sales_item si
         LEFT JOIN products p ON si.product_id = p.id
         LEFT JOIN product_type pt ON p.product_type_id = pt.id
-        LEFT JOIN commission_agents ca ON si.commission_agent_id = ca.id
+        LEFT JOIN commission_agents ca ON (si.commission_agent_id = ca.id AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sales_item' AND column_name = 'commission_agent_id'))
         ${dateFilter ? `WHERE ${dateFilter}` : ''}
       )
       SELECT
