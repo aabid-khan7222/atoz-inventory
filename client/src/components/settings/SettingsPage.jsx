@@ -1,5 +1,6 @@
 // client/src/components/settings/SettingsPage.jsx
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { useTheme } from "../../contexts/ThemeContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -18,6 +19,7 @@ const LANGUAGE_OPTIONS = [
 ];
 
 const SettingsPage = () => {
+  const navigate = useNavigate();
   const { language, changeLanguage, t } = useLanguage();
   const { theme, changeTheme } = useTheme();
   const { user, token: authToken } = useAuth();
@@ -151,8 +153,8 @@ const SettingsPage = () => {
       // Close modal (optional, kyunki redirect turant ho raha hai)
       closeUsernameModal();
 
-      // Redirect to login immediately (same as password change)
-      window.location.href = "/login";
+      // Redirect to login using React Router
+      navigate("/login", { replace: true });
     } catch (err) {
       console.error("Change username error:", err);
       setUsernameError("Server error while changing username.");
@@ -253,8 +255,8 @@ const SettingsPage = () => {
       // close modal (optional, kyunki redirect turant ho raha hai)
       closePasswordModal();
 
-      // redirect to login
-      window.location.href = "/login";
+      // Redirect to login using React Router
+      navigate("/login", { replace: true });
     } catch (err) {
       console.error("Change password error:", err);
       setPasswordError("Server error while changing password.");
@@ -307,7 +309,7 @@ const SettingsPage = () => {
       // Clear local auth + redirect
       ["auth_user", "auth_token"].forEach((k) => localStorage.removeItem(k));
       setLogoutLoading(false);
-      window.location.href = "/login";
+      navigate("/login", { replace: true });
     } catch (err) {
       console.error("Logout-all error:", err);
       setLogoutError("Server error while logging out.");
