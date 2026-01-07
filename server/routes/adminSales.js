@@ -995,11 +995,25 @@ router.get('/sales-items', requireAuth, requireSuperAdminOrAdmin, async (req, re
     query += ` ORDER BY si.created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(parseInt(limit), offset);
 
+    console.log('Executing sales items query:', query.substring(0, 200));
+    console.log('Query params:', params);
+    
     const result = await db.query(query, params);
+    console.log(`✅ Fetched ${result.rows.length} sales items`);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching sales items:', err);
-    res.status(500).json({ error: 'Failed to fetch sales items' });
+    console.error('Error details:', {
+      message: err.message,
+      code: err.code,
+      detail: err.detail,
+      hint: err.hint,
+      stack: err.stack
+    });
+    res.status(500).json({ 
+      error: 'Failed to fetch sales items',
+      details: process.env.NODE_ENV === 'production' ? undefined : err.message
+    });
   }
 });
 
