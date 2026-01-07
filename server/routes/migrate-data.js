@@ -272,8 +272,14 @@ router.post("/migrate-data", async (req, res) => {
       const errors = [];
       
       for (const purchase of data.purchases) {
+        // Handle both field name variations: sku, product_sku
+        const skuValue = purchase.sku || purchase.product_sku;
+        const seriesValue = purchase.series || purchase.product_series;
+        const nameValue = purchase.name || purchase.product_name || 'Unknown Product';
+        const invoiceValue = purchase.invoice_number || purchase.purchase_number;
+        
         // Skip if SKU is missing (required field)
-        if (!purchase.sku || purchase.sku.trim() === '') {
+        if (!skuValue || skuValue.trim() === '') {
           console.warn(`⚠️  Skipping purchase - missing SKU:`, purchase);
           skipped++;
           continue;
@@ -287,15 +293,12 @@ router.post("/migrate-data", async (req, res) => {
           // Default product_type_id to 1 if missing
           const productTypeId = purchase.product_type_id || 1;
           
-          // Generate SKU from name if SKU is still missing (fallback)
-          let skuValue = purchase.sku;
-          if (!skuValue || skuValue.trim() === '') {
-            // Generate a temporary SKU from name and date
-            const namePart = (purchase.name || 'UNKNOWN').substring(0, 10).replace(/\s+/g, '-').toUpperCase();
-            const datePart = new Date(purchase.purchase_date || new Date()).toISOString().substring(0, 10).replace(/-/g, '');
-            skuValue = `MIG-${namePart}-${datePart}`;
-            console.warn(`⚠️  Generated SKU for purchase: ${skuValue}`);
-          }
+          // Calculate quantity (default to 1)
+          const quantity = parseInt(purchase.quantity) || 1;
+          
+          // Calculate prices (handle different field names)
+          const purchasePrice = parseFloat(purchase.purchase_price || purchase.dp || purchase.purchase_value || 0);
+          const totalAmount = parseFloat(purchase.total_amount || purchase.purchase_value || purchasePrice * quantity);
           
           const result = await client.query(`
             INSERT INTO purchases (
@@ -304,9 +307,9 @@ router.post("/migrate-data", async (req, res) => {
               invoice_number, notes, created_by, created_at, updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
           `, [
-            purchase.purchase_date || new Date(), productTypeId, skuValue, purchase.series || null, purchase.name || 'Unknown Product',
-            parseInt(purchase.quantity) || 1, parseFloat(purchase.purchase_price) || 0, parseFloat(purchase.total_amount) || 0, purchase.supplier_name || null,
-            purchase.invoice_number || null, purchase.notes || null, purchase.created_by || null,
+            purchase.purchase_date || new Date(), productTypeId, skuValue, seriesValue || null, nameValue,
+            quantity, purchasePrice, totalAmount, purchase.supplier_name || null,
+            invoiceValue || null, purchase.notes || null, purchase.created_by || null,
             purchase.created_at || new Date(), purchase.updated_at || new Date()
           ]);
           
