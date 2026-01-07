@@ -45,7 +45,7 @@ const Login = () => {
           <p className="login-subtitle">{t('login.subtitle')}</p>
         </div>
         
-        <form onSubmit={handleSubmit} className="login-form">
+        <form onSubmit={handleSubmit} className="login-form" action="#" method="post">
           <div className="form-group">
             <label htmlFor="email">{t('login.email')}</label>
             <input
