@@ -28,12 +28,19 @@ const migrateDataRouter = require("./routes/migrate-data");
 
 const app = express();
 
-app.use(express.json());
+// Increase body size limit for large migrations (10MB)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // CORS configuration - supports both localhost and production
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
   : ["http://localhost:5173", "http://localhost:3000"];
+
+// Add frontend production URL to allowed origins
+if (process.env.NODE_ENV === 'production') {
+  allowedOrigins.push('https://atoz-frontend.onrender.com');
+}
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -100,6 +107,7 @@ app.use("/api/commission-agents", commissionAgentsRouter);
 app.use("/api/employees", employeesRouter);
 app.use("/api", initRouter);
 app.use("/api", migrateDataRouter);
+app.use("/api", migrateDataBatchRouter);
 
 
 
