@@ -197,7 +197,16 @@ router.post("/migrate-data", async (req, res) => {
             );
             
             if (salesIdCheck.rows.length === 0) {
-              // Create sales_id record
+              // Validate customer_id exists if provided
+              let validCustomerId = sale.customer_id || null;
+              if (validCustomerId) {
+                const customerCheck = await client.query('SELECT id FROM users WHERE id = $1', [validCustomerId]);
+                if (customerCheck.rows.length === 0) {
+                  validCustomerId = null; // Set to null if customer doesn't exist
+                }
+              }
+              
+              // Create sales_id record (customer_id can be null)
               const salesIdResult = await client.query(`
                 INSERT INTO sales_id (
                   invoice_number, customer_id, customer_name, customer_mobile_number,
@@ -206,7 +215,7 @@ router.post("/migrate-data", async (req, res) => {
                 ON CONFLICT (invoice_number) DO UPDATE SET id = sales_id.id
                 RETURNING id
               `, [
-                sale.invoice_number, sale.customer_id || null, sale.customer_name, sale.customer_mobile_number || null,
+                sale.invoice_number, validCustomerId, sale.customer_name, sale.customer_mobile_number || null,
                 sale.customer_vehicle_number || null, sale.sales_type || 'retail', sale.sales_type_id || 1,
                 sale.created_at || new Date(), sale.updated_at || new Date()
               ]);
@@ -263,6 +272,13 @@ router.post("/migrate-data", async (req, res) => {
       const errors = [];
       
       for (const purchase of data.purchases) {
+        // Skip if SKU is missing (required field)
+        if (!purchase.sku || purchase.sku.trim() === '') {
+          console.warn(`⚠️  Skipping purchase - missing SKU:`, purchase);
+          skipped++;
+          continue;
+        }
+        
         // Use SAVEPOINT to handle errors per record without aborting entire transaction
         const savepointName = `sp_purchase_${inserted + skipped}`;
         try {
@@ -271,6 +287,16 @@ router.post("/migrate-data", async (req, res) => {
           // Default product_type_id to 1 if missing
           const productTypeId = purchase.product_type_id || 1;
           
+          // Generate SKU from name if SKU is still missing (fallback)
+          let skuValue = purchase.sku;
+          if (!skuValue || skuValue.trim() === '') {
+            // Generate a temporary SKU from name and date
+            const namePart = (purchase.name || 'UNKNOWN').substring(0, 10).replace(/\s+/g, '-').toUpperCase();
+            const datePart = new Date(purchase.purchase_date || new Date()).toISOString().substring(0, 10).replace(/-/g, '');
+            skuValue = `MIG-${namePart}-${datePart}`;
+            console.warn(`⚠️  Generated SKU for purchase: ${skuValue}`);
+          }
+          
           const result = await client.query(`
             INSERT INTO purchases (
               purchase_date, product_type_id, sku, series, name,
@@ -278,7 +304,7 @@ router.post("/migrate-data", async (req, res) => {
               invoice_number, notes, created_by, created_at, updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
           `, [
-            purchase.purchase_date || new Date(), productTypeId, purchase.sku, purchase.series || null, purchase.name,
+            purchase.purchase_date || new Date(), productTypeId, skuValue, purchase.series || null, purchase.name || 'Unknown Product',
             parseInt(purchase.quantity) || 1, parseFloat(purchase.purchase_price) || 0, parseFloat(purchase.total_amount) || 0, purchase.supplier_name || null,
             purchase.invoice_number || null, purchase.notes || null, purchase.created_by || null,
             purchase.created_at || new Date(), purchase.updated_at || new Date()
