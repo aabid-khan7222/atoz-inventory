@@ -111,9 +111,78 @@ router.post("/init", async (req, res) => {
       console.log("ℹ️  Admin user already exists");
     }
     
+    // Insert sample products data
+    console.log("📦 Inserting sample products...");
+    
+    // Sample Car/Truck/Tractor Battery
+    await client.query(`
+      INSERT INTO products (
+        sku, series, category, name, qty,
+        mrp_price, selling_price, discount, discount_percent,
+        b2b_selling_price, b2b_discount, b2b_discount_percent,
+        ah_va, warranty, guarantee_period_months, order_index, product_type_id, dp
+      ) VALUES (
+        'EXIDE-CAR-100AH', 'EXIDE', 'car-truck-tractor', 'Exide Car Battery 100AH', 0,
+        5000, 4500, 500, 10.00,
+        4000, 1000, 20.00,
+        '100AH', '24F', 24, 1, 1, 5000
+      ) ON CONFLICT (sku) DO NOTHING;
+    `);
+    
+    // Sample Bike Battery
+    await client.query(`
+      INSERT INTO products (
+        sku, series, category, name, qty,
+        mrp_price, selling_price, discount, discount_percent,
+        b2b_selling_price, b2b_discount, b2b_discount_percent,
+        ah_va, warranty, guarantee_period_months, order_index, product_type_id, dp
+      ) VALUES (
+        'EXIDE-BIKE-7AH', 'EXIDE', 'bike', 'Exide Bike Battery 7AH', 0,
+        2000, 1800, 200, 10.00,
+        1600, 400, 20.00,
+        '7AH', '12F', 12, 1, 2, 2000
+      ) ON CONFLICT (sku) DO NOTHING;
+    `);
+    
+    // Sample UPS/Inverter Battery
+    await client.query(`
+      INSERT INTO products (
+        sku, series, category, name, qty,
+        mrp_price, selling_price, discount, discount_percent,
+        b2b_selling_price, b2b_discount, b2b_discount_percent,
+        ah_va, warranty, guarantee_period_months, order_index, product_type_id, dp
+      ) VALUES (
+        'EXIDE-UPS-150AH', 'EXIDE', 'ups-inverter', 'Exide UPS Battery 150AH', 0,
+        8000, 7200, 800, 10.00,
+        6400, 1600, 20.00,
+        '150AH', '36F', 36, 1, 3, 8000
+      ) ON CONFLICT (sku) DO NOTHING;
+    `);
+    
+    // Sample Water Products
+    await client.query(`
+      INSERT INTO products (
+        sku, series, category, name, qty,
+        mrp_price, selling_price, discount, discount_percent,
+        b2b_selling_price, b2b_discount, b2b_discount_percent,
+        ah_va, warranty, guarantee_period_months, order_index, product_type_id, dp
+      ) VALUES 
+        ('EXIDE-DW-5L', 'EXIDE', 'water', 'Exide Distilled Water 5L', 0,
+         153, 130, 23, 15.03,
+         100, 53, 34.64,
+         '5L', NULL, 0, 1, 4, 153),
+        ('GEN-DW-5L', 'GENERIC', 'water', 'Generic Distilled Water 5L', 0,
+         110, 70, 40, 36.36,
+         50, 60, 54.55,
+         '5L', NULL, 0, 2, 4, 110)
+      ON CONFLICT (sku) DO NOTHING;
+    `);
+    
+    console.log("✅ Sample products inserted");
+    
     res.json({
       success: true,
-      message: "Complete database initialized successfully! All tables created.",
+      message: "Complete database initialized successfully! All tables created and sample data inserted.",
       admin: {
         email: "admin@atozinventory.com",
         password: "admin123",
@@ -127,7 +196,11 @@ router.post("/init", async (req, res) => {
         "charging_services", "service_requests", "company_returns",
         "warranty_slabs", "battery_replacements", "stock_history",
         "employees", "commission_agents", "daily_attendance"
-      ]
+      ],
+      sampleDataInserted: {
+        products: 5,
+        note: "Sample products added. You can add more products through the admin panel."
+      }
     });
     
   } catch (error) {
