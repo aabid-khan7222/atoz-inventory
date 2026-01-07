@@ -245,7 +245,11 @@ router.post("/migrate-data", async (req, res) => {
       const errors = [];
       
       for (const purchase of data.purchases) {
+        // Use SAVEPOINT to handle errors per record without aborting entire transaction
+        const savepointName = `sp_purchase_${inserted + skipped}`;
         try {
+          await client.query(`SAVEPOINT ${savepointName}`);
+          
           // Default product_type_id to 1 if missing
           const productTypeId = purchase.product_type_id || 1;
           
@@ -262,14 +266,17 @@ router.post("/migrate-data", async (req, res) => {
             purchase.created_at || new Date(), purchase.updated_at || new Date()
           ]);
           
+          await client.query(`RELEASE SAVEPOINT ${savepointName}`);
+          
           if (result.rowCount > 0) {
             inserted++;
           } else {
             skipped++;
           }
         } catch (err) {
-          console.error(`Error inserting purchase ${purchase.sku || purchase.invoice_number}:`, err.message);
-          errors.push(`${purchase.sku || purchase.invoice_number}: ${err.message}`);
+          await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
+          console.error(`Error inserting purchase ${purchase.sku || purchase.invoice_number || 'unknown'}:`, err.message);
+          errors.push(`${purchase.sku || purchase.invoice_number || 'unknown'}: ${err.message}`);
           skipped++;
         }
       }
@@ -287,6 +294,12 @@ router.post("/migrate-data", async (req, res) => {
       let skipped = 0;
       const errors = [];
       
+      // Build role_id mapping first
+      const roleMap = {};
+      const roleResult = await client.query('SELECT id FROM roles');
+      const validRoleIds = roleResult.rows.map(r => r.id);
+      console.log(`✅ Valid role IDs: ${validRoleIds.join(', ')}`);
+      
       for (const user of data.users) {
         // Skip admin user
         if (user.email === 'admin@atozinventory.com' || user.email === 'admin@atozinventory.com') {
@@ -294,13 +307,16 @@ router.post("/migrate-data", async (req, res) => {
           continue;
         }
         
+        // Use SAVEPOINT to handle errors per record without aborting entire transaction
+        const savepointName = `sp_user_${inserted + skipped}`;
         try {
+          await client.query(`SAVEPOINT ${savepointName}`);
+          
           // Default role_id to 3 (customer) if missing or invalid
           let roleId = user.role_id || 3;
           
           // Validate role_id exists
-          const roleCheck = await client.query('SELECT id FROM roles WHERE id = $1', [roleId]);
-          if (roleCheck.rows.length === 0) {
+          if (!validRoleIds.includes(roleId)) {
             roleId = 3; // Default to customer role
           }
           
@@ -328,12 +344,15 @@ router.post("/migrate-data", async (req, res) => {
             user.created_at || new Date(), user.updated_at || new Date()
           ]);
           
+          await client.query(`RELEASE SAVEPOINT ${savepointName}`);
+          
           if (result.rowCount > 0) {
             inserted++;
           } else {
             skipped++;
           }
         } catch (err) {
+          await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
           console.error(`Error inserting user ${user.email}:`, err.message);
           errors.push(`${user.email}: ${err.message}`);
           skipped++;
