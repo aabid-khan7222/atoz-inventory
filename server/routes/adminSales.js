@@ -938,6 +938,21 @@ router.get('/sales-items', requireAuth, requireSuperAdminOrAdmin, async (req, re
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const productTypeId = category && category !== 'all' ? getProductTypeId(category) : null;
 
+    // Check if commission_agents table exists
+    let hasCommissionAgents = false;
+    try {
+      const tableCheck = await db.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'commission_agents'
+        )
+      `);
+      hasCommissionAgents = tableCheck.rows[0]?.exists || false;
+    } catch (checkErr) {
+      console.warn('Could not check commission_agents table:', checkErr.message);
+    }
+
     let query = `
       SELECT 
         si.*, 
@@ -945,14 +960,30 @@ router.get('/sales-items', requireAuth, requireSuperAdminOrAdmin, async (req, re
         p.name as product_name_from_products,
         p.series as product_series,
         COALESCE(si.NAME, p.name) as display_name,
-        COALESCE(si.SKU, p.sku) as display_sku,
+        COALESCE(si.SKU, p.sku) as display_sku
+    `;
+    
+    // Only include commission agent fields if table exists
+    if (hasCommissionAgents) {
+      query += `,
         ca.name as commission_agent_name,
-        ca.mobile_number as commission_agent_mobile
+        ca.mobile_number as commission_agent_mobile`;
+    } else {
+      query += `,
+        NULL as commission_agent_name,
+        NULL as commission_agent_mobile`;
+    }
+    
+    query += `
       FROM sales_item si
       LEFT JOIN products p ON si.product_id = p.id
-      LEFT JOIN commission_agents ca ON si.commission_agent_id = ca.id
-      WHERE 1=1
     `;
+    
+    if (hasCommissionAgents) {
+      query += `LEFT JOIN commission_agents ca ON si.commission_agent_id = ca.id`;
+    }
+    
+    query += ` WHERE 1=1`;
     const params = [];
     let paramCount = 1;
 
