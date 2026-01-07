@@ -18,8 +18,13 @@
     "react-router-dom": "^7.9.6",
     "react-to-print": "^3.2.0",
     "recharts": "^3.5.1",
+<<<<<<< HEAD
     "sweetalert2": "^11.26.17",
     "serve": "^14.2.4"
+=======
+    "serve": "^14.2.5",
+    "sweetalert2": "^11.26.17"
+>>>>>>> d17dac39b3ac66d677e71c8290580e8309b65185
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
