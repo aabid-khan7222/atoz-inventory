@@ -147,10 +147,49 @@ router.post("/migrate-data", async (req, res) => {
       console.log(`💰 Migrating ${data.sales_item.length} sales items...`);
       let inserted = 0;
       let skipped = 0;
+      const errors = [];
       
       for (const sale of data.sales_item) {
         try {
-          await client.query(`
+          // First, ensure sales_id exists (create if not exists)
+          let salesIdValue = sale.sales_id;
+          if (sale.invoice_number && sale.sales_id) {
+            // Check if sales_id record exists
+            const salesIdCheck = await client.query(
+              'SELECT id FROM sales_id WHERE id = $1 OR invoice_number = $2',
+              [sale.sales_id, sale.invoice_number]
+            );
+            
+            if (salesIdCheck.rows.length === 0 && sale.invoice_number) {
+              // Create sales_id record
+              const salesIdResult = await client.query(`
+                INSERT INTO sales_id (
+                  invoice_number, customer_id, customer_name, customer_mobile_number,
+                  customer_vehicle_number, sales_type, sales_type_id, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (invoice_number) DO UPDATE SET id = sales_id.id
+                RETURNING id
+              `, [
+                sale.invoice_number, sale.customer_id || null, sale.customer_name, sale.customer_mobile_number,
+                sale.customer_vehicle_number || null, sale.sales_type || 'retail', sale.sales_type_id || 1,
+                sale.created_at || new Date(), sale.updated_at || new Date()
+              ]);
+              salesIdValue = salesIdResult.rows[0]?.id || sale.sales_id;
+            } else if (salesIdCheck.rows.length > 0) {
+              salesIdValue = salesIdCheck.rows[0].id;
+            }
+          }
+          
+          // Find product_id by SKU if product_id is missing
+          let productIdValue = sale.product_id;
+          if (!productIdValue && sale.SKU) {
+            const productCheck = await client.query('SELECT id FROM products WHERE sku = $1', [sale.SKU]);
+            if (productCheck.rows.length > 0) {
+              productIdValue = productCheck.rows[0].id;
+            }
+          }
+          
+          const result = await client.query(`
             INSERT INTO sales_item (
               customer_id, invoice_number, customer_name, customer_mobile_number,
               customer_vehicle_number, sales_type, sales_type_id, sales_id,
@@ -159,23 +198,31 @@ router.post("/migrate-data", async (req, res) => {
               payment_method, payment_status, product_id, old_battery_trade_in,
               created_at, updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
-            ON CONFLICT DO NOTHING
           `, [
-            sale.customer_id, sale.invoice_number, sale.customer_name, sale.customer_mobile_number,
-            sale.customer_vehicle_number, sale.sales_type, sale.sales_type_id, sale.sales_id,
-            sale.purchase_date, sale.SKU, sale.SERIES, sale.CATEGORY, sale.NAME, sale.AH_VA, sale.QUANTITY || 1,
-            sale.WARRANTY, sale.SERIAL_NUMBER, sale.MRP, sale.discount_amount || 0, sale.tax || 0, sale.final_amount,
-            sale.payment_method, sale.payment_status || 'paid', sale.product_id, sale.old_battery_trade_in || false,
+            sale.customer_id || null, sale.invoice_number, sale.customer_name, sale.customer_mobile_number || null,
+            sale.customer_vehicle_number || null, sale.sales_type || 'retail', sale.sales_type_id || 1, salesIdValue || null,
+            sale.purchase_date || new Date(), sale.SKU, sale.SERIES || null, sale.CATEGORY || null, sale.NAME, sale.AH_VA || null, parseInt(sale.QUANTITY) || 1,
+            sale.WARRANTY || null, sale.SERIAL_NUMBER || `SN-${Date.now()}-${Math.random()}`, parseFloat(sale.MRP) || 0, parseFloat(sale.discount_amount) || 0, parseFloat(sale.tax) || 0, parseFloat(sale.final_amount) || 0,
+            sale.payment_method || 'cash', sale.payment_status || 'paid', productIdValue || null, sale.old_battery_trade_in || false,
             sale.created_at || new Date(), sale.updated_at || new Date()
           ]);
-          inserted++;
+          
+          if (result.rowCount > 0) {
+            inserted++;
+          } else {
+            skipped++;
+          }
         } catch (err) {
-          console.error(`Error inserting sale:`, err.message);
+          console.error(`Error inserting sale ${sale.invoice_number || sale.SKU}:`, err.message);
+          errors.push(`${sale.invoice_number || sale.SKU}: ${err.message}`);
           skipped++;
         }
       }
-      results.sales_item = { inserted, skipped, total: data.sales_item.length };
+      results.sales_item = { inserted, skipped, total: data.sales_item.length, errors: errors.slice(0, 5) };
       console.log(`✅ Sales: ${inserted} inserted, ${skipped} skipped`);
+      if (errors.length > 0) {
+        console.log(`⚠️  First 5 errors:`, errors.slice(0, 5));
+      }
     }
     
     // Migrate Purchases
@@ -183,30 +230,42 @@ router.post("/migrate-data", async (req, res) => {
       console.log(`🛒 Migrating ${data.purchases.length} purchases...`);
       let inserted = 0;
       let skipped = 0;
+      const errors = [];
       
       for (const purchase of data.purchases) {
         try {
-          await client.query(`
+          // Default product_type_id to 1 if missing
+          const productTypeId = purchase.product_type_id || 1;
+          
+          const result = await client.query(`
             INSERT INTO purchases (
               purchase_date, product_type_id, sku, series, name,
               quantity, purchase_price, total_amount, supplier_name,
               invoice_number, notes, created_by, created_at, updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-            ON CONFLICT DO NOTHING
           `, [
-            purchase.purchase_date, purchase.product_type_id, purchase.sku, purchase.series, purchase.name,
-            purchase.quantity, purchase.purchase_price, purchase.total_amount, purchase.supplier_name,
-            purchase.invoice_number, purchase.notes, purchase.created_by,
+            purchase.purchase_date || new Date(), productTypeId, purchase.sku, purchase.series || null, purchase.name,
+            parseInt(purchase.quantity) || 1, parseFloat(purchase.purchase_price) || 0, parseFloat(purchase.total_amount) || 0, purchase.supplier_name || null,
+            purchase.invoice_number || null, purchase.notes || null, purchase.created_by || null,
             purchase.created_at || new Date(), purchase.updated_at || new Date()
           ]);
-          inserted++;
+          
+          if (result.rowCount > 0) {
+            inserted++;
+          } else {
+            skipped++;
+          }
         } catch (err) {
-          console.error(`Error inserting purchase:`, err.message);
+          console.error(`Error inserting purchase ${purchase.sku || purchase.invoice_number}:`, err.message);
+          errors.push(`${purchase.sku || purchase.invoice_number}: ${err.message}`);
           skipped++;
         }
       }
-      results.purchases = { inserted, skipped, total: data.purchases.length };
+      results.purchases = { inserted, skipped, total: data.purchases.length, errors: errors.slice(0, 5) };
       console.log(`✅ Purchases: ${inserted} inserted, ${skipped} skipped`);
+      if (errors.length > 0) {
+        console.log(`⚠️  First 5 errors:`, errors.slice(0, 5));
+      }
     }
     
     // Migrate Users/Customers
