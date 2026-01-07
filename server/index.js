@@ -25,6 +25,7 @@ const commissionAgentsRouter = require("./routes/commissionAgents");
 const employeesRouter = require("./routes/employees");
 const initRouter = require("./routes/init");
 const migrateDataRouter = require("./routes/migrate-data");
+const migrateDataBatchRouter = require("./routes/migrate-data-batch");
 
 const app = express();
 
