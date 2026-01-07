@@ -180,14 +180,26 @@ router.post("/migrate-data", async (req, res) => {
             }
           }
           
-          // Find product_id by SKU if product_id is missing
+          // Find product_id by SKU if product_id is missing (handle both uppercase and lowercase)
           let productIdValue = sale.product_id;
-          if (!productIdValue && sale.SKU) {
-            const productCheck = await client.query('SELECT id FROM products WHERE sku = $1', [sale.SKU]);
+          const skuValue = sale.SKU || sale.sku;
+          if (!productIdValue && skuValue) {
+            const productCheck = await client.query('SELECT id FROM products WHERE sku = $1', [skuValue]);
             if (productCheck.rows.length > 0) {
               productIdValue = productCheck.rows[0].id;
             }
           }
+          
+          // Handle both uppercase and lowercase field names from export
+          const sku = sale.SKU || sale.sku;
+          const series = sale.SERIES || sale.series;
+          const category = sale.CATEGORY || sale.category;
+          const name = sale.NAME || sale.name;
+          const ahVa = sale.AH_VA || sale.ah_va;
+          const quantity = sale.QUANTITY || sale.quantity;
+          const warranty = sale.WARRANTY || sale.warranty;
+          const serialNumber = sale.SERIAL_NUMBER || sale.serial_number;
+          const mrp = sale.MRP || sale.mrp;
           
           const result = await client.query(`
             INSERT INTO sales_item (
@@ -201,8 +213,8 @@ router.post("/migrate-data", async (req, res) => {
           `, [
             sale.customer_id || null, sale.invoice_number, sale.customer_name, sale.customer_mobile_number || null,
             sale.customer_vehicle_number || null, sale.sales_type || 'retail', sale.sales_type_id || 1, salesIdValue || null,
-            sale.purchase_date || new Date(), sale.SKU, sale.SERIES || null, sale.CATEGORY || null, sale.NAME, sale.AH_VA || null, parseInt(sale.QUANTITY) || 1,
-            sale.WARRANTY || null, sale.SERIAL_NUMBER || `SN-${Date.now()}-${Math.random()}`, parseFloat(sale.MRP) || 0, parseFloat(sale.discount_amount) || 0, parseFloat(sale.tax) || 0, parseFloat(sale.final_amount) || 0,
+            sale.purchase_date || new Date(), sku, series || null, category || null, name, ahVa || null, parseInt(quantity) || 1,
+            warranty || null, serialNumber || `SN-${Date.now()}-${Math.random()}`, parseFloat(mrp) || 0, parseFloat(sale.discount_amount) || 0, parseFloat(sale.tax) || 0, parseFloat(sale.final_amount) || 0,
             sale.payment_method || 'cash', sale.payment_status || 'paid', productIdValue || null, sale.old_battery_trade_in || false,
             sale.created_at || new Date(), sale.updated_at || new Date()
           ]);
@@ -273,16 +285,26 @@ router.post("/migrate-data", async (req, res) => {
       console.log(`👥 Migrating ${data.users.length} users...`);
       let inserted = 0;
       let skipped = 0;
+      const errors = [];
       
       for (const user of data.users) {
         // Skip admin user
-        if (user.email === 'admin@atozinventory.com') {
+        if (user.email === 'admin@atozinventory.com' || user.email === 'admin@atozinventory.com') {
           skipped++;
           continue;
         }
         
         try {
-          await client.query(`
+          // Default role_id to 3 (customer) if missing or invalid
+          let roleId = user.role_id || 3;
+          
+          // Validate role_id exists
+          const roleCheck = await client.query('SELECT id FROM roles WHERE id = $1', [roleId]);
+          if (roleCheck.rows.length === 0) {
+            roleId = 3; // Default to customer role
+          }
+          
+          const result = await client.query(`
             INSERT INTO users (
               full_name, email, phone, password, role_id, is_active,
               state, city, address, gst_number, company_name, company_address,
@@ -300,18 +322,28 @@ router.post("/migrate-data", async (req, res) => {
               user_type = EXCLUDED.user_type,
               updated_at = CURRENT_TIMESTAMP
           `, [
-            user.full_name, user.email, user.phone, user.password, user.role_id || 3, user.is_active !== false,
-            user.state, user.city, user.address, user.gst_number, user.company_name, user.company_address,
-            user.user_type, user.created_at || new Date(), user.updated_at || new Date()
+            user.full_name || 'Customer', user.email, user.phone || null, user.password || '$2b$10$dummy', roleId, user.is_active !== false,
+            user.state || null, user.city || null, user.address || null, user.gst_number || null,
+            user.company_name || null, user.company_address || null, user.user_type || 'customer',
+            user.created_at || new Date(), user.updated_at || new Date()
           ]);
-          inserted++;
+          
+          if (result.rowCount > 0) {
+            inserted++;
+          } else {
+            skipped++;
+          }
         } catch (err) {
           console.error(`Error inserting user ${user.email}:`, err.message);
+          errors.push(`${user.email}: ${err.message}`);
           skipped++;
         }
       }
-      results.users = { inserted, skipped, total: data.users.length };
+      results.users = { inserted, skipped, total: data.users.length, errors: errors.slice(0, 5) };
       console.log(`✅ Users: ${inserted} inserted, ${skipped} skipped`);
+      if (errors.length > 0) {
+        console.log(`⚠️  First 5 errors:`, errors.slice(0, 5));
+      }
     }
     
     // Commit transaction
