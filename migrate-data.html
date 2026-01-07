@@ -140,7 +140,22 @@
             try {
                 // Read file
                 const fileContent = await file.text();
+                console.log('📄 File content length:', fileContent.length);
+                console.log('📄 First 500 chars:', fileContent.substring(0, 500));
+                
                 const data = JSON.parse(fileContent);
+                
+                // Verify data loaded
+                console.log('📦 Data loaded:', {
+                    products: data.products?.length || 0,
+                    sales: data.sales_item?.length || 0,
+                    purchases: data.purchases?.length || 0,
+                    users: data.users?.length || 0
+                });
+                
+                if (!data.products || data.products.length === 0) {
+                    throw new Error('No products found in JSON file! Please check the file.');
+                }
                 
                 // Show summary
                 const summary = `
