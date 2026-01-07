@@ -14,13 +14,26 @@ router.post("/init", async (req, res) => {
   try {
     console.log("🚀 Starting complete database initialization...");
     
-    // Read and execute comprehensive base tables migration
-    const baseTablesPath = path.join(__dirname, '../migrations/000_create_all_base_tables.sql');
-    const baseTablesSQL = fs.readFileSync(baseTablesPath, 'utf8');
-    
-    console.log("📋 Creating all base tables...");
-    await client.query(baseTablesSQL);
-    console.log("✅ All base tables created");
+          // Read and execute comprehensive base tables migration
+          const baseTablesPath = path.join(__dirname, '../migrations/000_create_all_base_tables.sql');
+          const baseTablesSQL = fs.readFileSync(baseTablesPath, 'utf8');
+          
+          console.log("📋 Creating all base tables...");
+          await client.query(baseTablesSQL);
+          console.log("✅ All base tables created");
+          
+          // Run commission_agents migration (adds commission columns to sales_item)
+          try {
+            const commissionAgentsPath = path.join(__dirname, '../migrations/create_commission_agents_table.sql');
+            if (fs.existsSync(commissionAgentsPath)) {
+              const commissionAgentsSQL = fs.readFileSync(commissionAgentsPath, 'utf8');
+              console.log("📋 Adding commission agents table and columns...");
+              await client.query(commissionAgentsSQL);
+              console.log("✅ Commission agents table and columns added");
+            }
+          } catch (err) {
+            console.warn("⚠️  Commission agents migration skipped (may already exist):", err.message);
+          }
     
     // Create roles table (if not already created)
     await client.query(`

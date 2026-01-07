@@ -4,6 +4,35 @@ const { requireAuth, requireAdmin, requireSuperAdminOrAdmin } = require('../midd
 
 const router = express.Router();
 
+// Helper function to check if commission columns exist
+let commissionColumnsCache = null;
+async function hasCommissionColumns() {
+  if (commissionColumnsCache !== null) return commissionColumnsCache;
+  try {
+    const columnCheck = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'sales_item' 
+      AND column_name IN ('has_commission', 'commission_amount', 'commission_agent_id')
+    `);
+    commissionColumnsCache = columnCheck.rows.length >= 2; // At least has_commission and commission_amount
+    return commissionColumnsCache;
+  } catch (err) {
+    console.warn('Could not check commission columns:', err.message);
+    commissionColumnsCache = false;
+    return false;
+  }
+}
+
+// Helper function to build commission SELECT clause
+async function buildCommissionSelect() {
+  const hasColumns = await hasCommissionColumns();
+  if (hasColumns) {
+    return 'COALESCE(SUM(si.commission_amount), 0) as total_commission';
+  }
+  return '0 as total_commission';
+}
+
 // Helper function to get product_type_id from category
 function getProductTypeId(category) {
   const typeMap = {
@@ -200,7 +229,7 @@ router.get('/sales/category', requireAuth, requireSuperAdminOrAdmin, async (req,
         SUM(si.final_amount) as total_revenue,
         SUM(si.MRP) as total_mrp,
         SUM(si.discount_amount) as total_discount,
-        COALESCE(SUM(si.commission_amount), 0) as total_commission,
+        ${await buildCommissionSelect()},
         SUM(si.tax) as total_tax,
         AVG(si.final_amount) as avg_sale_amount
       FROM sales_item si
