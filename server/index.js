@@ -24,6 +24,7 @@ const reportsRouter = require("./routes/reports");
 const commissionAgentsRouter = require("./routes/commissionAgents");
 const employeesRouter = require("./routes/employees");
 const initRouter = require("./routes/init");
+const migrateDataRouter = require("./routes/migrate-data");
 
 const app = express();
 
@@ -93,6 +94,7 @@ app.use("/api/reports", reportsRouter);
 app.use("/api/commission-agents", commissionAgentsRouter);
 app.use("/api/employees", employeesRouter);
 app.use("/api", initRouter);
+app.use("/api", migrateDataRouter);
 
 
 
