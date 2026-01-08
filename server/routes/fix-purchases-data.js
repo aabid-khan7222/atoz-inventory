@@ -135,8 +135,34 @@ router.post("/fix-purchases-data", async (req, res) => {
       }
       
     } else if (hasNewSchema) {
-      // New schema exists, but some records might have NULL values
-      console.log("📋 Detected new schema. Fixing NULL values...");
+      // New schema exists, but some records might have NULL values or values too long
+      console.log("📋 Detected new schema. Fixing NULL values and length issues...");
+      
+      // First, fix purchase_numbers that are too long (VARCHAR(50) limit)
+      const longPurchaseNumbers = await client.query(`
+        SELECT id, purchase_number
+        FROM purchases
+        WHERE LENGTH(purchase_number) > 50
+      `);
+      
+      console.log(`📋 Found ${longPurchaseNumbers.rows.length} records with purchase_number > 50 chars`);
+      
+      for (const row of longPurchaseNumbers.rows) {
+        try {
+          const truncated = row.purchase_number.slice(0, 50);
+          await client.query(`
+            UPDATE purchases
+            SET purchase_number = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+          `, [truncated, row.id]);
+          updated++;
+          console.log(`✅ Truncated purchase_number for ID ${row.id}: ${row.purchase_number.length} -> 50 chars`);
+        } catch (err) {
+          console.error(`❌ Error truncating purchase_number for ID ${row.id}:`, err.message);
+          errors.push(`ID ${row.id}: ${err.message}`);
+          skipped++;
+        }
+      }
       
       // Fix records with NULL product_sku or purchase_number
       const nullRecords = await client.query(`
