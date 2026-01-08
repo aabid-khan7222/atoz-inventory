@@ -69,15 +69,28 @@ router.post("/fix-purchases-data", async (req, res) => {
       
       for (const row of oldData.rows) {
         try {
-          // Generate purchase number if missing
-          let purchaseNumber = row.invoice_number || `PUR-${row.purchase_date ? row.purchase_date.toString().replace(/-/g, '') : Date.now().toString().slice(0, 8)}-${row.id}`;
+          // Generate purchase number if missing (max 50 chars)
+          let purchaseNumber = row.invoice_number;
+          if (!purchaseNumber || purchaseNumber === '') {
+            const dateStr = row.purchase_date ? row.purchase_date.toString().replace(/-/g, '').slice(-8) : Date.now().toString().slice(-8);
+            // Keep it short: PUR-YYYYMMDD-ID (max 50 chars)
+            purchaseNumber = `PUR-${dateStr}-${row.id}`;
+            // Truncate if too long (max 50 chars)
+            if (purchaseNumber.length > 50) {
+              purchaseNumber = purchaseNumber.slice(0, 50);
+            }
+          }
           
-          // Generate serial number if missing
+          // Generate serial number if missing (max 255 chars)
           let serialNumber = `${purchaseNumber}-1`;
           if (row.quantity > 1) {
             // For multiple items, we need to create multiple rows
             // But for now, just use the first one
             serialNumber = `${purchaseNumber}-1`;
+          }
+          // Ensure serial number doesn't exceed 255 chars
+          if (serialNumber.length > 255) {
+            serialNumber = serialNumber.slice(0, 255);
           }
           
           // Calculate prices
@@ -138,22 +151,37 @@ router.post("/fix-purchases-data", async (req, res) => {
       
       for (const row of nullRecords.rows) {
         try {
-          // Generate missing values
+          // Generate missing values (ensure they fit column sizes)
           let purchaseNumber = row.purchase_number;
           if (!purchaseNumber || purchaseNumber === '') {
-            const dateStr = row.purchase_date ? row.purchase_date.toString().replace(/-/g, '') : Date.now().toString().slice(0, 8);
+            const dateStr = row.purchase_date ? row.purchase_date.toString().replace(/-/g, '').slice(-8) : Date.now().toString().slice(-8);
             purchaseNumber = `PUR-${dateStr}-${row.id}`;
+            // Truncate if too long (max 50 chars for purchase_number)
+            if (purchaseNumber.length > 50) {
+              purchaseNumber = purchaseNumber.slice(0, 50);
+            }
+          } else if (purchaseNumber.length > 50) {
+            // Truncate existing purchase_number if too long
+            purchaseNumber = purchaseNumber.slice(0, 50);
           }
           
           let serialNumber = row.serial_number;
           if (!serialNumber || serialNumber === '') {
             serialNumber = `${purchaseNumber}-1`;
           }
+          // Ensure serial_number doesn't exceed 255 chars
+          if (serialNumber.length > 255) {
+            serialNumber = serialNumber.slice(0, 255);
+          }
           
           let productSku = row.product_sku;
           if (!productSku || productSku === '') {
             // Try to get from products table or use placeholder
             productSku = `UNKNOWN-${row.id}`;
+          }
+          // Ensure product_sku doesn't exceed 100 chars
+          if (productSku.length > 100) {
+            productSku = productSku.slice(0, 100);
           }
           
           await client.query(`
