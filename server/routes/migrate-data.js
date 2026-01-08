@@ -297,21 +297,99 @@ router.post("/migrate-data", async (req, res) => {
           const quantity = parseInt(purchase.quantity) || 1;
           
           // Calculate prices (handle different field names)
-          const purchasePrice = parseFloat(purchase.purchase_price || purchase.dp || purchase.purchase_value || 0);
-          const totalAmount = parseFloat(purchase.total_amount || purchase.purchase_value || purchasePrice * quantity);
+          const dp = parseFloat(purchase.dp || purchase.purchase_price || purchase.mrp_price || 0);
+          const purchaseValue = parseFloat(purchase.purchase_value || purchase.total_amount || purchase.purchase_price || dp);
+          const discountAmount = Math.max(0, dp - purchaseValue);
+          const discountPercent = dp > 0 ? Math.round((discountAmount / dp) * 10000) / 100 : 0;
           
-          const result = await client.query(`
-            INSERT INTO purchases (
-              purchase_date, product_type_id, sku, series, name,
-              quantity, purchase_price, total_amount, supplier_name,
-              invoice_number, notes, created_by, created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-          `, [
-            purchase.purchase_date || new Date(), productTypeId, skuValue, seriesValue || null, nameValue,
-            quantity, purchasePrice, totalAmount, purchase.supplier_name || null,
-            invoiceValue || null, purchase.notes || null, purchase.created_by || null,
-            purchase.created_at || new Date(), purchase.updated_at || new Date()
-          ]);
+          // Generate purchase number if missing
+          let purchaseNumber = purchase.purchase_number || purchase.invoice_number;
+          if (!purchaseNumber) {
+            const purchaseDate = purchase.purchase_date ? new Date(purchase.purchase_date) : new Date();
+            const dateStr = purchaseDate.toISOString().split('T')[0].replace(/-/g, '');
+            purchaseNumber = `PUR-${dateStr}-${Math.floor(Math.random() * 10000)}`;
+          }
+          
+          // Handle serial numbers - if missing, generate based on purchase number
+          let serialNumber = purchase.serial_number || purchase.serial;
+          if (!serialNumber && quantity === 1) {
+            serialNumber = `${purchaseNumber}-1`;
+          } else if (!serialNumber && quantity > 1) {
+            // For multiple items, we'll insert one row per serial
+            serialNumber = null; // Will be handled in loop below
+          }
+          
+          // Insert purchases - one row per serial number (new schema)
+          let insertedCount = 0;
+          if (serialNumber) {
+            // Single serial number
+            const result = await client.query(`
+              INSERT INTO purchases (
+                product_type_id, purchase_date, purchase_number, product_series,
+                product_sku, serial_number, supplier_name,
+                dp, purchase_value, discount_amount, discount_percent
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+              ON CONFLICT (product_sku, serial_number) DO UPDATE SET
+                purchase_date = EXCLUDED.purchase_date,
+                purchase_number = EXCLUDED.purchase_number,
+                supplier_name = EXCLUDED.supplier_name,
+                dp = EXCLUDED.dp,
+                purchase_value = EXCLUDED.purchase_value,
+                discount_amount = EXCLUDED.discount_amount,
+                discount_percent = EXCLUDED.discount_percent,
+                updated_at = CURRENT_TIMESTAMP
+            `, [
+              productTypeId,
+              purchase.purchase_date || new Date(),
+              purchaseNumber,
+              seriesValue || null,
+              skuValue,
+              serialNumber,
+              purchase.supplier_name || null,
+              dp,
+              purchaseValue,
+              discountAmount,
+              discountPercent
+            ]);
+            insertedCount = result.rowCount;
+          } else {
+            // Multiple items without serial numbers - create one row per item
+            for (let i = 0; i < quantity; i++) {
+              const itemSerialNumber = `${purchaseNumber}-${i + 1}`;
+              const itemPurchaseValue = purchaseValue / quantity; // Split value across items
+              const itemDiscountAmount = discountAmount / quantity;
+              
+              const result = await client.query(`
+                INSERT INTO purchases (
+                  product_type_id, purchase_date, purchase_number, product_series,
+                  product_sku, serial_number, supplier_name,
+                  dp, purchase_value, discount_amount, discount_percent
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                ON CONFLICT (product_sku, serial_number) DO UPDATE SET
+                  purchase_date = EXCLUDED.purchase_date,
+                  purchase_number = EXCLUDED.purchase_number,
+                  supplier_name = EXCLUDED.supplier_name,
+                  dp = EXCLUDED.dp,
+                  purchase_value = EXCLUDED.purchase_value,
+                  discount_amount = EXCLUDED.discount_amount,
+                  discount_percent = EXCLUDED.discount_percent,
+                  updated_at = CURRENT_TIMESTAMP
+              `, [
+                productTypeId,
+                purchase.purchase_date || new Date(),
+                purchaseNumber,
+                seriesValue || null,
+                skuValue,
+                itemSerialNumber,
+                purchase.supplier_name || null,
+                dp,
+                itemPurchaseValue,
+                itemDiscountAmount,
+                discountPercent
+              ]);
+              insertedCount += result.rowCount;
+            }
+          }
           
           await client.query(`RELEASE SAVEPOINT ${savepointName}`);
           
