@@ -34,6 +34,32 @@ router.post("/init", async (req, res) => {
           } catch (err) {
             console.warn("⚠️  Commission agents migration skipped (may already exist):", err.message);
           }
+          
+          // Run add_dp_to_purchases migration (adds dp, purchase_value, discount columns)
+          try {
+            const addDpToPurchasesPath = path.join(__dirname, '../migrations/add_dp_to_purchases.sql');
+            if (fs.existsSync(addDpToPurchasesPath)) {
+              const addDpToPurchasesSQL = fs.readFileSync(addDpToPurchasesPath, 'utf8');
+              console.log("📋 Adding DP and discount columns to purchases table...");
+              await client.query(addDpToPurchasesSQL);
+              console.log("✅ DP and discount columns added to purchases table");
+            }
+          } catch (err) {
+            console.warn("⚠️  Add DP to purchases migration skipped (may already exist):", err.message);
+          }
+          
+          // Run create_purchase_tables migration (ensures purchases table has correct schema)
+          try {
+            const createPurchaseTablesPath = path.join(__dirname, '../migrations/create_purchase_tables.sql');
+            if (fs.existsSync(createPurchaseTablesPath)) {
+              const createPurchaseTablesSQL = fs.readFileSync(createPurchaseTablesPath, 'utf8');
+              console.log("📋 Ensuring purchases table has correct schema...");
+              await client.query(createPurchaseTablesSQL);
+              console.log("✅ Purchases table schema verified");
+            }
+          } catch (err) {
+            console.warn("⚠️  Create purchase tables migration skipped (may already exist):", err.message);
+          }
     
     // Create roles table (if not already created)
     await client.query(`

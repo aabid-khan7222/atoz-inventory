@@ -1287,8 +1287,14 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
     } catch (err) {
       console.error('[ADD STOCK] ERROR in transaction:', err.message);
       console.error('[ADD STOCK] Error stack:', err.stack);
-      await client.query('ROLLBACK');
-      console.error('[ADD STOCK] Transaction rolled back');
+      console.error('[ADD STOCK] Error code:', err.code);
+      console.error('[ADD STOCK] Error detail:', err.detail);
+      try {
+        await client.query('ROLLBACK');
+        console.error('[ADD STOCK] Transaction rolled back');
+      } catch (rollbackErr) {
+        console.error('[ADD STOCK] Rollback error:', rollbackErr.message);
+      }
       throw err;
     } finally {
       // Always release the client back to the pool
