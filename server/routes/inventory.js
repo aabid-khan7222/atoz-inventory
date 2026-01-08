@@ -1115,6 +1115,21 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
       // Start transaction
       await client.query('BEGIN');
 
+      // First, verify purchases table has all required columns
+      const columnsCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'purchases'
+        AND column_name IN ('product_sku', 'product_series', 'serial_number', 'purchase_number', 'dp', 'purchase_value', 'discount_amount', 'discount_percent', 'product_type_id')
+      `);
+      const requiredColumns = ['product_sku', 'product_series', 'serial_number', 'purchase_number', 'dp', 'purchase_value', 'discount_amount', 'discount_percent', 'product_type_id'];
+      const existingColumns = columnsCheck.rows.map(r => r.column_name);
+      const missingColumns = requiredColumns.filter(col => !existingColumns.includes(col));
+      
+      if (missingColumns.length > 0) {
+        throw new Error(`Missing required columns in purchases table: ${missingColumns.join(', ')}. Please run /api/init to add them.`);
+      }
+
       // Update product quantity
       console.log('[ADD STOCK] Updating product quantity from', currentQty, 'to', newQty);
       const updateResult = await client.query(
@@ -1202,35 +1217,56 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
         console.log('[ADD STOCK] Inserting into purchases table...');
         for (const serialNumber of serialNumbers) {
           console.log('[ADD STOCK] Inserting purchase for serial:', serialNumber);
-          const purchaseResult = await client.query(`
-            INSERT INTO purchases (
-              product_type_id, purchase_date, purchase_number, product_series,
-              product_sku, serial_number, supplier_name,
-              dp, purchase_value, discount_amount, discount_percent
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            ON CONFLICT (product_sku, serial_number) DO UPDATE SET
-              purchase_date = EXCLUDED.purchase_date,
-              purchase_number = EXCLUDED.purchase_number,
-              supplier_name = EXCLUDED.supplier_name,
-              dp = EXCLUDED.dp,
-              purchase_value = EXCLUDED.purchase_value,
-              discount_amount = EXCLUDED.discount_amount,
-              discount_percent = EXCLUDED.discount_percent,
-              updated_at = CURRENT_TIMESTAMP
-          `, [
-            purchaseProductTypeId,
-            purchaseDate,
-            purchaseNumber,
-            product.series || null,
-            product.sku,
-            serialNumber,
-            purchasedFrom || null,
-            finalDp,
-            finalPurchaseValue,
-            finalDiscountAmount,
-            finalDiscountPercent
-          ]);
-          console.log('[ADD STOCK] Purchase inserted:', purchaseResult.rowCount, 'rows for serial', serialNumber);
+          console.log('[ADD STOCK] Values:', {
+            product_type_id: purchaseProductTypeId,
+            purchase_date: purchaseDate,
+            purchase_number: purchaseNumber,
+            product_series: product.series || null,
+            product_sku: product.sku,
+            serial_number: serialNumber,
+            supplier_name: purchasedFrom || null,
+            dp: finalDp,
+            purchase_value: finalPurchaseValue,
+            discount_amount: finalDiscountAmount,
+            discount_percent: finalDiscountPercent
+          });
+          
+          try {
+            const purchaseResult = await client.query(`
+              INSERT INTO purchases (
+                product_type_id, purchase_date, purchase_number, product_series,
+                product_sku, serial_number, supplier_name,
+                dp, purchase_value, discount_amount, discount_percent
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+              ON CONFLICT (product_sku, serial_number) DO UPDATE SET
+                purchase_date = EXCLUDED.purchase_date,
+                purchase_number = EXCLUDED.purchase_number,
+                supplier_name = EXCLUDED.supplier_name,
+                dp = EXCLUDED.dp,
+                purchase_value = EXCLUDED.purchase_value,
+                discount_amount = EXCLUDED.discount_amount,
+                discount_percent = EXCLUDED.discount_percent,
+                updated_at = CURRENT_TIMESTAMP
+            `, [
+              purchaseProductTypeId,
+              purchaseDate,
+              purchaseNumber,
+              product.series || null,
+              product.sku,
+              serialNumber,
+              purchasedFrom || null,
+              finalDp,
+              finalPurchaseValue,
+              finalDiscountAmount,
+              finalDiscountPercent
+            ]);
+            console.log('[ADD STOCK] Purchase inserted:', purchaseResult.rowCount, 'rows for serial', serialNumber);
+          } catch (insertErr) {
+            console.error('[ADD STOCK] Error inserting purchase:', insertErr.message);
+            console.error('[ADD STOCK] Error code:', insertErr.code);
+            console.error('[ADD STOCK] Error detail:', insertErr.detail);
+            throw new Error(`Failed to insert purchase: ${insertErr.message}${insertErr.detail ? ` (${insertErr.detail})` : ''}`);
+          }
         }
       } else {
         // For water products, generate unique serial numbers using purchase_number + index
@@ -1289,13 +1325,20 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
       console.error('[ADD STOCK] Error stack:', err.stack);
       console.error('[ADD STOCK] Error code:', err.code);
       console.error('[ADD STOCK] Error detail:', err.detail);
+      console.error('[ADD STOCK] Error constraint:', err.constraint);
+      console.error('[ADD STOCK] Error table:', err.table);
+      console.error('[ADD STOCK] Error column:', err.column);
       try {
         await client.query('ROLLBACK');
         console.error('[ADD STOCK] Transaction rolled back');
       } catch (rollbackErr) {
         console.error('[ADD STOCK] Rollback error:', rollbackErr.message);
       }
-      throw err;
+      // Return more detailed error message
+      const errorMessage = err.detail 
+        ? `${err.message}. ${err.detail}`
+        : err.message;
+      throw new Error(errorMessage);
     } finally {
       // Always release the client back to the pool
       client.release();
