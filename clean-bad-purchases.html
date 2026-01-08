@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean Bad Purchases</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #c82333;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .confirm-btn {
+            background: #28a745;
+        }
+        .confirm-btn:hover {
+            background: #218838;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        #result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        #result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        #result.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .sample-list {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .sample-item {
+            margin: 5px 0;
+            padding: 5px;
+            background: white;
+            border-left: 3px solid #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Clean Bad Purchases</h1>
+        <p>This will find and delete purchases with:</p>
+        <ul>
+            <li>Product SKU like "UNKNOWN-XXX" (placeholders)</li>
+            <li>Purchase numbers like "PUR-al Time)-XXX" (corrupted)</li>
+            <li>Zero DP and Purchase Value (₹0.00)</li>
+            <li>NULL purchase_number or product_sku</li>
+        </ul>
+        
+        <button id="checkBtn" onclick="checkBadPurchases()">Check Bad Purchases</button>
+        <button id="deleteBtn" class="confirm-btn" onclick="deleteBadPurchases()" style="display:none;">Delete Bad Purchases</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://atoz-backend-qq3k.onrender.com/api';
+        let badPurchasesCount = 0;
+
+        async function checkBadPurchases() {
+            const btn = document.getElementById('checkBtn');
+            const resultDiv = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = 'Checking...';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/clean-bad-purchases`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ confirm: false })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    badPurchasesCount = data.found || 0;
+                    
+                    if (badPurchasesCount === 0) {
+                        resultDiv.className = 'success';
+                        resultDiv.innerHTML = `
+                            <h3>✅ All Good!</h3>
+                            <p>No bad purchases found. All data looks correct.</p>
+                        `;
+                        document.getElementById('deleteBtn').style.display = 'none';
+                    } else {
+                        resultDiv.className = 'warning';
+                        resultDiv.innerHTML = `
+                            <h3>⚠️ Found ${badPurchasesCount} Bad Purchases</h3>
+                            <p>These purchases have placeholder or corrupted data.</p>
+                            <div class="sample-list">
+                                <strong>Sample bad purchases:</strong>
+                                ${data.sample ? data.sample.map(p => `
+                                    <div class="sample-item">
+                                        ID: ${p.id} | SKU: ${p.product_sku} | Purchase #: ${p.purchase_number}
+                                    </div>
+                                `).join('') : ''}
+                            </div>
+                            <p style="margin-top: 15px;"><strong>Next step:</strong> Click "Delete Bad Purchases" to remove them, then re-migrate your data from localhost.</p>
+                        `;
+                        document.getElementById('deleteBtn').style.display = 'inline-block';
+                    }
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ Error</h3>
+                        <p>${data.error || 'Failed to check bad purchases'}</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Error</h3>
+                    <p>Failed to connect to backend: ${error.message}</p>
+                `;
+            } finally {
+                resultDiv.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Check Bad Purchases';
+            }
+        }
+
+        async function deleteBadPurchases() {
+            if (!confirm(`Are you sure you want to delete ${badPurchasesCount} bad purchases? This cannot be undone!`)) {
+                return;
+            }
+
+            const btn = document.getElementById('deleteBtn');
+            const resultDiv = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = 'Deleting...';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/clean-bad-purchases`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ confirm: true })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ Success!</h3>
+                        <p><strong>${data.deleted} bad purchases deleted.</strong></p>
+                        ${data.errors && data.errors.length > 0 ? `
+                            <p><strong>Errors:</strong> ${data.errors.length}</p>
+                            <ul>
+                                ${data.errors.map(err => `<li>${err}</li>`).join('')}
+                            </ul>
+                        ` : ''}
+                        <p style="margin-top: 15px;"><strong>Next steps:</strong></p>
+                        <ol>
+                            <li>Go to <code>migrate-data.html</code></li>
+                            <li>Export your data from localhost</li>
+                            <li>Import it to production (it will use the new schema correctly)</li>
+                        </ol>
+                    `;
+                    document.getElementById('deleteBtn').style.display = 'none';
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ Error</h3>
+                        <p>${data.error || 'Failed to delete bad purchases'}</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Error</h3>
+                    <p>Failed to connect to backend: ${error.message}</p>
+                `;
+            } finally {
+                resultDiv.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Delete Bad Purchases';
+            }
+        }
+    </script>
+</body>
+</html>
+
