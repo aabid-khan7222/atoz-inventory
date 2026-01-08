@@ -57,25 +57,53 @@ router.post("/fix-purchases-data", async (req, res) => {
       }
       
       // Now migrate data from old columns to new columns
+      // First check if old columns have actual data (not just NULLs)
+      const oldDataCheck = await client.query(`
+        SELECT COUNT(*) as count
+        FROM purchases
+        WHERE sku IS NOT NULL AND sku != '' AND sku != 'UNKNOWN'
+      `);
+      
+      const oldDataCount = parseInt(oldDataCheck.rows[0].count);
+      console.log(`📋 Found ${oldDataCount} records with valid SKU in old schema`);
+      
+      if (oldDataCount === 0) {
+        console.log("⚠️  No valid old schema data found. Records may need to be re-migrated from localhost export.");
+      }
+      
       const oldData = await client.query(`
         SELECT id, sku, series, name, purchase_date, purchase_price, total_amount, 
                supplier_name, invoice_number, product_type_id, quantity
         FROM purchases
-        WHERE (product_sku IS NULL OR product_sku = '') 
-        AND sku IS NOT NULL AND sku != ''
+        WHERE (product_sku IS NULL OR product_sku = '' OR product_sku LIKE 'UNKNOWN%') 
+        AND sku IS NOT NULL AND sku != '' AND sku != 'UNKNOWN'
       `);
       
-      console.log(`📋 Found ${oldData.rows.length} records to migrate`);
+      console.log(`📋 Found ${oldData.rows.length} records to migrate from old schema`);
       
       for (const row of oldData.rows) {
         try {
           // Generate purchase number if missing (max 50 chars)
           let purchaseNumber = row.invoice_number;
-          if (!purchaseNumber || purchaseNumber === '') {
-            const dateStr = row.purchase_date ? row.purchase_date.toString().replace(/-/g, '').slice(-8) : Date.now().toString().slice(-8);
+          if (!purchaseNumber || purchaseNumber === '' || purchaseNumber.includes('al Time)')) {
+            // Clean date string - handle Date objects properly
+            let dateStr;
+            if (row.purchase_date) {
+              const dateObj = row.purchase_date instanceof Date ? row.purchase_date : new Date(row.purchase_date);
+              dateStr = dateObj.toISOString().slice(0, 10).replace(/-/g, '');
+            } else {
+              dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            }
             // Keep it short: PUR-YYYYMMDD-ID (max 50 chars)
             purchaseNumber = `PUR-${dateStr}-${row.id}`;
             // Truncate if too long (max 50 chars)
+            if (purchaseNumber.length > 50) {
+              purchaseNumber = purchaseNumber.slice(0, 50);
+            }
+          } else if (purchaseNumber.includes('al Time)')) {
+            // Fix corrupted purchase numbers
+            const dateStr = row.purchase_date ? new Date(row.purchase_date).toISOString().slice(0, 10).replace(/-/g, '') : new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            purchaseNumber = `PUR-${dateStr}-${row.id}`;
             if (purchaseNumber.length > 50) {
               purchaseNumber = purchaseNumber.slice(0, 50);
             }
@@ -93,9 +121,24 @@ router.post("/fix-purchases-data", async (req, res) => {
             serialNumber = serialNumber.slice(0, 255);
           }
           
-          // Calculate prices
-          const dp = parseFloat(row.purchase_price || row.total_amount || 0);
-          const purchaseValue = parseFloat(row.total_amount || row.purchase_price || dp);
+          // Calculate prices - use actual values from old schema
+          const purchasePrice = parseFloat(row.purchase_price) || 0;
+          const totalAmount = parseFloat(row.total_amount) || 0;
+          
+          // If both are 0, try to get from amount column if it exists
+          let dp = purchasePrice || totalAmount;
+          let purchaseValue = totalAmount || purchasePrice;
+          
+          // Check if amount column exists and use it as fallback
+          if ((dp === 0 || purchaseValue === 0) && existingColumns.includes('amount')) {
+            const amountCheck = await client.query('SELECT amount FROM purchases WHERE id = $1', [row.id]);
+            if (amountCheck.rows.length > 0 && amountCheck.rows[0].amount) {
+              const amount = parseFloat(amountCheck.rows[0].amount);
+              if (dp === 0) dp = amount;
+              if (purchaseValue === 0) purchaseValue = amount;
+            }
+          }
+          
           const discountAmount = Math.max(0, dp - purchaseValue);
           const discountPercent = dp > 0 ? Math.round((discountAmount / dp) * 10000) / 100 : 0;
           
@@ -201,9 +244,21 @@ router.post("/fix-purchases-data", async (req, res) => {
           }
           
           let productSku = row.product_sku;
-          if (!productSku || productSku === '') {
-            // Try to get from products table or use placeholder
-            productSku = `UNKNOWN-${row.id}`;
+          if (!productSku || productSku === '' || productSku.startsWith('UNKNOWN')) {
+            // Try to get from products table by matching name or SKU
+            if (row.sku && row.sku !== 'UNKNOWN') {
+              const productCheck = await client.query('SELECT sku FROM products WHERE sku = $1 LIMIT 1', [row.sku]);
+              if (productCheck.rows.length > 0) {
+                productSku = productCheck.rows[0].sku;
+              } else {
+                // Use the SKU from old schema
+                productSku = row.sku;
+              }
+            } else {
+              // Last resort: use placeholder but log it
+              productSku = `UNKNOWN-${row.id}`;
+              console.warn(`⚠️  Using placeholder SKU for purchase ID ${row.id}`);
+            }
           }
           // Ensure product_sku doesn't exceed 100 chars
           if (productSku.length > 100) {
