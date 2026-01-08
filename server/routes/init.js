@@ -149,14 +149,31 @@ router.post("/init", async (req, res) => {
               'product_series': 'VARCHAR(100)',
               'serial_number': 'VARCHAR(255)',
               'purchase_number': 'VARCHAR(50)',
-              'product_type_id': 'INTEGER REFERENCES purchase_product_type(id)'
+              'product_type_id': 'INTEGER'
             };
             
             for (const [colName, colType] of Object.entries(requiredColumns)) {
               if (!columnNames.includes(colName)) {
                 console.log(`📋 Adding missing column: ${colName}`);
                 try {
-                  await client.query(`ALTER TABLE purchases ADD COLUMN IF NOT EXISTS ${colName} ${colType}`);
+                  // For product_type_id, add without foreign key first, then add FK if needed
+                  if (colName === 'product_type_id') {
+                    await client.query(`ALTER TABLE purchases ADD COLUMN IF NOT EXISTS ${colName} ${colType}`);
+                    // Try to add foreign key constraint separately
+                    try {
+                      await client.query(`
+                        ALTER TABLE purchases 
+                        ADD CONSTRAINT purchases_product_type_id_fkey 
+                        FOREIGN KEY (product_type_id) 
+                        REFERENCES purchase_product_type(id)
+                      `);
+                      console.log(`✅ Added foreign key constraint for ${colName}`);
+                    } catch (fkErr) {
+                      console.warn(`⚠️  Foreign key constraint may already exist for ${colName}:`, fkErr.message);
+                    }
+                  } else {
+                    await client.query(`ALTER TABLE purchases ADD COLUMN IF NOT EXISTS ${colName} ${colType}`);
+                  }
                   console.log(`✅ Added column: ${colName}`);
                 } catch (colErr) {
                   console.warn(`⚠️  Could not add column ${colName}:`, colErr.message);
