@@ -6,6 +6,73 @@ const db = require("../db");
 
 const router = express.Router();
 
+// GET endpoint to check initialization status
+router.get("/init", async (req, res) => {
+  const client = await db.pool.connect();
+  try {
+    // Check if tables exist
+    const tablesCheck = await client.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name IN ('users', 'products', 'roles', 'purchases')
+    `);
+    
+    const existingTables = tablesCheck.rows.map(r => r.table_name);
+    const requiredTables = ['users', 'products', 'roles', 'purchases'];
+    const missingTables = requiredTables.filter(t => !existingTables.includes(t));
+    
+    // Check if admin user exists
+    let adminExists = false;
+    if (existingTables.includes('users')) {
+      const adminCheck = await client.query(`
+        SELECT COUNT(*) as count FROM users WHERE role_id = 1 OR role_id = 2
+      `);
+      adminExists = parseInt(adminCheck.rows[0].count) > 0;
+    }
+    
+    // Check if purchases table has required columns
+    let purchasesColumnsOk = false;
+    if (existingTables.includes('purchases')) {
+      const columnsCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'purchases'
+        AND column_name IN ('dp', 'purchase_value', 'discount_amount', 'discount_percent')
+      `);
+      purchasesColumnsOk = columnsCheck.rows.length >= 4;
+    }
+    
+    res.json({
+      initialized: missingTables.length === 0 && adminExists && purchasesColumnsOk,
+      tables: {
+        existing: existingTables,
+        missing: missingTables,
+        allPresent: missingTables.length === 0
+      },
+      adminExists,
+      purchasesColumnsOk,
+      message: missingTables.length > 0 
+        ? "Database not initialized. Use POST /api/init to initialize."
+        : !adminExists
+        ? "Database tables exist but admin user not found. Use POST /api/init to create admin."
+        : !purchasesColumnsOk
+        ? "Purchases table missing required columns. Use POST /api/init to add them."
+        : "Database is initialized and ready.",
+      usage: "Use POST /api/init to initialize the database"
+    });
+  } catch (error) {
+    console.error("GET /api/init error:", error);
+    res.status(500).json({
+      initialized: false,
+      error: "Error checking initialization status",
+      details: process.env.NODE_ENV === 'production' ? undefined : error.message
+    });
+  } finally {
+    client.release();
+  }
+});
+
 router.post("/init", async (req, res) => {
   const client = await db.pool.connect();
   const fs = require('fs');
