@@ -1129,6 +1129,30 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
       if (missingColumns.length > 0) {
         throw new Error(`Missing required columns in purchases table: ${missingColumns.join(', ')}. Please run /api/init to add them.`);
       }
+      
+      // Verify unique constraint exists for ON CONFLICT clause
+      const constraintCheck = await client.query(`
+        SELECT constraint_name 
+        FROM information_schema.table_constraints 
+        WHERE table_name = 'purchases' 
+        AND constraint_type = 'UNIQUE'
+        AND constraint_name LIKE '%product_sku%serial_number%'
+      `);
+      
+      if (constraintCheck.rows.length === 0) {
+        console.warn('[ADD STOCK] Unique constraint on (product_sku, serial_number) not found. Creating it...');
+        try {
+          await client.query(`
+            ALTER TABLE purchases 
+            ADD CONSTRAINT purchases_product_sku_serial_number_unique 
+            UNIQUE (product_sku, serial_number)
+          `);
+          console.log('[ADD STOCK] Unique constraint created');
+        } catch (constraintErr) {
+          console.warn('[ADD STOCK] Could not create unique constraint:', constraintErr.message);
+          // Continue anyway - ON CONFLICT will fail gracefully
+        }
+      }
 
       // Update product quantity
       console.log('[ADD STOCK] Updating product quantity from', currentQty, 'to', newQty);
