@@ -26,6 +26,7 @@ const employeesRouter = require("./routes/employees");
 const initRouter = require("./routes/init");
 const migrateDataRouter = require("./routes/migrate-data");
 const migrateDataBatchRouter = require("./routes/migrate-data-batch");
+const fixPurchasesDataRouter = require("./routes/fix-purchases-data");
 
 const app = express();
 
@@ -109,6 +110,7 @@ app.use("/api/employees", employeesRouter);
 app.use("/api", initRouter);
 app.use("/api", migrateDataRouter);
 app.use("/api", migrateDataBatchRouter);
+app.use("/api", fixPurchasesDataRouter);
 
 
 
