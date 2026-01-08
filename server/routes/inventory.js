@@ -1326,22 +1326,20 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
           // Generate unique serial number: purchase_number-{index}
           const waterSerialNumber = `${purchaseNumber}-${i + 1}`;
           console.log('[ADD STOCK] Inserting purchase for water product unit:', waterSerialNumber);
-          const purchaseResult = await client.query(`
-            INSERT INTO purchases (
-              product_type_id, purchase_date, purchase_number, product_series,
-              product_sku, serial_number, supplier_name,
-              dp, purchase_value, discount_amount, discount_percent
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            ON CONFLICT (product_sku, serial_number) DO UPDATE SET
-              purchase_date = EXCLUDED.purchase_date,
-              purchase_number = EXCLUDED.purchase_number,
-              supplier_name = EXCLUDED.supplier_name,
-              dp = EXCLUDED.dp,
-              purchase_value = EXCLUDED.purchase_value,
-              discount_amount = EXCLUDED.discount_amount,
-              discount_percent = EXCLUDED.discount_percent,
-              updated_at = CURRENT_TIMESTAMP
-          `, [
+          
+          // Check if old schema columns exist
+          const oldColumnsCheck = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'purchases' 
+            AND column_name IN ('sku', 'series', 'name')
+          `);
+          const hasOldColumns = oldColumnsCheck.rows.length > 0;
+          
+          // Build INSERT query - include old columns if they exist
+          let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent';
+          let insertValues = '$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11';
+          let insertParams = [
             purchaseProductTypeId,
             purchaseDate,
             purchaseNumber,
@@ -1353,7 +1351,33 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
             finalPurchaseValue,
             finalDiscountAmount,
             finalDiscountPercent
-          ]);
+          ];
+          
+          // If old columns exist, also insert into them
+          if (hasOldColumns) {
+            insertColumns += ', sku, series, name';
+            insertValues += ', $12, $13, $14';
+            insertParams.push(
+              product.sku,
+              product.series || null,
+              product.name || 'Unknown Product'
+            );
+          }
+          
+          const purchaseResult = await client.query(`
+            INSERT INTO purchases (
+              ${insertColumns}
+            ) VALUES (${insertValues})
+            ON CONFLICT (product_sku, serial_number) DO UPDATE SET
+              purchase_date = EXCLUDED.purchase_date,
+              purchase_number = EXCLUDED.purchase_number,
+              supplier_name = EXCLUDED.supplier_name,
+              dp = EXCLUDED.dp,
+              purchase_value = EXCLUDED.purchase_value,
+              discount_amount = EXCLUDED.discount_amount,
+              discount_percent = EXCLUDED.discount_percent,
+              updated_at = CURRENT_TIMESTAMP
+          `, insertParams);
           console.log('[ADD STOCK] Purchase inserted:', purchaseResult.rowCount, 'rows for water unit', waterSerialNumber);
         }
       }

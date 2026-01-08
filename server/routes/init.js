@@ -128,6 +128,19 @@ router.post("/init", async (req, res) => {
             console.warn("⚠️  Add DP to purchases migration skipped (may already exist):", err.message);
           }
           
+          // Make old purchases columns nullable (if they exist)
+          try {
+            const makeOldColumnsNullablePath = path.join(__dirname, '../migrations/make_old_purchases_columns_nullable.sql');
+            if (fs.existsSync(makeOldColumnsNullablePath)) {
+              const makeOldColumnsNullableSQL = fs.readFileSync(makeOldColumnsNullablePath, 'utf8');
+              console.log("📋 Making old purchases columns nullable...");
+              await client.query(makeOldColumnsNullableSQL);
+              console.log("✅ Old purchases columns made nullable");
+            }
+          } catch (err) {
+            console.warn("⚠️  Make old columns nullable migration skipped (may already be done):", err.message);
+          }
+          
           // Ensure purchases table has all required columns (safety check)
           try {
             console.log("📋 Verifying purchases table columns...");
