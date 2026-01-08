@@ -1,9 +1,11 @@
 // client/src/api.js
 
-export const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+// Get API base URL - use function to avoid initialization issues
+function getApiBase() {
+  return import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+}
 
-
+export const API_BASE = getApiBase();
 
 // Module-level token storage
 let currentToken = null;
@@ -15,7 +17,7 @@ export function setAuthToken(token) {
 
 // Generic request helper
 export async function request(path, options = {}) {
-  const url = `${API_BASE}${path}`;
+  const url = `${getApiBase()}${path}`;
 
   // Ensure headers object exists
   const headers = {
@@ -593,9 +595,9 @@ export async function getInvoiceById(invoiceNumber) {
 
 export async function getInvoicePDF(invoiceNumber) {
   try {
-    const response = await fetch(`${API_BASE}/invoices/${invoiceNumber}/pdf`, {
+    const response = await fetch(`${getApiBase()}/invoices/${invoiceNumber}/pdf`, {
       headers: {
-        'Authorization': `Bearer ${currentToken}`
+        'Authorization': `Bearer ${currentToken || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null)}`
       }
     });
     

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
-import api from '../../api';
+import api, { API_BASE } from '../../api';
 import Swal from 'sweetalert2';
 import './DashboardContent.css';
 import './Filters.css';
@@ -264,7 +264,7 @@ const CustomerOrders = ({ title, description }) => {
   const handleDownloadPDF = async (invoiceNumber) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'}/invoices/${invoiceNumber}/pdf`, {
+      const response = await fetch(`${API_BASE}/invoices/${invoiceNumber}/pdf`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

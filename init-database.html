@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Initialize Database</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗄️ Database Initialization</h1>
+        <p>Click the button below to initialize your database. This will:</p>
+        <ul>
+            <li>Create <code>roles</code> table</li>
+            <li>Create <code>users</code> table</li>
+            <li>Create <code>customer_profiles</code> table</li>
+            <li>Create default admin user</li>
+        </ul>
+        
+        <button id="initBtn" onclick="initializeDatabase()">Initialize Database</button>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        async function initializeDatabase() {
+            const btn = document.getElementById('initBtn');
+            const resultDiv = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = 'Initializing...';
+            resultDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('https://atoz-backend-qq3k.onrender.com/api/init', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.style.display = 'block';
+                
+                if (response.ok && data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ Success!</h3>
+                        <p>Database initialized successfully!</p>
+                        <h4>Default Admin Credentials:</h4>
+                        <pre>Email: ${data.admin.email}
+Password: ${data.admin.password}</pre>
+                        <p><strong>⚠️ Important:</strong> Please change the password after first login!</p>
+                        <p><a href="https://atoz-frontend.onrender.com/login" target="_blank">Go to Login Page →</a></p>
+                    `;
+                    btn.textContent = '✅ Initialized';
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ Error</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                    btn.disabled = false;
+                    btn.textContent = 'Try Again';
+                }
+            } catch (error) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Network Error</h3>
+                    <p>${error.message}</p>
+                    <p>Make sure the backend is deployed and running.</p>
+                `;
+                btn.disabled = false;
+                btn.textContent = 'Try Again';
+            }
+        }
+    </script>
+</body>
+</html>
+

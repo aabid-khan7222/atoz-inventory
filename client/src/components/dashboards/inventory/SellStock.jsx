@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../../api';
+import api, { API_BASE } from '../../../api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTheme } from '../../../contexts/ThemeContext';
 import SearchableDropdown from '../../common/SearchableDropdown';
@@ -1548,7 +1548,7 @@ const SellStock = ({ onBack }) => {
                   onClick={async () => {
                     try {
                       const token = localStorage.getItem('auth_token');
-                      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'}/invoices/${invoiceNumber}/pdf`, {
+                      const response = await fetch(`${API_BASE}/invoices/${invoiceNumber}/pdf`, {
                         headers: {
                           'Authorization': `Bearer ${token}`
                         }

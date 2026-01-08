@@ -74,6 +74,12 @@ const AddStock = ({ onBack }) => {
   const [success, setSuccess] = useState('');
   const [isInitialMount, setIsInitialMount] = useState(true);
   
+  // Get saved state for restoration checks - must be defined before use
+  const savedState = React.useMemo(() => getSavedState(), []);
+  
+  // Track previous quantity to detect user changes (not restoration) - initialize with saved value
+  const prevQuantityRef = React.useRef(savedState?.quantity || '');
+  
   // Ensure saved state is properly restored on mount (force restore if savedState exists)
   useEffect(() => {
     if (isInitialMount && savedState) {
@@ -133,12 +139,6 @@ const AddStock = ({ onBack }) => {
     };
     sessionStorage.setItem('addStockFormState', JSON.stringify(formState));
   }, [selectedCategory, selectedProduct, quantity, serialNumbers, purchaseDate, purchaseTime, purchasedFrom, amount, discountPercent, discountAmount, isInitialMount]);
-
-  // Get saved state for restoration checks
-  const savedState = React.useMemo(() => getSavedState(), []);
-  
-  // Track previous quantity to detect user changes (not restoration) - initialize with saved value
-  const prevQuantityRef = React.useRef(savedState?.quantity || '');
   
   // Track if we've restored state to prevent auto-sync from overriding saved serial numbers
   const [hasRestoredState, setHasRestoredState] = useState(false);
@@ -227,19 +227,19 @@ const AddStock = ({ onBack }) => {
     { id: 'water', name: 'Water Products', icon: '💧' }
   ];
 
-  // Restore selected product when products are loaded
+  // Restore selected product when products are loaded (duplicate useEffect - keeping for compatibility)
   useEffect(() => {
-    if (initialSavedState?.selectedProductId && products.length > 0 && !selectedProduct) {
-      const restoredProduct = products.find(p => p.id === initialSavedState.selectedProductId);
+    if (savedState?.selectedProductId && products.length > 0 && !selectedProduct) {
+      const restoredProduct = products.find(p => p.id === savedState.selectedProductId);
       if (restoredProduct) {
         setSelectedProduct(restoredProduct);
         // Only restore amount from product DP if amount wasn't saved in state
-        if (!initialSavedState.amount && restoredProduct.dp) {
+        if (!savedState.amount && restoredProduct.dp) {
           setAmount(parseFloat(restoredProduct.dp || restoredProduct.mrp_price || 0).toString());
         }
       }
     }
-  }, [products, initialSavedState?.selectedProductId, initialSavedState?.amount, selectedProduct]);
+  }, [products, savedState?.selectedProductId, savedState?.amount, selectedProduct]);
 
   useEffect(() => {
     fetchProducts();

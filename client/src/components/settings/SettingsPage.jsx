@@ -6,9 +6,11 @@ import { useTheme } from "../../contexts/ThemeContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import "./SettingsPage.css";
 
+// Import API_BASE from api.js
+import { API_BASE } from "../../api.js";
+
 // Backend base URL
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+const API_BASE_URL = API_BASE;
 
 // Supported languages
 const LANGUAGE_OPTIONS = [

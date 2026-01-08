@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import api from '../../api';
+import api, { API_BASE } from '../../api';
 import Swal from 'sweetalert2';
 import logo from '../../assets/exide-care.png';
 import './Invoice.css';
@@ -89,7 +89,7 @@ const Invoice = () => {
   const handleDownloadPDF = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'}/invoices/${invoiceNumber}/pdf`, {
+      const response = await fetch(`${API_BASE}/invoices/${invoiceNumber}/pdf`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
