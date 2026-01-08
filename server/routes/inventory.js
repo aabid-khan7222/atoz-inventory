@@ -1172,31 +1172,37 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
       
       // Skip stock_history and stock table operations for water products
       if (!isWaterProduct) {
-        // Insert serial numbers into stock_history table
+        // Insert serial numbers into stock_history table (optional - use SAVEPOINT)
         for (const serialNumber of serialNumbers) {
+          const savepointName = `sp_stock_history_${serialNumber}`;
           try {
+            await client.query(`SAVEPOINT ${savepointName}`);
             await client.query(`
               INSERT INTO stock_history 
               (product_id, transaction_type, quantity, serial_number, user_id, created_at)
               VALUES ($1, 'add', 1, $2, $3, CURRENT_TIMESTAMP)
             `, [productId, serialNumber, userId || null]);
+            await client.query(`RELEASE SAVEPOINT ${savepointName}`);
           } catch (err) {
-            // If table doesn't exist or other error, use SAVEPOINT to continue
-            console.warn('[ADD STOCK] Could not insert into stock_history:', err.message);
-            // Create savepoint before continuing to allow rollback if needed
+            // Rollback to savepoint to continue transaction
             try {
-              await client.query('SAVEPOINT before_stock_history_skip');
-              await client.query('RELEASE SAVEPOINT before_stock_history_skip');
-            } catch (spErr) {
-              // Ignore savepoint errors
+              await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
+            } catch (rollbackErr) {
+              // If savepoint doesn't exist, transaction might be aborted
+              console.error('[ADD STOCK] Could not rollback to savepoint:', rollbackErr.message);
             }
+            // If table doesn't exist or other error, log but continue
+            console.warn('[ADD STOCK] Could not insert into stock_history:', err.message);
           }
         }
 
-        // Create stock table entries - one row per serial number
+        // Create stock table entries - one row per serial number (optional - use SAVEPOINT)
         console.log('[ADD STOCK] Inserting into stock table...');
         for (const serialNumber of serialNumbers) {
+          const savepointName = `sp_stock_${serialNumber}`;
           try {
+            await client.query(`SAVEPOINT ${savepointName}`);
+            
             // Check if stock entry already exists
             const existingStock = await client.query(`
               SELECT id FROM stock 
@@ -1243,18 +1249,18 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
               ]);
               console.log('[ADD STOCK] Stock entry updated:', updateStockResult.rowCount, 'rows');
             }
+            
+            await client.query(`RELEASE SAVEPOINT ${savepointName}`);
           } catch (stockErr) {
-            console.error('[ADD STOCK] Error with stock table:', stockErr.message);
-            console.error('[ADD STOCK] Stock error detail:', stockErr.detail);
-            // Use savepoint to allow continuing if stock table has issues
+            // Rollback to savepoint to continue transaction
             try {
-              await client.query('SAVEPOINT before_stock_skip');
-              await client.query('RELEASE SAVEPOINT before_stock_skip');
-              console.warn('[ADD STOCK] Continuing despite stock table error');
-            } catch (spErr) {
-              // If we can't create savepoint, the transaction is already aborted
+              await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
+            } catch (rollbackErr) {
+              console.error('[ADD STOCK] Could not rollback to savepoint:', rollbackErr.message);
+              // If we can't rollback, transaction is already aborted
               throw new Error(`Stock table error: ${stockErr.message}${stockErr.detail ? ` (${stockErr.detail})` : ''}`);
             }
+            console.warn('[ADD STOCK] Stock table operation failed, continuing:', stockErr.message);
           }
         }
 
