@@ -1181,59 +1181,80 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
               VALUES ($1, 'add', 1, $2, $3, CURRENT_TIMESTAMP)
             `, [productId, serialNumber, userId || null]);
           } catch (err) {
-            // If table doesn't exist or other error, log but continue
+            // If table doesn't exist or other error, use SAVEPOINT to continue
             console.warn('[ADD STOCK] Could not insert into stock_history:', err.message);
+            // Create savepoint before continuing to allow rollback if needed
+            try {
+              await client.query('SAVEPOINT before_stock_history_skip');
+              await client.query('RELEASE SAVEPOINT before_stock_history_skip');
+            } catch (spErr) {
+              // Ignore savepoint errors
+            }
           }
         }
 
         // Create stock table entries - one row per serial number
         console.log('[ADD STOCK] Inserting into stock table...');
         for (const serialNumber of serialNumbers) {
-          // Check if stock entry already exists
-          const existingStock = await client.query(`
-            SELECT id FROM stock 
-            WHERE product_id = $1 AND serial_number = $2 AND status = 'available'
-          `, [product.id, serialNumber]);
+          try {
+            // Check if stock entry already exists
+            const existingStock = await client.query(`
+              SELECT id FROM stock 
+              WHERE product_id = $1 AND serial_number = $2 AND status = 'available'
+            `, [product.id, serialNumber]);
 
-          if (existingStock.rows.length === 0) {
-            // Insert new stock entry
-            console.log('[ADD STOCK] Inserting new stock entry for serial:', serialNumber);
-            const stockResult = await client.query(`
-              INSERT INTO stock (
-                purchase_date, sku, series, category, name, ah_va, quantity,
-                purchased_from, warranty, product_type_id, product_id, serial_number, status
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'available')
-            `, [
-            purchaseDate,
-            product.sku,
-            product.series,
-            product.category,
-            product.name,
-            product.ah_va,
-            1, // Always 1 per row
-            purchasedFrom,
-              product.warranty,
-              product.product_type_id,
-              product.id,
-              serialNumber
-            ]);
-            console.log('[ADD STOCK] Stock entry inserted:', stockResult.rowCount, 'rows');
-          } else {
-            // Update existing stock entry
-            console.log('[ADD STOCK] Updating existing stock entry for serial:', serialNumber);
-            const updateStockResult = await client.query(`
-              UPDATE stock SET
-                purchase_date = $1,
-                purchased_from = $2,
-                updated_at = CURRENT_TIMESTAMP
-              WHERE product_id = $3 AND serial_number = $4 AND status = 'available'
-            `, [
-              purchaseDate,
-              purchasedFrom,
-              product.id,
-              serialNumber
-            ]);
-            console.log('[ADD STOCK] Stock entry updated:', updateStockResult.rowCount, 'rows');
+            if (existingStock.rows.length === 0) {
+              // Insert new stock entry
+              console.log('[ADD STOCK] Inserting new stock entry for serial:', serialNumber);
+              const stockResult = await client.query(`
+                INSERT INTO stock (
+                  purchase_date, sku, series, category, name, ah_va, quantity,
+                  purchased_from, warranty, product_type_id, product_id, serial_number, status
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'available')
+              `, [
+                purchaseDate,
+                product.sku,
+                product.series,
+                product.category,
+                product.name,
+                product.ah_va,
+                1, // Always 1 per row
+                purchasedFrom,
+                product.warranty,
+                product.product_type_id,
+                product.id,
+                serialNumber
+              ]);
+              console.log('[ADD STOCK] Stock entry inserted:', stockResult.rowCount, 'rows');
+            } else {
+              // Update existing stock entry
+              console.log('[ADD STOCK] Updating existing stock entry for serial:', serialNumber);
+              const updateStockResult = await client.query(`
+                UPDATE stock SET
+                  purchase_date = $1,
+                  purchased_from = $2,
+                  updated_at = CURRENT_TIMESTAMP
+                WHERE product_id = $3 AND serial_number = $4 AND status = 'available'
+              `, [
+                purchaseDate,
+                purchasedFrom,
+                product.id,
+                serialNumber
+              ]);
+              console.log('[ADD STOCK] Stock entry updated:', updateStockResult.rowCount, 'rows');
+            }
+          } catch (stockErr) {
+            console.error('[ADD STOCK] Error with stock table:', stockErr.message);
+            console.error('[ADD STOCK] Stock error detail:', stockErr.detail);
+            // Use savepoint to allow continuing if stock table has issues
+            try {
+              await client.query('SAVEPOINT before_stock_skip');
+              await client.query('RELEASE SAVEPOINT before_stock_skip');
+              console.warn('[ADD STOCK] Continuing despite stock table error');
+            } catch (spErr) {
+              // If we can't create savepoint, the transaction is already aborted
+              throw new Error(`Stock table error: ${stockErr.message}${stockErr.detail ? ` (${stockErr.detail})` : ''}`);
+            }
           }
         }
 
