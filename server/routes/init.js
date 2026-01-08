@@ -170,7 +170,7 @@ router.post("/delete-dummy-products", async (req, res) => {
   try {
     console.log("🗑️  Deleting dummy products...");
     
-    // List of dummy product SKUs that were added during initialization
+    // List of dummy product SKUs and name patterns that were added during initialization
     const dummyProductSKUs = [
       'EXIDE-CAR-100AH',
       'EXIDE-BIKE-7AH',
@@ -179,21 +179,27 @@ router.post("/delete-dummy-products", async (req, res) => {
       'GEN-DW-5L'
     ];
     
+    const dummyProductNamePatterns = [
+      'Exide Car Battery 100AH',
+      'Exide Bike Battery 7AH',
+      'Exide UPS Battery 150AH',
+      'Exide Distilled Water 5L',
+      'Generic Distilled Water 5L'
+    ];
+    
     let deletedCount = 0;
     const deletedProducts = [];
     
+    // Delete by SKU first
     for (const sku of dummyProductSKUs) {
       try {
-        // First check if product exists
         const checkResult = await client.query(
-          'SELECT id, name FROM products WHERE sku = $1',
+          'SELECT id, name, sku FROM products WHERE sku = $1',
           [sku]
         );
         
         if (checkResult.rows.length > 0) {
           const product = checkResult.rows[0];
-          
-          // Delete the product
           const deleteResult = await client.query(
             'DELETE FROM products WHERE sku = $1',
             [sku]
@@ -201,14 +207,44 @@ router.post("/delete-dummy-products", async (req, res) => {
           
           if (deleteResult.rowCount > 0) {
             deletedCount++;
-            deletedProducts.push({ sku, name: product.name });
-            console.log(`✅ Deleted: ${sku} - ${product.name}`);
+            deletedProducts.push({ sku: product.sku, name: product.name });
+            console.log(`✅ Deleted by SKU: ${product.sku} - ${product.name}`);
           }
-        } else {
-          console.log(`ℹ️  Product not found (may already be deleted): ${sku}`);
         }
       } catch (err) {
         console.error(`❌ Error deleting product ${sku}:`, err.message);
+      }
+    }
+    
+    // Also delete by exact name match (in case SKU is different)
+    for (const namePattern of dummyProductNamePatterns) {
+      try {
+        const checkResult = await client.query(
+          'SELECT id, name, sku FROM products WHERE name = $1',
+          [namePattern]
+        );
+        
+        if (checkResult.rows.length > 0) {
+          for (const product of checkResult.rows) {
+            // Skip if already deleted
+            if (deletedProducts.some(p => p.sku === product.sku)) {
+              continue;
+            }
+            
+            const deleteResult = await client.query(
+              'DELETE FROM products WHERE id = $1',
+              [product.id]
+            );
+            
+            if (deleteResult.rowCount > 0) {
+              deletedCount++;
+              deletedProducts.push({ sku: product.sku, name: product.name });
+              console.log(`✅ Deleted by name: ${product.sku} - ${product.name}`);
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`❌ Error deleting product by name ${namePattern}:`, err.message);
       }
     }
     
