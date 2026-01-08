@@ -14,13 +14,13 @@ router.post("/init", async (req, res) => {
   try {
     console.log("🚀 Starting complete database initialization...");
     
-          // Read and execute comprehensive base tables migration
-          const baseTablesPath = path.join(__dirname, '../migrations/000_create_all_base_tables.sql');
-          const baseTablesSQL = fs.readFileSync(baseTablesPath, 'utf8');
-          
-          console.log("📋 Creating all base tables...");
-          await client.query(baseTablesSQL);
-          console.log("✅ All base tables created");
+    // Read and execute comprehensive base tables migration
+    const baseTablesPath = path.join(__dirname, '../migrations/000_create_all_base_tables.sql');
+    const baseTablesSQL = fs.readFileSync(baseTablesPath, 'utf8');
+    
+    console.log("📋 Creating all base tables...");
+    await client.query(baseTablesSQL);
+    console.log("✅ All base tables created");
           
           // Run commission_agents migration (adds commission columns to sales_item)
           try {
