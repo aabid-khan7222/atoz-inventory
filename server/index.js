@@ -28,6 +28,7 @@ const migrateDataRouter = require("./routes/migrate-data");
 const migrateDataBatchRouter = require("./routes/migrate-data-batch");
 const fixPurchasesDataRouter = require("./routes/fix-purchases-data");
 const cleanBadPurchasesRouter = require("./routes/clean-bad-purchases");
+const dbCheckRouter = require("./routes/db-check");
 
 const app = express();
 
@@ -113,6 +114,7 @@ app.use("/api", migrateDataRouter);
 app.use("/api", migrateDataBatchRouter);
 app.use("/api", fixPurchasesDataRouter);
 app.use("/api", cleanBadPurchasesRouter);
+app.use("/api", dbCheckRouter);
 
 
 
