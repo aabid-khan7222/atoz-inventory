@@ -229,5 +229,74 @@ router.post("/init", async (req, res) => {
   }
 });
 
+// Endpoint to delete dummy/sample products
+router.post("/delete-dummy-products", async (req, res) => {
+  const client = await db.pool.connect();
+  
+  try {
+    console.log("🗑️  Deleting dummy products...");
+    
+    // List of dummy product SKUs that were added during initialization
+    const dummyProductSKUs = [
+      'EXIDE-CAR-100AH',
+      'EXIDE-BIKE-7AH',
+      'EXIDE-UPS-150AH',
+      'EXIDE-DW-5L',
+      'GEN-DW-5L'
+    ];
+    
+    let deletedCount = 0;
+    const deletedProducts = [];
+    
+    for (const sku of dummyProductSKUs) {
+      try {
+        // First check if product exists
+        const checkResult = await client.query(
+          'SELECT id, name FROM products WHERE sku = $1',
+          [sku]
+        );
+        
+        if (checkResult.rows.length > 0) {
+          const product = checkResult.rows[0];
+          
+          // Delete the product
+          const deleteResult = await client.query(
+            'DELETE FROM products WHERE sku = $1',
+            [sku]
+          );
+          
+          if (deleteResult.rowCount > 0) {
+            deletedCount++;
+            deletedProducts.push({ sku, name: product.name });
+            console.log(`✅ Deleted: ${sku} - ${product.name}`);
+          }
+        } else {
+          console.log(`ℹ️  Product not found (may already be deleted): ${sku}`);
+        }
+      } catch (err) {
+        console.error(`❌ Error deleting product ${sku}:`, err.message);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Deleted ${deletedCount} dummy product(s)`,
+      deletedCount,
+      deletedProducts,
+      totalDummyProducts: dummyProductSKUs.length
+    });
+    
+  } catch (error) {
+    console.error("❌ Failed to delete dummy products:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to delete dummy products",
+      details: process.env.NODE_ENV === 'production' ? undefined : error.message
+    });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;
 
