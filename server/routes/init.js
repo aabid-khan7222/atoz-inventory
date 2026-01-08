@@ -35,6 +35,19 @@ router.post("/init", async (req, res) => {
             console.warn("⚠️  Commission agents migration skipped (may already exist):", err.message);
           }
           
+          // Run create_purchase_tables migration first (ensures purchases table exists with base schema)
+          try {
+            const createPurchaseTablesPath = path.join(__dirname, '../migrations/create_purchase_tables.sql');
+            if (fs.existsSync(createPurchaseTablesPath)) {
+              const createPurchaseTablesSQL = fs.readFileSync(createPurchaseTablesPath, 'utf8');
+              console.log("📋 Ensuring purchases table has correct base schema...");
+              await client.query(createPurchaseTablesSQL);
+              console.log("✅ Purchases table base schema verified");
+            }
+          } catch (err) {
+            console.warn("⚠️  Create purchase tables migration skipped (may already exist):", err.message);
+          }
+          
           // Run add_dp_to_purchases migration (adds dp, purchase_value, discount columns)
           try {
             const addDpToPurchasesPath = path.join(__dirname, '../migrations/add_dp_to_purchases.sql');
@@ -48,17 +61,60 @@ router.post("/init", async (req, res) => {
             console.warn("⚠️  Add DP to purchases migration skipped (may already exist):", err.message);
           }
           
-          // Run create_purchase_tables migration (ensures purchases table has correct schema)
+          // Ensure purchases table has all required columns (safety check)
           try {
-            const createPurchaseTablesPath = path.join(__dirname, '../migrations/create_purchase_tables.sql');
-            if (fs.existsSync(createPurchaseTablesPath)) {
-              const createPurchaseTablesSQL = fs.readFileSync(createPurchaseTablesPath, 'utf8');
-              console.log("📋 Ensuring purchases table has correct schema...");
-              await client.query(createPurchaseTablesSQL);
-              console.log("✅ Purchases table schema verified");
+            console.log("📋 Verifying purchases table columns...");
+            const checkColumns = await client.query(`
+              SELECT column_name 
+              FROM information_schema.columns 
+              WHERE table_name = 'purchases'
+            `);
+            const columnNames = checkColumns.rows.map(r => r.column_name);
+            console.log("📋 Purchases table columns:", columnNames.join(', '));
+            
+            // Add missing columns if they don't exist
+            const requiredColumns = {
+              'dp': 'NUMERIC(12, 2) DEFAULT 0',
+              'purchase_value': 'NUMERIC(12, 2) DEFAULT 0',
+              'discount_amount': 'NUMERIC(12, 2) DEFAULT 0',
+              'discount_percent': 'NUMERIC(5, 2) DEFAULT 0',
+              'product_sku': 'VARCHAR(100)',
+              'serial_number': 'VARCHAR(255)',
+              'purchase_number': 'VARCHAR(50)'
+            };
+            
+            for (const [colName, colType] of Object.entries(requiredColumns)) {
+              if (!columnNames.includes(colName)) {
+                console.log(`📋 Adding missing column: ${colName}`);
+                await client.query(`ALTER TABLE purchases ADD COLUMN IF NOT EXISTS ${colName} ${colType}`);
+              }
             }
+            
+            // Add unique constraint if it doesn't exist
+            const constraintCheck = await client.query(`
+              SELECT constraint_name 
+              FROM information_schema.table_constraints 
+              WHERE table_name = 'purchases' 
+              AND constraint_type = 'UNIQUE'
+              AND constraint_name LIKE '%product_sku%serial_number%'
+            `);
+            
+            if (constraintCheck.rows.length === 0) {
+              try {
+                await client.query(`
+                  ALTER TABLE purchases 
+                  ADD CONSTRAINT purchases_product_sku_serial_number_unique 
+                  UNIQUE (product_sku, serial_number)
+                `);
+                console.log("✅ Added unique constraint on (product_sku, serial_number)");
+              } catch (constraintErr) {
+                console.warn("⚠️  Unique constraint may already exist:", constraintErr.message);
+              }
+            }
+            
+            console.log("✅ Purchases table columns verified");
           } catch (err) {
-            console.warn("⚠️  Create purchase tables migration skipped (may already exist):", err.message);
+            console.warn("⚠️  Column verification skipped:", err.message);
           }
     
     // Create roles table (if not already created)
