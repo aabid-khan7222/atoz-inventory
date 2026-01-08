@@ -393,8 +393,8 @@ router.post("/migrate-data", async (req, res) => {
           
           await client.query(`RELEASE SAVEPOINT ${savepointName}`);
           
-          if (result.rowCount > 0) {
-            inserted++;
+          if (insertedCount > 0) {
+            inserted += insertedCount;
           } else {
             skipped++;
           }
