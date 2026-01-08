@@ -146,14 +146,23 @@ router.post("/init", async (req, res) => {
               'discount_amount': 'NUMERIC(12, 2) DEFAULT 0',
               'discount_percent': 'NUMERIC(5, 2) DEFAULT 0',
               'product_sku': 'VARCHAR(100)',
+              'product_series': 'VARCHAR(100)',
               'serial_number': 'VARCHAR(255)',
-              'purchase_number': 'VARCHAR(50)'
+              'purchase_number': 'VARCHAR(50)',
+              'product_type_id': 'INTEGER REFERENCES purchase_product_type(id)'
             };
             
             for (const [colName, colType] of Object.entries(requiredColumns)) {
               if (!columnNames.includes(colName)) {
                 console.log(`📋 Adding missing column: ${colName}`);
-                await client.query(`ALTER TABLE purchases ADD COLUMN IF NOT EXISTS ${colName} ${colType}`);
+                try {
+                  await client.query(`ALTER TABLE purchases ADD COLUMN IF NOT EXISTS ${colName} ${colType}`);
+                  console.log(`✅ Added column: ${colName}`);
+                } catch (colErr) {
+                  console.warn(`⚠️  Could not add column ${colName}:`, colErr.message);
+                }
+              } else {
+                console.log(`✅ Column already exists: ${colName}`);
               }
             }
             
