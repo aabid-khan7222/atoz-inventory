@@ -7,7 +7,7 @@ import NotificationPanel from './notifications/NotificationPanel';
 import api from '../api';
 
 
-const DashboardHeader = () => {
+const DashboardHeader = ({ onMenuToggle, isSidebarOpen }) => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [showMenu, setShowMenu] = useState(false);
@@ -152,6 +152,23 @@ const DashboardHeader = () => {
   return (
     <header className="dashboard-header">
       <div className="dashboard-header-left">
+        <button
+          type="button"
+          className="mobile-menu-toggle"
+          onClick={onMenuToggle}
+          aria-label="Toggle menu"
+          title="Toggle menu"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M3 6H21M3 12H21M3 18H21"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
         <div className="dashboard-logo-wrapper">
           <img 
             src="/exide-care.png" 

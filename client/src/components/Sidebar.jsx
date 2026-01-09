@@ -1,10 +1,46 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import './Sidebar.css';
 
-const Sidebar = ({ menuItems, basePath }) => {
+const Sidebar = ({ menuItems, basePath, isOpen = true, onClose }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const location = useLocation();
+
+  // Check if mobile/tablet
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 1024);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Close sidebar when clicking outside on mobile
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isOpen && isMobile) {
+        const sidebar = document.querySelector('.sidebar');
+        const menuToggle = document.querySelector('.mobile-menu-toggle');
+        if (sidebar && !sidebar.contains(event.target) && 
+            menuToggle && !menuToggle.contains(event.target)) {
+          onClose && onClose();
+        }
+      }
+    };
+
+    if (isOpen && isMobile) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen, isMobile, onClose]);
   
   // Determine if this is a customer menu (fewer items) or admin menu (more items)
   const isCustomerMenu = menuItems.length <= 8;
@@ -46,7 +82,12 @@ const Sidebar = ({ menuItems, basePath }) => {
   };
 
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+    <>
+      {/* Overlay for mobile */}
+      {isOpen && isMobile && (
+        <div className="sidebar-overlay" onClick={onClose}></div>
+      )}
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <button
             className="sidebar-toggle"
@@ -62,6 +103,23 @@ const Sidebar = ({ menuItems, basePath }) => {
               />
             </svg>
           </button>
+          {/* Close button for mobile */}
+          {isMobile && (
+            <button
+              className="sidebar-close"
+              onClick={onClose}
+              aria-label="Close sidebar"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M15 5L5 15M5 5L15 15"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          )}
         </div>
 
         <nav className="sidebar-nav">
@@ -74,6 +132,12 @@ const Sidebar = ({ menuItems, basePath }) => {
                     to={itemPath}
                     className={`menu-item ${isActive(item.id) ? 'active' : ''}`}
                     title={isCollapsed ? item.label : ''}
+                    onClick={() => {
+                      // Close sidebar on mobile when menu item is clicked
+                      if (isMobile && onClose) {
+                        onClose();
+                      }
+                    }}
                   >
                     {item.icon && <span className="menu-icon">{item.icon}</span>}
                     {!isCollapsed && <span className="menu-label">{item.label}</span>}
@@ -84,6 +148,7 @@ const Sidebar = ({ menuItems, basePath }) => {
           </ul>
         </nav>
       </aside>
+    </>
   );
 };
 

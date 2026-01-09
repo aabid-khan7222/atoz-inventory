@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import DashboardHeader from '../components/DashboardHeader';
 import Sidebar from '../components/Sidebar';
@@ -8,6 +9,22 @@ import '../components/Dashboard.css';
 const CustomerDashboardPage = () => {
   const { t } = useLanguage();
   const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Check if desktop - sidebar should be open by default on desktop
+  useEffect(() => {
+    const checkDesktop = () => {
+      if (window.innerWidth > 1024) {
+        setIsSidebarOpen(true);
+      } else {
+        setIsSidebarOpen(false);
+      }
+    };
+    
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
   
   // Extract the active menu from URL path
   const getActiveMenuFromPath = () => {
@@ -49,10 +66,15 @@ const CustomerDashboardPage = () => {
 
   return (
     <div className="dashboard-container">
-      <DashboardHeader />
+      <DashboardHeader 
+        onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        isSidebarOpen={isSidebarOpen}
+      />
       <Sidebar
         menuItems={menuItems}
         basePath="/customer"
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
       <main className="dashboard-main">
         <CustomerDashboard activeMenu={activeMenu} />

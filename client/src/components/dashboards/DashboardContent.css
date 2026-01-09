@@ -123,6 +123,49 @@
   }
 }
 
+/* Tablet: 769px - 1024px */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .dashboard-content {
+    padding: 1.25rem;
+  }
+
+  .dashboard-content h2 {
+    font-size: 1.5rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .stat-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.25rem;
+  }
+
+  .chart-container {
+    padding: 1.25rem;
+  }
+
+  .chart-container h3 {
+    font-size: 1rem;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+}
+
 .stat-card {
   background: var(--corp-bg-card);
   border: 1px solid var(--corp-border);
@@ -733,47 +776,62 @@
 /* Large Mobile & Tablet: ≤ 768px */
 @media (max-width: 768px) {
   .dashboard-content {
-    padding: 1.25rem;
+    padding: 1rem;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+    margin: 0;
   }
 
   .dashboard-content h2 {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
   }
 
+  /* Stats grid - 2 columns on tablet, 1 on mobile */
   .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .stat-card {
+    padding: 0.875rem;
+    min-height: auto;
+  }
+
+  .stat-value {
+    font-size: 1.375rem;
+  }
+
+  .stat-info h3 {
+    font-size: 0.75rem;
+  }
+
+  .stat-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 1.125rem;
+  }
+
+  .chart-container {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .chart-container h3 {
+    font-size: 0.9375rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .charts-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
 
-  .stat-card {
-    padding: 1.125rem;
-  }
-
-  .stat-value {
-    font-size: 1.5rem;
-  }
-
-  .stat-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 1.25rem;
-  }
-
-  .chart-container {
-    padding: 1.125rem;
-    margin-bottom: 1.25rem;
-  }
-
-  .chart-container h3 {
-    font-size: 1rem;
-  }
-
   .transaction-table,
   .orders-table {
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     display: block;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -784,13 +842,9 @@
   .transaction-table td,
   .orders-table th,
   .orders-table td {
-    padding: 0.75rem 0.625rem;
-    min-width: 100px;
-  }
-
-  .charts-grid {
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
+    padding: 0.625rem 0.5rem;
+    min-width: 90px;
+    font-size: 0.75rem;
   }
 
   .orders-table-wrapper {
@@ -799,17 +853,25 @@
   }
 
   .content-section {
-    padding: 1.25rem;
+    padding: 1rem;
+    margin-top: 1rem;
   }
 
   .content-section h3 {
-    font-size: 1.125rem;
+    font-size: 1rem;
+    margin-bottom: 0.625rem;
+  }
+
+  .content-section p {
+    font-size: 0.875rem;
   }
 
   .primary-btn {
     width: 100%;
     min-height: 44px;
     margin-bottom: 0.75rem;
+    font-size: 0.875rem;
+    padding: 0.75rem 1.25rem;
   }
 
   .form-group input,
@@ -819,73 +881,109 @@
   .filter-select {
     min-height: 44px;
     font-size: 0.9375rem;
+    padding: 0.625rem;
+  }
+
+  .financial-card {
+    padding: 1rem;
+  }
+
+  .financial-card h4 {
+    font-size: 0.8125rem;
+  }
+
+  .financial-card .amount {
+    font-size: 1.5rem;
+  }
+
+  .financial-card .subtext {
+    font-size: 0.8125rem;
   }
 }
 
 /* Small Mobile: ≤ 480px */
 @media (max-width: 480px) {
   .dashboard-content {
-    padding: 1rem;
+    padding: 0.875rem;
   }
 
   .dashboard-content h2 {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
+    margin-bottom: 0.875rem;
+  }
+
+  /* Stats grid - 1 column on small mobile */
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 0.625rem;
+    margin-bottom: 1.25rem;
   }
 
   .stat-card {
-    padding: 1rem;
-    flex-direction: column;
-    align-items: flex-start;
+    padding: 0.75rem;
+    flex-direction: row;
+    align-items: center;
     gap: 0.75rem;
+    min-height: auto;
   }
 
   .stat-icon {
-    width: 32px;
-    height: 32px;
-    font-size: 1.125rem;
+    width: 28px;
+    height: 28px;
+    font-size: 1rem;
   }
 
   .stat-value {
-    font-size: 1.375rem;
+    font-size: 1.25rem;
   }
 
   .stat-info h3 {
-    font-size: 0.8125rem;
+    font-size: 0.6875rem;
+    margin-bottom: 0.25rem;
   }
 
   .chart-container {
-    padding: 1rem;
+    padding: 0.875rem;
+    margin-bottom: 0.875rem;
   }
 
   .chart-container h3 {
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
   }
 
   .transaction-table,
   .orders-table {
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
   }
 
   .transaction-table th,
   .transaction-table td,
   .orders-table th,
   .orders-table td {
-    padding: 0.625rem 0.5rem;
-    min-width: 80px;
-    font-size: 0.75rem;
+    padding: 0.5rem 0.375rem;
+    min-width: 70px;
+    font-size: 0.6875rem;
   }
 
   .content-section {
-    padding: 1rem;
+    padding: 0.875rem;
+    margin-top: 0.875rem;
   }
 
   .content-section h3 {
-    font-size: 1rem;
+    font-size: 0.9375rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .content-section p {
+    font-size: 0.8125rem;
   }
 
   .primary-btn {
-    padding: 0.875rem 1.25rem;
-    font-size: 0.9375rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    min-height: 44px;
   }
 
   .form-group input,
@@ -893,8 +991,25 @@
   .form-group textarea,
   .filter-input,
   .filter-select {
-    padding: 0.75rem;
-    font-size: 0.9rem;
+    padding: 0.625rem;
+    font-size: 0.875rem;
+    min-height: 44px;
+  }
+
+  .financial-card {
+    padding: 0.875rem;
+  }
+
+  .financial-card h4 {
+    font-size: 0.75rem;
+  }
+
+  .financial-card .amount {
+    font-size: 1.25rem;
+  }
+
+  .financial-card .subtext {
+    font-size: 0.75rem;
   }
 }
 
