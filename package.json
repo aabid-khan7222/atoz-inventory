@@ -1,0 +1,13 @@
+{
+  "name": "atoz-inventory",
+  "version": "1.0.0",
+  "description": "A TO Z Inventory Management System",
+  "scripts": {
+    "push": "powershell -ExecutionPolicy Bypass -File ./auto-push.ps1",
+    "push:msg": "powershell -ExecutionPolicy Bypass -File ./auto-push.ps1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
+
