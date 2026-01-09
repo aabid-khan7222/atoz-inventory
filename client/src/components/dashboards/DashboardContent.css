@@ -105,21 +105,33 @@
   margin-bottom: 2rem;
 }
 
-@media (max-width: 1400px) {
+/* Desktop: Keep 4 columns - DO NOT CHANGE */
+@media (min-width: 1025px) {
   .stats-grid {
     grid-template-columns: repeat(4, 1fr);
   }
 }
 
-@media (max-width: 1200px) {
+/* Tablet: 601px - 1024px → 3 columns */
+@media (max-width: 1024px) and (min-width: 601px) {
   .stats-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
-@media (max-width: 900px) {
+/* Mobile: ≤600px → 2 columns */
+@media (max-width: 600px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+/* Very small mobile: ≤360px → 2 columns (keep same) */
+@media (max-width: 360px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
   }
 }
 
@@ -219,10 +231,43 @@
   border: 1px solid var(--corp-border);
   box-shadow: var(--corp-shadow);
   transition: box-shadow 0.3s ease, background 0.3s ease, border-color 0.3s ease;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
 }
 
 .chart-container:hover {
   box-shadow: var(--corp-shadow-md);
+}
+
+/* Chart wrapper for horizontal scroll */
+.chart-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .chart-container {
+    padding: 1.25rem;
+  }
+  
+  .chart-wrapper {
+    min-width: 600px; /* Allow horizontal scroll if chart is wide */
+  }
+}
+
+@media (max-width: 600px) {
+  .chart-container {
+    padding: 1rem;
+  }
+  
+  .chart-wrapper {
+    min-width: 500px;
+  }
 }
 
 [data-theme="dark"] .chart-container {
@@ -252,6 +297,22 @@
   border: 1px solid var(--corp-border);
   box-shadow: var(--corp-shadow);
   transition: background 0.3s ease, border-color 0.3s ease;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 1024px) {
+  .content-section {
+    padding: 1.25rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .content-section {
+    padding: 1rem;
+  }
 }
 
 [data-theme="dark"] .content-section {
@@ -3464,6 +3525,37 @@
   gap: 1.5rem;
   width: 100%;
   min-width: 0;
+}
+
+/* Desktop: Keep auto-fit - DO NOT CHANGE */
+@media (min-width: 1025px) {
+  .summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+}
+
+/* Tablet: 601px - 1024px → 3 columns */
+@media (max-width: 1024px) and (min-width: 601px) {
+  .summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+  }
+}
+
+/* Mobile: ≤600px → 2 columns */
+@media (max-width: 600px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+/* Very small mobile: ≤360px → 2 columns */
+@media (max-width: 360px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
 }
 
 .summary-card {

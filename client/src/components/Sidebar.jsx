@@ -1,10 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import './Sidebar.css';
 
 const Sidebar = ({ menuItems, basePath }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const location = useLocation();
+  
+  // Listen for mobile sidebar toggle events from header
+  useEffect(() => {
+    const handleToggle = (event) => {
+      setIsMobileOpen(event.detail);
+    };
+    
+    window.addEventListener('toggleMobileSidebar', handleToggle);
+    return () => window.removeEventListener('toggleMobileSidebar', handleToggle);
+  }, []);
+  
+  // Close mobile sidebar when route changes
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [location.pathname]);
   
   // Determine if this is a customer menu (fewer items) or admin menu (more items)
   const isCustomerMenu = menuItems.length <= 8;
@@ -46,23 +62,29 @@ const Sidebar = ({ menuItems, basePath }) => {
   };
 
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      <div className="sidebar-header">
-        <button
-          className="sidebar-toggle"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          aria-label="Toggle sidebar"
-        >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path
-              d="M3 5H17M3 10H17M3 15H17"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
-      </div>
+    <>
+      {/* Mobile overlay */}
+      <div 
+        className={`sidebar-overlay ${isMobileOpen ? 'active' : ''}`}
+        onClick={() => setIsMobileOpen(false)}
+      />
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}>
+        <div className="sidebar-header">
+          <button
+            className="sidebar-toggle"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            aria-label="Toggle sidebar"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M3 5H17M3 10H17M3 15H17"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
 
         <nav className="sidebar-nav">
           <ul className={`sidebar-menu ${isCustomerMenu ? 'menu-customer' : 'menu-admin'}`}>

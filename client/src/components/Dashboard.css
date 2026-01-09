@@ -53,9 +53,18 @@
     margin-top: 70px; /* Match header height on mobile */
     padding: 0 1rem 1rem 1rem;
     width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
   }
 
   .dashboard-container .sidebar.collapsed ~ .dashboard-main {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  /* Ensure sidebar doesn't push content when open */
+  .dashboard-container .sidebar.mobile-open ~ .dashboard-main {
     margin-left: 0;
     width: 100%;
   }
