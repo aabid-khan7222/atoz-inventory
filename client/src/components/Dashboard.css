@@ -50,7 +50,7 @@
 @media (max-width: 768px) {
   .dashboard-main {
     margin-left: 0;
-    margin-top: 70px; /* Match header height on mobile */
+    margin-top: 60px; /* Match header height on mobile */
     padding: 0 1rem 1rem 1rem;
     width: 100%;
     overflow-x: auto;
@@ -73,7 +73,7 @@
 /* Small Mobile: ≤ 480px */
 @media (max-width: 480px) {
   .dashboard-main {
-    margin-top: 65px; /* Match header height on small mobile */
+    margin-top: 56px; /* Match header height on small mobile */
     padding: 0 0.75rem 0.75rem 0.75rem;
   }
 }

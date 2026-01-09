@@ -38,8 +38,8 @@
   
   .sidebar {
     transform: translateX(-100%);
-    height: calc(100vh - 70px);
-    top: 70px;
+    height: calc(100vh - 60px);
+    top: 60px;
     z-index: 999;
     transition: transform 0.3s ease;
   }
@@ -466,8 +466,8 @@
     max-width: 100vw;
     left: 0;
     right: 0;
-    top: 65px;
-    height: calc(100vh - 65px);
+    top: 56px;
+    height: calc(100vh - 56px);
     transform: translateX(-100%);
   }
   
