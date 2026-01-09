@@ -237,14 +237,128 @@ input:checked + .slider::before {
 
 /* ================= RESPONSIVE ================= */
 
-@media (max-width: 700px) {
+/* Tablet: 769px - 1024px */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .settings-page {
+    padding: 25px 20px;
+  }
+
+  .settings-header {
+    padding: 20px 25px;
+  }
+
+  .settings-card {
+    padding: 25px;
+  }
+}
+
+/* Large Mobile & Tablet: ≤ 768px */
+@media (max-width: 768px) {
+  .settings-page {
+    padding: 20px 12px;
+    min-height: calc(100vh - 70px);
+  }
+
   .settings-header {
     flex-direction: column;
-    text-align: center;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .settings-back-btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .settings-header-text h1 {
+    font-size: 1.5rem;
+  }
+
+  .settings-grid {
+    gap: 20px;
+  }
+
+  .settings-card {
+    padding: 20px;
+  }
+
+  .settings-card h2 {
+    font-size: 1.2rem;
   }
 
   .settings-actions {
-    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .settings-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .settings-select-wrapper select {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .settings-modal {
+    max-width: 90%;
+    margin: 20px;
+    padding: 20px;
+  }
+
+  .settings-modal input[type="password"],
+  .settings-modal input[type="text"] {
+    min-height: 44px;
+  }
+
+  .settings-modal-actions {
+    flex-direction: column;
+  }
+
+  .settings-modal-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+/* Small Mobile: ≤ 480px */
+@media (max-width: 480px) {
+  .settings-page {
+    padding: 16px 8px;
+    min-height: calc(100vh - 65px);
+  }
+
+  .settings-header {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .settings-header-text h1 {
+    font-size: 1.3rem;
+  }
+
+  .settings-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .settings-card h2 {
+    font-size: 1.1rem;
+  }
+
+  .settings-modal {
+    max-width: 95%;
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .settings-toggle-row {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }
 

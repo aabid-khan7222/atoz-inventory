@@ -29,11 +29,13 @@ body,
   margin: 0;
   padding: 0;
   width: 100%;
+  max-width: 100%;
   min-height: 100%;
   height: auto;
 
   position: static;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 
   pointer-events: auto;
 }

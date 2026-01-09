@@ -1,22 +1,13 @@
 import { useState, useEffect } from 'react';
 import { getMyChargingServices } from '../../api';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
 import './DashboardContent.css';
 
+const STORAGE_KEY = 'customerChargingServicesState';
+
 const CustomerChargingServices = () => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('customerChargingServicesState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved CustomerChargingServices state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -51,7 +42,7 @@ const CustomerChargingServices = () => {
       dateTo,
       pagination: { ...pagination, totalPages: 1, totalItems: 0 }
     };
-    sessionStorage.setItem('customerChargingServicesState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [statusFilter, searchTerm, searchInput, dateFrom, dateTo, pagination.currentPage, pagination.limit, isInitialMount]);
 
   // Debounce search input to update searchTerm

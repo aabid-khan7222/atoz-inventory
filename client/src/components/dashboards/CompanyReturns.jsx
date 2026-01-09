@@ -8,23 +8,14 @@ import {
   getSoldSerialNumbers,
   getSaleBySerialNumber,
 } from '../../api';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
 import './DashboardContent.css';
 
+const STORAGE_KEY = 'companyReturnsState';
+
 const CompanyReturns = () => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('companyReturnsState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved CompanyReturns state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -91,7 +82,7 @@ const CompanyReturns = () => {
       filters,
       serialSearchTerm
     };
-    sessionStorage.setItem('companyReturnsState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [showForm, formData, filters, serialSearchTerm, isInitialMount]);
 
   useEffect(() => {

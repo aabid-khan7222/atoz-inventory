@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createServiceRequest, getMyServiceRequests } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
+import { getFormState, saveFormState, markFormSubmitted } from '../../utils/formStateManager';
 import './DashboardContent.css';
 
 const SERVICE_TYPES = [
@@ -26,21 +27,11 @@ const statusBadge = {
   cancelled: 'status-paid'
 };
 
+const STORAGE_KEY = 'customerServicesState';
+
 export default function CustomerServices() {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('customerServicesState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved CustomerServices state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const { user } = useAuth();
   const [form, setForm] = useState(() => savedState?.form || {
     serviceType: 'battery_testing',
@@ -74,7 +65,7 @@ export default function CustomerServices() {
       form,
       statusFilter
     };
-    sessionStorage.setItem('customerServicesState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [form, statusFilter, isInitialMount]);
 
   const customerMeta = useMemo(() => {
@@ -130,6 +121,8 @@ export default function CustomerServices() {
 
       await createServiceRequest(payload);
       setSubmitMessage('Service booked successfully. Our team will contact you soon.');
+      // Mark form as submitted (will clear on next mount)
+      markFormSubmitted(STORAGE_KEY);
       setForm((prev) => ({
         ...prev,
         vehicleName: '',

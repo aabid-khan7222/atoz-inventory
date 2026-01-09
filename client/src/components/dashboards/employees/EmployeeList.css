@@ -302,15 +302,26 @@
   color: #721c24;
 }
 
+/* Actions column styling */
+.employee-table td:last-child {
+  white-space: nowrap;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
 .edit-button,
 .delete-button {
   padding: 6px 12px;
-  margin-right: 5px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
+  font-weight: 500;
   transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .edit-button {
@@ -320,6 +331,8 @@
 
 .edit-button:hover {
   background: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
 }
 
 .delete-button {
@@ -329,6 +342,8 @@
 
 .delete-button:hover {
   background: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
 }
 
 .loading-message {

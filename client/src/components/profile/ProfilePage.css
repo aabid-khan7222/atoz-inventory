@@ -577,28 +577,135 @@
   }
 }
 
-@media (max-width: 768px) {
+/* Tablet: 769px - 1024px */
+@media (max-width: 1024px) and (min-width: 769px) {
   .profile-page {
-    padding: 24px 16px;
+    padding: 30px 20px;
   }
 
   .profile-card {
-    padding: 24px;
+    padding: 32px;
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Large Mobile & Tablet: ≤ 768px */
+@media (max-width: 768px) {
+  .profile-page {
+    padding: 20px 12px;
+    min-height: calc(100vh - 70px);
+  }
+
+  .profile-card {
+    padding: 24px 18px;
+    border-radius: 16px;
   }
 
   .profile-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: 16px;
+  }
+
+  .profile-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .back-button {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .avatar-section {
+    padding-top: 60px;
+  }
+
+  .avatar-wrapper {
+    width: 100px;
+    height: 100px;
+    top: -50px;
+  }
+
+  .avatar-initials {
+    font-size: 2rem;
+  }
+
+  .profile-info {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .gst-details-grid {
+    grid-template-columns: 1fr;
   }
 
   .profile-actions,
   .profile-footer {
     flex-direction: column;
+    gap: 12px;
   }
 
   .profile-actions button,
   .profile-footer button {
     width: 100%;
+    min-height: 44px;
+  }
+
+  .form-grid input,
+  .form-grid textarea {
+    min-height: 44px;
+    font-size: 0.95rem;
+  }
+}
+
+/* Small Mobile: ≤ 480px */
+@media (max-width: 480px) {
+  .profile-page {
+    padding: 16px 8px;
+    min-height: calc(100vh - 65px);
+  }
+
+  .profile-card {
+    padding: 20px 16px;
+    border-radius: 12px;
+  }
+
+  .profile-header h1 {
+    font-size: 1.3rem;
+  }
+
+  .avatar-wrapper {
+    width: 80px;
+    height: 80px;
+    top: -40px;
+  }
+
+  .avatar-initials {
+    font-size: 1.6rem;
+  }
+
+  .change-photo-btn {
+    padding: 0.5rem 1.2rem;
+    font-size: 0.85rem;
+  }
+
+  .profile-section {
+    padding: 18px;
+  }
+
+  .form-grid input,
+  .form-grid textarea {
+    padding: 0.75rem 0.9rem;
+    font-size: 0.9rem;
   }
 }
 

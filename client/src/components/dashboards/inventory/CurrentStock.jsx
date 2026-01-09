@@ -2,26 +2,17 @@ import React, { useState, useEffect } from 'react';
 import api from '../../../api';
 import { useAuth } from '../../../contexts/AuthContext';
 import SearchableDropdown from '../../common/SearchableDropdown';
+import { getFormState, saveFormState } from '../../../utils/formStateManager';
 import './InventorySection.css';
 import '../InventoryManagement.css';
+
+const STORAGE_KEY = 'currentStockState';
 
 const CurrentStock = ({ onBack }) => {
   const { user } = useAuth();
   
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('currentStockState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved CurrentStock state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const [selectedCategory, setSelectedCategory] = useState(() => savedState?.selectedCategory || 'car-truck-tractor');
   const [inventoryData, setInventoryData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -49,7 +40,7 @@ const CurrentStock = ({ onBack }) => {
       searchQuery,
       stockFilter
     };
-    sessionStorage.setItem('currentStockState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [selectedCategory, expandedSeries, sortConfig, searchQuery, stockFilter, isInitialMount]);
 
   // Determine role class for styling

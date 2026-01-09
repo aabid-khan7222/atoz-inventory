@@ -4,8 +4,11 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import api, { API_BASE } from '../../api';
 import Swal from 'sweetalert2';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
 import './DashboardContent.css';
 import './Filters.css';
+
+const STORAGE_KEY = 'customerOrdersState';
 
 const formatDateTime = (value) => {
   if (!value) return '';
@@ -31,20 +34,8 @@ const StatusBadge = ({ status }) => {
 };
 
 const CustomerOrders = ({ title, description }) => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('customerOrdersState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved CustomerOrders state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const { t } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -70,7 +61,7 @@ const CustomerOrders = ({ title, description }) => {
       statusFilter,
       sortConfig
     };
-    sessionStorage.setItem('customerOrdersState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [searchTerm, statusFilter, sortConfig, isInitialMount]);
 
   const fetchOrdersWithDetails = async () => {

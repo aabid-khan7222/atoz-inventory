@@ -5,23 +5,14 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import api, { API_BASE } from '../../api';
 import Swal from 'sweetalert2';
+import { getFormState, saveFormState, markFormSubmitted } from '../../utils/formStateManager';
 import './Checkout.css';
 
+const STORAGE_KEY = 'checkoutState';
+
 const Checkout = () => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('checkoutState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved Checkout state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const { t } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -55,7 +46,7 @@ const Checkout = () => {
       serialNumbers,
       oldBatteries
     };
-    sessionStorage.setItem('checkoutState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [paymentMethod, customerPhone, customerName, notes, serialNumbers, oldBatteries, isInitialMount]);
 
   // Debug: Track invoiceNumber state changes
@@ -156,6 +147,9 @@ const Checkout = () => {
           // Debug: Show alert to confirm invoice number was found
           // Remove this after confirming it works
           console.log('🚨 INVOICE NUMBER FOUND AND WILL BE SET:', invoiceNum);
+          
+          // Mark form as submitted (will clear on next mount)
+          markFormSubmitted(STORAGE_KEY);
           
           // Don't clear cart immediately - let user see invoice options first
           // Cart will be cleared when they click "Continue Shopping"

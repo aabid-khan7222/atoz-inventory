@@ -29,22 +29,13 @@ import {
   PaymentMethodsChart,
   StockByCategoryChart
 } from './DashboardCharts';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
+
+const STORAGE_KEY = 'superAdminDashboardState';
 
 const SuperAdminDashboard = ({ activeMenu }) => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('superAdminDashboardState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved SuperAdminDashboard state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const { theme } = useTheme();
   const [dashboardData, setDashboardData] = useState({
     overview: null,
@@ -107,7 +98,7 @@ const SuperAdminDashboard = ({ activeMenu }) => {
       transactionSortConfig,
       openSalesSections
     };
-    sessionStorage.setItem('superAdminDashboardState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [period, seriesSearchTerm, seriesSortConfig, seriesFilterCategory, productSearchTerm, productSortConfig, productFilterCategory, productFilterSeries, detailSearchTerm, detailFilterCategory, detailFilterSeries, detailSortConfig, transactionSearchTerm, transactionSortConfig, openSalesSections, isInitialMount]);
 
   useEffect(() => {

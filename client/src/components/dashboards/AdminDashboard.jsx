@@ -27,22 +27,13 @@ import {
   PaymentMethodsChart,
   StockByCategoryChart
 } from './DashboardCharts';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
+
+const STORAGE_KEY = 'adminDashboardState';
 
 const AdminDashboard = ({ activeMenu }) => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('adminDashboardState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved AdminDashboard state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const [dashboardData, setDashboardData] = useState({
     overview: null,
     salesAnalytics: null,
@@ -102,7 +93,7 @@ const AdminDashboard = ({ activeMenu }) => {
       transactionSortConfig,
       openSalesSections
     };
-    sessionStorage.setItem('adminDashboardState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [period, seriesSearchTerm, seriesSortConfig, seriesFilterCategory, productSearchTerm, productSortConfig, productFilterCategory, productFilterSeries, detailSearchTerm, detailFilterCategory, detailFilterSeries, detailSortConfig, transactionSearchTerm, transactionSortConfig, openSalesSections, isInitialMount]);
 
   useEffect(() => {

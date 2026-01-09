@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../../api';
 import { useAuth } from '../../../contexts/AuthContext';
 import SearchableDropdown from '../../common/SearchableDropdown';
+import { getFormState, saveFormState, markFormSubmitted } from '../../../utils/formStateManager';
 import './InventorySection.css';
 import '../InventoryManagement.css';
 
@@ -13,69 +14,49 @@ const getCurrentTimeHHMM = () => {
   return `${hh}:${mm}`;
 };
 
+const STORAGE_KEY = 'addStockFormState';
+
 const AddStock = ({ onBack }) => {
   const { user } = useAuth();
   const roleClass = user?.role_id === 1 ? 'super-admin' : user?.role_id === 2 ? 'admin' : '';
   
-  // Load saved state from sessionStorage - use function in useState to read on every mount
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('addStockFormState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved AddStock state:', e);
-    }
-    return null;
-  };
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   
-  // Initialize state from saved state if available (function ensures it reads on every mount)
+  // Initialize state from saved state if available
   const [selectedCategory, setSelectedCategory] = useState(() => {
-    const saved = getSavedState();
-    return saved?.selectedCategory || 'car-truck-tractor';
+    return savedState?.selectedCategory || 'car-truck-tractor';
   });
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [quantity, setQuantity] = useState(() => {
-    const saved = getSavedState();
-    return saved?.quantity || '';
+    return savedState?.quantity || '';
   });
   const [serialNumbers, setSerialNumbers] = useState(() => {
-    const saved = getSavedState();
-    return saved?.serialNumbers || [''];
+    return savedState?.serialNumbers || [''];
   });
   const [purchaseDate, setPurchaseDate] = useState(() => {
-    const saved = getSavedState();
-    return saved?.purchaseDate || getCurrentDateISO();
+    return savedState?.purchaseDate || getCurrentDateISO();
   });
   const [purchaseTime, setPurchaseTime] = useState(() => {
-    const saved = getSavedState();
-    return saved?.purchaseTime || getCurrentTimeHHMM();
+    return savedState?.purchaseTime || getCurrentTimeHHMM();
   });
   const [purchasedFrom, setPurchasedFrom] = useState(() => {
-    const saved = getSavedState();
-    return saved?.purchasedFrom || '';
+    return savedState?.purchasedFrom || '';
   });
   const [amount, setAmount] = useState(() => {
-    const saved = getSavedState();
-    return saved?.amount || '';
+    return savedState?.amount || '';
   });
   const [discountPercent, setDiscountPercent] = useState(() => {
-    const saved = getSavedState();
-    return saved?.discountPercent || '';
+    return savedState?.discountPercent || '';
   });
   const [discountAmount, setDiscountAmount] = useState(() => {
-    const saved = getSavedState();
-    return saved?.discountAmount || '';
+    return savedState?.discountAmount || '';
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isInitialMount, setIsInitialMount] = useState(true);
-  
-  // Get saved state for restoration checks - must be defined before use
-  const savedState = React.useMemo(() => getSavedState(), []);
   
   // Track previous quantity to detect user changes (not restoration) - initialize with saved value
   const prevQuantityRef = React.useRef(savedState?.quantity || '');
@@ -137,7 +118,7 @@ const AddStock = ({ onBack }) => {
       discountPercent,
       discountAmount
     };
-    sessionStorage.setItem('addStockFormState', JSON.stringify(formState));
+    saveFormState(STORAGE_KEY, formState);
   }, [selectedCategory, selectedProduct, quantity, serialNumbers, purchaseDate, purchaseTime, purchasedFrom, amount, discountPercent, discountAmount, isInitialMount]);
   
   // Track if we've restored state to prevent auto-sync from overriding saved serial numbers
@@ -375,7 +356,7 @@ const AddStock = ({ onBack }) => {
         finalDiscountPercent // Discount percent
       );
       setSuccess(`Successfully added ${qty} units of ${selectedProduct.name}${selectedCategory !== 'water' ? ` with ${validSerialNumbers.length} serial numbers` : ''}`);
-      // Clear form and saved state after successful submission
+      // Clear form and mark as submitted (will clear on next mount)
       setQuantity('');
       setSerialNumbers(['']);
       setPurchaseDate(getCurrentDateISO());
@@ -389,7 +370,7 @@ const AddStock = ({ onBack }) => {
       restoreStateRef.current = false;
       isRestoringRef.current = false;
       prevQuantityRef.current = '';
-      sessionStorage.removeItem('addStockFormState');
+      markFormSubmitted(STORAGE_KEY);
       // Refresh products list to show updated stock
       await fetchProducts();
       setTimeout(() => {

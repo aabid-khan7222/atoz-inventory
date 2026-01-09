@@ -2,24 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '../../../api';
 import SearchableDropdown from '../../common/SearchableDropdown';
 import { generateCustomerHistoryPDF } from '../../../utils/reportPdf';
+import { getFormState, saveFormState } from '../../../utils/formStateManager';
 import './InventorySection.css';
 import '../InventoryManagement.css';
 
+const STORAGE_KEY = 'customerHistoryState';
+
 const CustomerHistory = ({ onBack }) => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('customerHistoryState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved CustomerHistory state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(() => savedState?.selectedCustomerId ? { id: savedState.selectedCustomerId } : null);
   const [history, setHistory] = useState(null);
@@ -51,7 +42,7 @@ const CustomerHistory = ({ onBack }) => {
       fromDate,
       toDate
     };
-    sessionStorage.setItem('customerHistoryState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [selectedCustomer, selectedProduct, selectedSeries, fromDate, toDate, isInitialMount]);
 
   // Restore selected customer and product when data loads

@@ -11,23 +11,14 @@ import {
 } from '../../api';
 import SearchableDropdown from '../common/SearchableDropdown';
 import Swal from 'sweetalert2';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
 import './DashboardContent.css';
 
+const STORAGE_KEY = 'chargingServicesState';
+
 const ChargingServices = () => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('chargingServicesState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved ChargingServices state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   
   // Initialize default date (tomorrow)
   const getDefaultDate = () => {
@@ -102,7 +93,7 @@ const ChargingServices = () => {
       isManualEntry,
       pagination: { ...pagination, totalPages: 1, totalItems: 0 } // Don't save computed values
     };
-    sessionStorage.setItem('chargingServicesState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [showForm, formData, statusFilter, searchTerm, searchInput, dateFrom, dateTo, selectedCustomerId, isManualEntry, pagination.currentPage, pagination.limit, isInitialMount]);
 
   // Debounce search input to update searchTerm

@@ -15,22 +15,13 @@ import {
   generateChargingServicesReportPDF
 } from '../../utils/reportPdf';
 import SearchableSelect from '../common/SearchableSelect';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
+
+const STORAGE_KEY = 'customerReportsState';
 
 const CustomerReports = () => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('customerReportsState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved CustomerReports state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const [activeTab, setActiveTab] = useState(() => savedState?.activeTab || 'summary');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -62,7 +53,7 @@ const CustomerReports = () => {
       seriesFilter,
       serviceTypeFilter
     };
-    sessionStorage.setItem('customerReportsState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [activeTab, period, dateFrom, dateTo, categoryFilter, seriesFilter, serviceTypeFilter, isInitialMount]);
   
   // Report data states

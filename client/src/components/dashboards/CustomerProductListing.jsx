@@ -6,23 +6,14 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import PaymentModal from './PaymentModal';
 import Swal from 'sweetalert2';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
 import './CustomerProductListing.css';
 
+const STORAGE_KEY = 'customerProductListingState';
+
 const CustomerProductListing = () => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('customerProductListingState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved CustomerProductListing state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const { t } = useLanguage();
   const { user } = useAuth();
   const location = useLocation();
@@ -50,7 +41,7 @@ const CustomerProductListing = () => {
       selectedSeries,
       inStockOnly
     };
-    sessionStorage.setItem('customerProductListingState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [selectedCategory, searchQuery, selectedSeries, inStockOnly, isInitialMount]);
 
   // Read URL params on mount

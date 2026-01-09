@@ -2,24 +2,15 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getReplacementHistory, getBatteryStatus } from '../../api';
 import Swal from 'sweetalert2';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
 import './DashboardContent.css';
 import './GuaranteeWarrantyTable.css';
 
+const STORAGE_KEY = 'customerGuaranteeWarrantyState';
+
 const CustomerGuaranteeWarranty = () => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('customerGuaranteeWarrantyState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved CustomerGuaranteeWarranty state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const { user } = useAuth();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -48,7 +39,7 @@ const CustomerGuaranteeWarranty = () => {
       historyDateFrom,
       historyDateTo
     };
-    sessionStorage.setItem('customerGuaranteeWarrantyState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [serialNumber, historySearch, historyTypeFilter, historyDateFrom, historyDateTo, isInitialMount]);
 
   useEffect(() => {

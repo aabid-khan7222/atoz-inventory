@@ -1,22 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../api';
+import { getFormState, saveFormState } from '../../../utils/formStateManager';
 import './InventorySection.css';
 
+const STORAGE_KEY = 'purchaseSectionState';
+
 const PurchaseSection = ({ onBack }) => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('purchaseSectionState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved PurchaseSection state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const [purchases, setPurchases] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -45,7 +36,7 @@ const PurchaseSection = ({ onBack }) => {
       sortConfig,
       pagination: { ...pagination, total: 0, totalPages: 0 } // Don't save computed values
     };
-    sessionStorage.setItem('purchaseSectionState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [filters, sortConfig, pagination.page, pagination.limit, isInitialMount]);
 
   const categories = [

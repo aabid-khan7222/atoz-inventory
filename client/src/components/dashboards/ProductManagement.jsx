@@ -2,7 +2,10 @@ import React, { useState, useEffect, useLayoutEffect } from 'react';
 import api, { setAuthToken } from '../../api';
 import SearchableDropdown from '../common/SearchableDropdown';
 import { useAuth } from '../../contexts/AuthContext';
+import { getFormState, saveFormState, markFormSubmitted } from '../../utils/formStateManager';
 import './InventoryManagement.css';
+
+const STORAGE_KEY = 'productManagementState';
 
 const ProductManagement = () => {
   const { user, token } = useAuth();
@@ -19,20 +22,8 @@ const ProductManagement = () => {
   const [savingProduct, setSavingProduct] = useState(null); // productId that is currently being saved
   const [applyToAllProducts, setApplyToAllProducts] = useState(false); // Checkbox state for bulk update
   
-  // Load saved state from sessionStorage
-  const getSavedProductState = () => {
-    try {
-      const saved = sessionStorage.getItem('productManagementState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved ProductManagement state:', e);
-    }
-    return null;
-  };
-  
-  const initialSavedState = React.useMemo(() => getSavedProductState(), []);
+  // Load saved state using utility (automatically handles refresh detection)
+  const initialSavedState = React.useMemo(() => getFormState(STORAGE_KEY), []);
   const [showAddProductModal, setShowAddProductModal] = useState(initialSavedState?.showAddProductModal || false);
   
   // Ensure token is set in api.js whenever it changes
@@ -523,8 +514,8 @@ await api.createProduct(productData);
 // Close modal first
 setShowAddProductModal(false);
 
-// Clear saved state after successful submission
-sessionStorage.removeItem('productManagementState');
+// Mark form as submitted (will clear on next mount)
+markFormSubmitted(STORAGE_KEY);
 
 // Reset form
 setNewProduct({

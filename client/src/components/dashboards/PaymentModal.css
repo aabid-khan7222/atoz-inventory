@@ -470,8 +470,28 @@
   background: var(--azb-bg-page, #0f172a) !important;
 }
 
-/* Mobile responsive */
-@media (max-width: 640px) {
+/* Responsive Design */
+/* Tablet: 769px - 1024px */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .payment-modal {
+    max-width: 90%;
+  }
+
+  .payment-modal-header {
+    padding: 1.25rem 1.75rem;
+  }
+
+  .payment-modal-content {
+    padding: 1.75rem;
+  }
+}
+
+/* Large Mobile & Tablet: ≤ 768px */
+@media (max-width: 768px) {
+  .payment-modal-overlay {
+    padding: 0.75rem;
+  }
+
   .payment-modal {
     max-width: 100%;
     border-radius: 16px 16px 0 0;
@@ -479,15 +499,108 @@
   }
 
   .payment-modal-header {
-    padding: 1rem 1.5rem;
+    padding: 1rem 1.25rem;
+  }
+
+  .payment-modal-header h2 {
+    font-size: 1.25rem;
   }
 
   .payment-modal-content {
-    padding: 1.5rem;
+    padding: 1.25rem;
+  }
+
+  .payment-product-summary {
+    padding: 1.25rem;
+  }
+
+  .product-info-card h3 {
+    font-size: 1.125rem;
+  }
+
+  .form-section h3 {
+    font-size: 1.125rem;
+  }
+
+  .payment-summary {
+    padding: 1.25rem;
+  }
+
+  .payment-summary h3 {
+    font-size: 1.125rem;
+  }
+
+  .summary-row.total {
+    font-size: 1.25rem;
   }
 
   .payment-actions {
     flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .btn-cancel,
+  .btn-confirm {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    min-height: 44px;
+    font-size: 0.9375rem;
+  }
+
+  .quantity-controls button {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
+/* Small Mobile: ≤ 480px */
+@media (max-width: 480px) {
+  .payment-modal-overlay {
+    padding: 0.5rem;
+  }
+
+  .payment-modal-header {
+    padding: 0.875rem 1rem;
+  }
+
+  .payment-modal-header h2 {
+    font-size: 1.125rem;
+  }
+
+  .payment-modal-content {
+    padding: 1rem;
+  }
+
+  .payment-product-summary {
+    padding: 1rem;
+  }
+
+  .product-info-card h3 {
+    font-size: 1rem;
+  }
+
+  .product-details-row {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .form-section h3 {
+    font-size: 1rem;
+  }
+
+  .payment-summary {
+    padding: 1rem;
+  }
+
+  .summary-row.total {
+    font-size: 1.125rem;
   }
 }
 

@@ -6,10 +6,10 @@
   position: fixed;
   left: 0;
   top: 80px; /* Match header height */
-  transition: width 0.3s ease, background 0.3s ease, color 0.3s ease;
+  transition: transform 0.3s ease, width 0.3s ease, background 0.3s ease, color 0.3s ease;
   overflow-y: auto;
   overflow-x: hidden;
-  z-index: 100;
+  z-index: 999;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -36,9 +36,23 @@
   padding: 0.25rem 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   transition: border-color 0.3s ease;
   margin: 0;
+}
+
+.sidebar-close-mobile {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--sidebar-text, white);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: background 0.2s ease, color 0.3s ease;
+  align-items: center;
+  justify-content: center;
 }
 
 [data-theme="light"] .sidebar-header {
@@ -243,12 +257,85 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
-@media (max-width: 768px) {
+/* Mobile hamburger button */
+.sidebar-mobile-toggle {
+  display: none;
+  position: fixed;
+  top: 90px;
+  left: 1rem;
+  z-index: 1001;
+  background: #e60000;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: background 0.2s ease;
+}
+
+.sidebar-mobile-toggle:hover {
+  background: #cc0000;
+}
+
+/* Mobile overlay */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 80px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+}
+
+/* Tablet: 769px - 1024px */
+@media (max-width: 1024px) and (min-width: 769px) {
   .sidebar {
-    /* Mobile पर sidebar को हमेशा hidden न रखें –
-       simple layout के लिए इसे visible रखें, बस width थोड़ी कम कर दें */
+    width: 240px;
+  }
+}
+
+/* Large Mobile & Tablet: ≤ 768px */
+@media (max-width: 768px) {
+  .sidebar-mobile-toggle {
+    display: flex;
+  }
+
+  .sidebar-overlay {
+    display: block;
+  }
+
+  .sidebar {
+    width: 280px;
+    transform: translateX(-100%);
+    z-index: 999;
+  }
+
+  .sidebar.mobile-open {
     transform: translateX(0);
-    width: 220px;
+  }
+
+  .sidebar-close-mobile {
+    display: flex;
+  }
+
+  .sidebar-toggle {
+    display: none;
+  }
+}
+
+/* Small Mobile: ≤ 480px */
+@media (max-width: 480px) {
+  .sidebar {
+    width: 260px;
+  }
+
+  .sidebar-mobile-toggle {
+    top: 85px;
+    left: 0.75rem;
+    padding: 0.4rem;
   }
 }
 

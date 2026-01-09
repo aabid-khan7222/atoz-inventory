@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Dummy Products</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #c82333;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        #result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        #result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        #result.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .product-list {
+            margin-top: 10px;
+            padding-left: 20px;
+        }
+        .product-list li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗑️ Delete Dummy Products</h1>
+        <p>This will delete the following sample products that were added during initialization:</p>
+        <ul>
+            <li><strong>EXIDE-CAR-100AH</strong> - Exide Car Battery 100AH</li>
+            <li><strong>EXIDE-BIKE-7AH</strong> - Exide Bike Battery 7AH</li>
+            <li><strong>EXIDE-UPS-150AH</strong> - Exide UPS Battery 150AH</li>
+            <li><strong>EXIDE-DW-5L</strong> - Exide Distilled Water 5L</li>
+            <li><strong>GEN-DW-5L</strong> - Generic Distilled Water 5L</li>
+        </ul>
+        
+        <button id="deleteBtn" onclick="deleteDummyProducts()">Delete Dummy Products</button>
+        <button onclick="checkProducts()">Check Products First</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://atoz-backend-qq3k.onrender.com/api';
+
+        async function deleteDummyProducts() {
+            const btn = document.getElementById('deleteBtn');
+            const resultDiv = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = 'Deleting...';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/delete-dummy-products`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ Success!</h3>
+                        <p><strong>${data.deletedCount}</strong> out of ${data.totalDummyProducts} dummy products deleted.</p>
+                        ${data.deletedProducts.length > 0 ? `
+                            <p><strong>Deleted Products:</strong></p>
+                            <ul class="product-list">
+                                ${data.deletedProducts.map(p => `<li>${p.sku} - ${p.name}</li>`).join('')}
+                            </ul>
+                        ` : ''}
+                    `;
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ Error</h3>
+                        <p>${data.error || 'Failed to delete products'}</p>
+                        ${data.details ? `<p><small>${data.details}</small></p>` : ''}
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Error</h3>
+                    <p>Failed to connect to backend: ${error.message}</p>
+                    <p><small>Make sure the backend is deployed and running.</small></p>
+                `;
+            } finally {
+                resultDiv.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Delete Dummy Products';
+            }
+        }
+
+        async function checkProducts() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/products`);
+                const products = await response.json();
+
+                const dummySKUs = ['EXIDE-CAR-100AH', 'EXIDE-BIKE-7AH', 'EXIDE-UPS-150AH', 'EXIDE-DW-5L', 'GEN-DW-5L'];
+                const foundDummyProducts = products.filter(p => dummySKUs.includes(p.sku));
+
+                if (foundDummyProducts.length > 0) {
+                    resultDiv.className = 'info';
+                    resultDiv.innerHTML = `
+                        <h3>ℹ️ Found ${foundDummyProducts.length} Dummy Product(s)</h3>
+                        <p><strong>Products that will be deleted:</strong></p>
+                        <ul class="product-list">
+                            ${foundDummyProducts.map(p => `<li>${p.sku} - ${p.name}</li>`).join('')}
+                        </ul>
+                        <p>Click "Delete Dummy Products" button to remove them.</p>
+                    `;
+                } else {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ No Dummy Products Found</h3>
+                        <p>All dummy products have already been deleted or don't exist.</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Error</h3>
+                    <p>Failed to check products: ${error.message}</p>
+                `;
+            } finally {
+                resultDiv.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>
+

@@ -2,25 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { API_BASE } from '../../../api';
 import Swal from 'sweetalert2';
+import { getFormState, saveFormState } from '../../../utils/formStateManager';
 import './InventorySection.css';
+
+const STORAGE_KEY = 'soldBatteriesState';
 
 const SoldBatteries = ({ onBack }) => {
   const navigate = useNavigate();
   
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('soldBatteriesState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved SoldBatteries state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const [selectedCategory, setSelectedCategory] = useState(() => savedState?.selectedCategory || 'all');
   const [soldBatteries, setSoldBatteries] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -46,7 +37,7 @@ const SoldBatteries = ({ onBack }) => {
       dateTo,
       sortConfig
     };
-    sessionStorage.setItem('soldBatteriesState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [selectedCategory, searchTerm, dateFrom, dateTo, sortConfig, isInitialMount]);
 
   const categories = [

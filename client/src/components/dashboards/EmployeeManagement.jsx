@@ -3,23 +3,14 @@ import api from '../../api';
 import EmployeeList from './employees/EmployeeList';
 import EmployeeDetails from './employees/EmployeeDetails';
 import EmployeeHistory from './employees/EmployeeHistory';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
 import './EmployeeManagement.css';
 
+const STORAGE_KEY = 'employeeManagementState';
+
 const EmployeeManagement = ({ onBack }) => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('employeeManagementState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved EmployeeManagement state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const [activeTab, setActiveTab] = useState(() => savedState?.activeTab || 'list');
   const [selectedEmployee, setSelectedEmployee] = useState(() => savedState?.selectedEmployeeId ? { id: savedState.selectedEmployeeId } : null);
   
@@ -36,7 +27,7 @@ const EmployeeManagement = ({ onBack }) => {
       activeTab,
       selectedEmployeeId: selectedEmployee?.id || null
     };
-    sessionStorage.setItem('employeeManagementState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [activeTab, selectedEmployee, isInitialMount]);
 
   const handleEmployeeSelect = (employee) => {

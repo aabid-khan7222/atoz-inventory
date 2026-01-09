@@ -12,16 +12,25 @@ const SummaryCard = ({ title, value, color, details, isDetails = false }) => {
       
       const container = containerRef.current;
       const text = textRef.current;
-      const containerWidth = container.offsetWidth - 10; // Padding
+      const containerWidth = container.offsetWidth;
       
       // Reset to max size
-      text.style.fontSize = '1.75rem';
+      text.style.fontSize = '1.35rem';
       
-      // Check if text overflows
-      if (text.scrollWidth > containerWidth) {
+      // Check if text fits at max size
+      const fitsAtMaxSize = text.scrollWidth <= containerWidth;
+      
+      // If text fits, keep it centered; if not, align left and resize
+      if (fitsAtMaxSize) {
+        container.style.justifyContent = 'center';
+        container.style.textAlign = 'center';
+      } else {
+        container.style.justifyContent = 'flex-start';
+        container.style.textAlign = 'left';
+        
         // Binary search for optimal font size
-        let minSize = 0.75;
-        let maxSize = 1.75;
+        let minSize = 0.65;
+        let maxSize = 1.35;
         let optimalSize = maxSize;
         
         for (let i = 0; i < 20; i++) {
@@ -50,14 +59,14 @@ const SummaryCard = ({ title, value, color, details, isDetails = false }) => {
   }, [value]);
 
   return (
-    <div className="summary-card" style={{ background: 'var(--corp-bg-card)', padding: '1.5rem', borderRadius: 'var(--corp-radius)', boxShadow: 'var(--corp-shadow)' }}>
-      <h3 style={{ margin: '0 0 1rem 0', color: 'var(--corp-text-secondary)', fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</h3>
-      <div className="summary-value-container" ref={containerRef}>
-        <div className="summary-value" ref={textRef} style={{ fontWeight: 'bold', color: color, lineHeight: '1.3', whiteSpace: 'nowrap' }}>
+    <div className="summary-card" style={{ background: 'var(--corp-bg-card)', padding: '0.75rem', borderRadius: 'var(--corp-radius)', boxShadow: 'var(--corp-shadow)' }}>
+      <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--corp-text-secondary)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: '1.2' }}>{title}</h3>
+      <div className="summary-value-container" ref={containerRef} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', overflow: 'hidden', minHeight: '1.5rem' }}>
+        <div className="summary-value" ref={textRef} style={{ fontWeight: 'bold', color: color, lineHeight: '1.1', whiteSpace: 'nowrap', fontSize: '1.35rem', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
           {value}
         </div>
       </div>
-      <div className={isDetails ? "summary-details" : ""} style={{ marginTop: '0.5rem', color: 'var(--corp-text-muted)', fontSize: '0.875rem', whiteSpace: isDetails ? 'normal' : 'nowrap', wordBreak: isDetails ? 'break-word' : 'normal' }}>
+      <div className={isDetails ? "summary-details" : ""} style={{ marginTop: '0.375rem', color: 'var(--corp-text-muted)', fontSize: '0.7rem', whiteSpace: isDetails ? 'normal' : 'nowrap', wordBreak: isDetails ? 'break-word' : 'normal', lineHeight: '1.3' }}>
         {details}
       </div>
     </div>
@@ -89,22 +98,13 @@ import {
   generateProfitReportPDF,
   generateChargingServicesReportPDF
 } from '../../utils/reportPdf';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
+
+const STORAGE_KEY = 'reportsState';
 
 const Reports = () => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('reportsState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved Reports state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   
   const [activeTab, setActiveTab] = useState(() => savedState?.activeTab || 'summary');
   const [loading, setLoading] = useState(false);
@@ -137,7 +137,7 @@ const Reports = () => {
       seriesFilter,
       agentFilter
     };
-    sessionStorage.setItem('reportsState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [activeTab, period, dateFrom, dateTo, categoryFilter, seriesFilter, agentFilter, isInitialMount]);
   
   // Report data states
@@ -1070,7 +1070,7 @@ const Reports = () => {
           {getDateRangeText()}
         </div>
         
-        <div className="summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+        <div className="summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
           <SummaryCard 
             title="Total Sales"
             value={summaryData.sales?.total_sales || 0}

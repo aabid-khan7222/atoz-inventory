@@ -9,24 +9,15 @@ import {
   getAvailableSerials,
 } from '../../api';
 import Swal from 'sweetalert2';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
 import './DashboardContent.css';
 import './GuaranteeWarrantyTable.css';
 
+const STORAGE_KEY = 'guaranteeWarrantyState';
+
 const GuaranteeWarranty = () => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('guaranteeWarrantyState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved GuaranteeWarranty state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const [serialNumber, setSerialNumber] = useState(() => savedState?.serialNumber || '');
   const [batteryStatus, setBatteryStatus] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -65,7 +56,7 @@ const GuaranteeWarranty = () => {
       historyDateFrom,
       historyDateTo
     };
-    sessionStorage.setItem('guaranteeWarrantyState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [serialNumber, replacementForm, historySearch, historyTypeFilter, historyDateFrom, historyDateTo, isInitialMount]);
 
   useEffect(() => {

@@ -6,6 +6,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import SearchableDropdown from '../../common/SearchableDropdown';
 import MultiSelectSearchableDropdown from '../../common/MultiSelectSearchableDropdown';
 import Swal from 'sweetalert2';
+import { getFormState, saveFormState, markFormSubmitted } from '../../../utils/formStateManager';
 import './InventorySection.css';
 import '../InventoryManagement.css';
 
@@ -17,6 +18,8 @@ const getCurrentTimeHHMM = () => {
   return `${hh}:${mm}`;
 };
 
+const STORAGE_KEY = 'sellStockFormState';
+
 const SellStock = ({ onBack }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -25,20 +28,8 @@ const SellStock = ({ onBack }) => {
   const DEFAULT_DISCOUNT_RETAIL = 12;
   const DEFAULT_DISCOUNT_B2B = 18;
 
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('sellStockFormState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved SellStock state:', e);
-    }
-    return null;
-  };
-
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   const [activeTab, setActiveTab] = useState(() => savedState?.activeTab || 'customer');
   const [selectedCategory, setSelectedCategory] = useState(() => savedState?.selectedCategory || 'car-truck-tractor');
   const [products, setProducts] = useState([]);
@@ -134,7 +125,7 @@ const SellStock = ({ onBack }) => {
       commissionAmount,
       cart
     };
-    sessionStorage.setItem('sellStockFormState', JSON.stringify(formState));
+    saveFormState(STORAGE_KEY, formState);
   }, [activeTab, selectedCategory, selectedProduct, selectedSerials, quantity, purchaseDate, purchaseTime, customerName, customerMobileNumber, customerEmail, customerVehicleNumber, vehicleNumbers, useSameVehicleForAll, paymentMethod, mrp, discountPercent, discountAmount, finalAmount, lastEditedDiscountField, hasGST, customerBusinessName, customerGSTNumber, customerBusinessAddress, selectedCustomerId, isB2BCustomer, hasCommission, selectedCommissionAgentId, commissionAgentName, commissionAgentMobile, commissionAmount, cart, isInitialMount]);
 
   const categories = [
@@ -638,8 +629,8 @@ const SellStock = ({ onBack }) => {
         setPurchaseDate(getCurrentDateISO());
         setPurchaseTime(getCurrentTimeHHMM());
         
-        // Clear saved state after successful sale
-        sessionStorage.removeItem('sellStockFormState');
+        // Mark form as submitted (will clear on next mount)
+        markFormSubmitted(STORAGE_KEY);
         
         setTimeout(() => {
           setSuccess('');

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAllServiceRequests, updateServiceRequestStatus } from '../../api';
 import Swal from 'sweetalert2';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
 import './DashboardContent.css';
 
 const SERVICE_TYPES = {
@@ -12,21 +13,11 @@ const SERVICE_TYPES = {
 
 const STATUS_VALUES = ['pending', 'in_progress', 'completed', 'cancelled'];
 
+const STORAGE_KEY = 'serviceManagementState';
+
 const ServiceManagement = () => {
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('serviceManagementState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved ServiceManagement state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -60,7 +51,7 @@ const ServiceManagement = () => {
       searchInput,
       pagination: { ...pagination, totalPages: 1, totalItems: 0 }
     };
-    sessionStorage.setItem('serviceManagementState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [statusFilter, serviceTypeFilter, searchTerm, searchInput, pagination.currentPage, pagination.limit, isInitialMount]);
 
   // Debounce search input

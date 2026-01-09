@@ -19,6 +19,9 @@ import CustomerServices from './CustomerServices.jsx';
 import CustomerReports from './CustomerReports.jsx';
 import { useLanguage } from '../../contexts/LanguageContext';
 import api from '../../api';
+import { getFormState, saveFormState } from '../../utils/formStateManager';
+
+const STORAGE_KEY = 'customerDashboardState';
 
 const CustomerDashboard = ({ activeMenu }) => {
   const { t } = useLanguage();
@@ -28,20 +31,8 @@ const CustomerDashboard = ({ activeMenu }) => {
   const [chargingServicesCount, setChargingServicesCount] = useState(0);
   const [chargingServicesLoading, setChargingServicesLoading] = useState(false);
 
-  // Load saved state from sessionStorage
-  const getSavedState = () => {
-    try {
-      const saved = sessionStorage.getItem('customerDashboardState');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Failed to load saved CustomerDashboard state:', e);
-    }
-    return null;
-  };
-  
-  const savedState = getSavedState();
+  // Load saved state using utility (automatically handles refresh detection)
+  const savedState = getFormState(STORAGE_KEY);
   
   // New states for enhanced dashboard
   const [totalPurchase, setTotalPurchase] = useState(0);
@@ -64,7 +55,7 @@ const CustomerDashboard = ({ activeMenu }) => {
       selectedPeriod,
       selectedCategory
     };
-    sessionStorage.setItem('customerDashboardState', JSON.stringify(stateToSave));
+    saveFormState(STORAGE_KEY, stateToSave);
   }, [selectedPeriod, selectedCategory, isInitialMount]);
 
   // Prevent body scroll when modal is open
