@@ -106,6 +106,7 @@ const Sidebar = ({ menuItems, basePath }) => {
           </ul>
         </nav>
       </aside>
+    </>
   );
 };
 
