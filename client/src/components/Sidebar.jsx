@@ -5,6 +5,9 @@ import './Sidebar.css';
 const Sidebar = ({ menuItems, basePath }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
+  
+  // Determine if this is a customer menu (fewer items) or admin menu (more items)
+  const isCustomerMenu = menuItems.length <= 8;
 
   // Helper function to get the route path for a menu item
   const getMenuItemPath = (itemId) => {
@@ -62,7 +65,7 @@ const Sidebar = ({ menuItems, basePath }) => {
       </div>
 
         <nav className="sidebar-nav">
-          <ul className="sidebar-menu">
+          <ul className={`sidebar-menu ${isCustomerMenu ? 'menu-customer' : 'menu-admin'}`}>
             {menuItems.map((item) => {
               const itemPath = getMenuItemPath(item.id);
               return (
