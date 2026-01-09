@@ -1,26 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import './Sidebar.css';
 
 const Sidebar = ({ menuItems, basePath }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const location = useLocation();
-  
-  // Listen for mobile sidebar toggle events from header
-  useEffect(() => {
-    const handleToggle = (event) => {
-      setIsMobileOpen(event.detail);
-    };
-    
-    window.addEventListener('toggleMobileSidebar', handleToggle);
-    return () => window.removeEventListener('toggleMobileSidebar', handleToggle);
-  }, []);
-  
-  // Close mobile sidebar when route changes
-  useEffect(() => {
-    setIsMobileOpen(false);
-  }, [location.pathname]);
   
   // Determine if this is a customer menu (fewer items) or admin menu (more items)
   const isCustomerMenu = menuItems.length <= 8;
@@ -62,13 +46,7 @@ const Sidebar = ({ menuItems, basePath }) => {
   };
 
   return (
-    <>
-      {/* Mobile overlay */}
-      <div 
-        className={`sidebar-overlay ${isMobileOpen ? 'active' : ''}`}
-        onClick={() => setIsMobileOpen(false)}
-      />
-      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}>
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
           <button
             className="sidebar-toggle"
@@ -106,7 +84,6 @@ const Sidebar = ({ menuItems, basePath }) => {
           </ul>
         </nav>
       </aside>
-    </>
   );
 };
 

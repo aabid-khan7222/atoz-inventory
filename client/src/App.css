@@ -74,41 +74,6 @@ body {
   margin-bottom: 20px;
 }
 
-/* Form with 2-column layout on mobile/tablet where logical */
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
-
-/* Desktop: Keep single column or custom layout - DO NOT CHANGE */
-@media (min-width: 1025px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Tablet: 601px - 1024px → 2 columns where logical */
-@media (max-width: 1024px) and (min-width: 601px) {
-  .form-row.two-columns {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* Mobile: ≤600px → 2 columns for short inputs, full width for long */
-@media (max-width: 600px) {
-  .form-row.two-columns {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
-  }
-  
-  .form-row.two-columns .form-group:has(textarea),
-  .form-row.two-columns .form-group:has(input[type="text"][class*="long"]),
-  .form-row.two-columns .form-group.full-width {
-    grid-column: 1 / -1;
-  }
-}
-
 .form-group label {
   display: block;
   margin-bottom: 8px;
@@ -298,23 +263,6 @@ table {
   min-width: 600px;
 }
 
-/* Ensure all tables can scroll horizontally on mobile */
-@media (max-width: 1024px) {
-  table {
-    min-width: 600px;
-  }
-  
-  .table-responsive-wrapper {
-    min-width: 0;
-  }
-}
-
-@media (max-width: 600px) {
-  table {
-    min-width: 500px;
-  }
-}
-
 [data-theme="dark"] table {
   background-color: var(--azb-bg-surface, #1e293b);
   border-color: var(--azb-border-subtle, #334155);
@@ -437,8 +385,6 @@ table img {
 
   .table-responsive-wrapper {
     margin: 15px 0;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
   table {
@@ -463,18 +409,6 @@ table img {
     padding: 10px 18px;
     font-size: 0.9em;
     min-height: 44px;
-  }
-  
-  /* Buttons side-by-side if space allows */
-  .button-group {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
-  
-  .button-group button {
-    flex: 1;
-    min-width: 120px;
   }
 
   table button {
@@ -520,21 +454,7 @@ table img {
     min-width: 70px;
   }
 
-  /* Buttons: Stack only if necessary, otherwise side-by-side */
-  .button-group {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-  
-  .button-group button {
-    flex: 1;
-    min-width: 100px;
-    margin-right: 0;
-    margin-bottom: 0;
-  }
-  
-  button:not(.button-group button) {
+  button {
     width: 100%;
     margin-right: 0;
     margin-bottom: 10px;
@@ -543,9 +463,8 @@ table img {
   table button {
     padding: 5px 10px;
     font-size: 0.8em;
-    display: inline-block;
-    width: auto;
-    margin-right: 5px;
+    display: block;
+    width: 100%;
     margin-bottom: 5px;
     min-height: 36px;
   }

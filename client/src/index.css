@@ -34,10 +34,8 @@ body,
   height: auto;
 
   position: static;
-  /* Allow horizontal scroll where needed - don't hide data */
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 
   pointer-events: auto;
 }

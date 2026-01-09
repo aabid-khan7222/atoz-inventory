@@ -13,7 +13,6 @@ const DashboardHeader = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const previousUnreadCountRef = useRef(0);
   const menuRef = useRef(null);
   const navigate = useNavigate();
@@ -150,27 +149,9 @@ const DashboardHeader = () => {
       user.profileImage ||
       user.profile_image_url);
 
-  // Toggle mobile sidebar
-  const toggleMobileSidebar = () => {
-    setShowMobileSidebar(!showMobileSidebar);
-    // Dispatch custom event for sidebar to listen
-    window.dispatchEvent(new CustomEvent('toggleMobileSidebar', { detail: !showMobileSidebar }));
-  };
-
   return (
     <header className="dashboard-header">
       <div className="dashboard-header-left">
-        <button
-          type="button"
-          className="mobile-menu-toggle"
-          onClick={toggleMobileSidebar}
-          aria-label="Toggle menu"
-          title="Toggle menu"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
         <div className="dashboard-logo-wrapper">
           <img 
             src="/exide-care.png" 
