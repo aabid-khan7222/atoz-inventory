@@ -4,8 +4,24 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
+// Determine which database URL to use based on environment
+const getDatabaseUrl = () => {
+  if (process.env.NODE_ENV === "production") {
+    // Production environment - prefer DATABASE_URL_PROD, fallback to DATABASE_URL
+    return process.env.DATABASE_URL_PROD || process.env.DATABASE_URL;
+  } else {
+    // Development environment - use DATABASE_URL
+    return process.env.DATABASE_URL;
+  }
+};
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: getDatabaseUrl(),
+  ...(process.env.NODE_ENV === "production" && {
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  }),
 });
 
 async function runMigrations() {

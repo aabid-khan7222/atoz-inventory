@@ -1,5 +1,5 @@
 // client/src/contexts/AuthContext.jsx
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { login as apiLogin, setAuthToken } from "../api";
 
 const AuthContext = createContext(null);
@@ -38,11 +38,40 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const logout = useCallback(() => {
+    // Clear state
+    setUser(null);
+    setToken(null);
+
+    // Clear localStorage
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
+    localStorage.removeItem("auth_api_base");
+
+    // Clear token in api.js
+    setAuthToken(null);
+
+    // Dispatch event to notify theme context about user logout
+    window.dispatchEvent(new CustomEvent('azb-auth-changed'));
+  }, []);
+
   useEffect(() => {
     // On initial mount, try to load from localStorage
     try {
       const storedToken = localStorage.getItem("auth_token");
       const storedUser = localStorage.getItem("auth_user");
+      const currentApiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+      const storedApiBase = localStorage.getItem("auth_api_base");
+
+      // Check if token was created for a different environment (localhost vs production)
+      if (storedToken && storedApiBase && storedApiBase !== currentApiBase) {
+        console.warn('[AuthContext] Token from different environment detected, clearing auth');
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("auth_user");
+        localStorage.removeItem("auth_api_base");
+        setLoading(false);
+        return;
+      }
 
       if (storedToken && storedUser) {
         const parsedUser = JSON.parse(storedUser);
@@ -51,6 +80,9 @@ export const AuthProvider = ({ children }) => {
         setToken(storedToken);
         setUser(normalized);
         setAuthToken(storedToken);
+
+        // Store current API base to detect environment changes
+        localStorage.setItem("auth_api_base", currentApiBase);
 
         // ensure normalized user dubara save ho jaye
         localStorage.setItem("auth_user", JSON.stringify(normalized));
@@ -63,10 +95,24 @@ export const AuthProvider = ({ children }) => {
       // Clear corrupted data
       localStorage.removeItem("auth_token");
       localStorage.removeItem("auth_user");
+      localStorage.removeItem("auth_api_base");
     } finally {
       setLoading(false);
     }
-  }, []);
+
+    // Listen for invalid auth events (401 errors from API)
+    const handleInvalidAuth = () => {
+      console.warn('[AuthContext] Token invalidated, clearing auth state');
+      logout();
+    };
+
+    window.addEventListener('azb-auth-invalid', handleInvalidAuth);
+
+    // Cleanup listener on unmount
+    return () => {
+      window.removeEventListener('azb-auth-invalid', handleInvalidAuth);
+    };
+  }, [logout]);
 
   const login = async (email, password) => {
     try {
@@ -85,8 +131,10 @@ export const AuthProvider = ({ children }) => {
       setToken(authToken);
 
       // Save to localStorage
+      const currentApiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
       localStorage.setItem("auth_token", authToken);
       localStorage.setItem("auth_user", JSON.stringify(normalizedUser));
+      localStorage.setItem("auth_api_base", currentApiBase); // Store API base to detect environment changes
 
       // Set token in api.js for future requests
       setAuthToken(authToken);
@@ -102,21 +150,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    // Clear state
-    setUser(null);
-    setToken(null);
-
-    // Clear localStorage
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_user");
-
-    // Clear token in api.js
-    setAuthToken(null);
-
-    // Dispatch event to notify theme context about user logout
-    window.dispatchEvent(new CustomEvent('azb-auth-changed'));
-  };
 
   const updateUser = (partialUser = {}) => {
     setUser((prevUser) => {

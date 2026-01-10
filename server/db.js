@@ -5,9 +5,22 @@ require("dotenv").config();
 // pg se Pool class lo
 const { Pool } = require("pg");
 
+// Determine which database URL to use based on environment
+// Production: Use DATABASE_URL_PROD if set, otherwise fall back to DATABASE_URL
+// Development: Use DATABASE_URL
+const getDatabaseUrl = () => {
+  if (process.env.NODE_ENV === "production") {
+    // Production environment - prefer DATABASE_URL_PROD, fallback to DATABASE_URL
+    return process.env.DATABASE_URL_PROD || process.env.DATABASE_URL;
+  } else {
+    // Development environment - use DATABASE_URL
+    return process.env.DATABASE_URL;
+  }
+};
+
 // Base config
 const poolConfig = {
-  connectionString: process.env.DATABASE_URL,
+  connectionString: getDatabaseUrl(),
 };
 
 // ✅ Render / Railway / Production PostgreSQL requires SSL

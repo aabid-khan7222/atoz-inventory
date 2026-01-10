@@ -15,6 +15,23 @@ export function setAuthToken(token) {
   currentToken = token || null;
 }
 
+// Function to clear auth when token is invalid (401 errors)
+function clearInvalidAuth() {
+  // Clear module-level token
+  currentToken = null;
+  
+  // Clear localStorage
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+  }
+  
+  // Dispatch event to notify AuthContext to clear state
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('azb-auth-invalid'));
+  }
+}
+
 // Generic request helper
 export async function request(path, options = {}) {
   const url = `${getApiBase()}${path}`;
@@ -50,6 +67,15 @@ export async function request(path, options = {}) {
     }
 
     if (!response.ok) {
+      // Handle 401 Unauthorized - token is invalid or expired
+      if (response.status === 401) {
+        // Don't clear auth for login endpoint (avoid clearing on login failure)
+        if (!path.includes('/auth/login')) {
+          console.warn('[API] 401 Unauthorized - clearing invalid token');
+          clearInvalidAuth();
+        }
+      }
+      
       // data agar object hai to data.error le sakte hai,
       // warna generic message
       const errorMessage =

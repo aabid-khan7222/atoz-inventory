@@ -1995,7 +1995,7 @@
 @media (max-width: 768px) {
   .series-launch-alert {
     margin: 0.75rem auto;
-    padding: 0;
+    padding: 0.75rem 0 0 0;
     max-width: 100%;
     width: 100%;
     max-height: none;
@@ -2014,7 +2014,13 @@
   .alert-badge {
     font-size: 0.625rem;
     padding: 0.375rem 1rem;
-    top: 0.75rem;
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    margin: 0 auto 0.75rem;
+    display: block;
+    width: fit-content;
     max-width: 85%;
     white-space: normal;
     text-align: center;
@@ -2024,6 +2030,7 @@
 
   .alert-content {
     padding: 1.5rem 0.875rem 0.875rem;
+    margin-top: 0;
   }
 
   .alert-header-section {
@@ -2162,7 +2169,7 @@
 @media (max-width: 480px) {
   .series-launch-alert {
     margin: 0.5rem auto;
-    padding: 0;
+    padding: 0.625rem 0 0 0;
   }
 
   .alert-top-bar {
@@ -2175,13 +2182,20 @@
   .alert-badge {
     font-size: 0.5625rem;
     padding: 0.25rem 0.875rem;
-    top: 0.5rem;
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    margin: 0 auto 0.625rem;
+    display: block;
+    width: fit-content;
     max-width: 90%;
     letter-spacing: 0.03em;
   }
 
   .alert-content {
     padding: 1.25rem 0.75rem 0.75rem;
+    margin-top: 0;
   }
 
   .alert-header-section {
