@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "migrate": "node scripts/run_migrations.js"
+    "migrate": "node scripts/run_migrations.js",
+    "migrate-data": "node scripts/migrate-data-local-to-render.js"
   },
   "keywords": [],
   "author": "",
