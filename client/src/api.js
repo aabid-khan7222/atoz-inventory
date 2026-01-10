@@ -62,8 +62,16 @@ export async function request(path, options = {}) {
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
       data = await response.json();
+      console.log('[API] Response parsed as JSON:', {
+        path,
+        status: response.status,
+        hasData: !!data,
+        dataType: typeof data,
+        dataKeys: data && typeof data === 'object' ? Object.keys(data) : []
+      });
     } else {
       data = await response.text();
+      console.log('[API] Response parsed as text:', { path, status: response.status, dataLength: data?.length });
     }
 
     if (!response.ok) {
@@ -99,10 +107,25 @@ export async function request(path, options = {}) {
 
 // Authentication API functions
 export async function login(email, password) {
-  return request("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
+  try {
+    console.log('[API] Login request starting for:', email);
+    const result = await request("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    console.log('[API] Login response received:', {
+      hasResult: !!result,
+      resultType: typeof result,
+      resultKeys: result ? Object.keys(result) : [],
+      hasUser: !!result?.user,
+      hasToken: !!result?.token,
+      tokenLength: result?.token ? result.token.length : 0
+    });
+    return result;
+  } catch (error) {
+    console.error('[API] Login request failed:', error);
+    throw error;
+  }
 }
 
 export async function getCurrentUser() {

@@ -116,36 +116,86 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log('[AuthContext] Starting login for:', email);
       const response = await apiLogin(email, password);
+      console.log('[AuthContext] Login API response received:', {
+        hasResponse: !!response,
+        hasUser: !!response?.user,
+        hasToken: !!response?.token,
+        responseKeys: response ? Object.keys(response) : [],
+        userKeys: response?.user ? Object.keys(response.user) : [],
+        tokenLength: response?.token ? response.token.length : 0
+      });
 
-      if (!response || !response.user || !response.token) {
-        throw new Error("Invalid response from server");
+      // Check response structure - handle both direct response and nested data
+      let userData, authToken;
+      
+      if (response && response.user && response.token) {
+        // Direct structure: { user: {...}, token: "..." }
+        userData = response.user;
+        authToken = response.token;
+        console.log('[AuthContext] Using direct response structure');
+      } else if (response && response.data && response.data.user && response.data.token) {
+        // Nested structure: { data: { user: {...}, token: "..." } }
+        userData = response.data.user;
+        authToken = response.data.token;
+        console.log('[AuthContext] Using nested response.data structure');
+      } else {
+        console.error('[AuthContext] Invalid response structure:', response);
+        throw new Error("Invalid response from server: missing user or token");
       }
 
-      const { user: userData, token: authToken } = response;
+      if (!userData || !authToken) {
+        console.error('[AuthContext] Missing user or token after extraction:', { userData, authToken });
+        throw new Error("Invalid response from server: missing user or token");
+      }
 
       const normalizedUser = normalizeUser(userData);
+      console.log('[AuthContext] User normalized:', { id: normalizedUser?.id, role_id: normalizedUser?.role_id });
 
       // Update state
       setUser(normalizedUser);
       setToken(authToken);
+      console.log('[AuthContext] State updated');
 
-      // Save to localStorage
-      const currentApiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
-      localStorage.setItem("auth_token", authToken);
-      localStorage.setItem("auth_user", JSON.stringify(normalizedUser));
-      localStorage.setItem("auth_api_base", currentApiBase); // Store API base to detect environment changes
+      // Save to localStorage with error handling
+      try {
+        const currentApiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+        localStorage.setItem("auth_token", authToken);
+        localStorage.setItem("auth_user", JSON.stringify(normalizedUser));
+        localStorage.setItem("auth_api_base", currentApiBase);
+        console.log('[AuthContext] localStorage saved successfully');
+        
+        // Verify localStorage was saved
+        const savedToken = localStorage.getItem("auth_token");
+        const savedUser = localStorage.getItem("auth_user");
+        if (!savedToken || !savedUser) {
+          console.error('[AuthContext] localStorage verification failed:', { savedToken: !!savedToken, savedUser: !!savedUser });
+          throw new Error("Failed to save authentication data to localStorage");
+        }
+        console.log('[AuthContext] localStorage verified');
+      } catch (storageError) {
+        console.error('[AuthContext] localStorage error:', storageError);
+        throw new Error("Failed to save authentication data: " + storageError.message);
+      }
 
       // Set token in api.js for future requests
       setAuthToken(authToken);
+      console.log('[AuthContext] Token set in api.js');
 
       // Dispatch event to notify theme context about user change
       window.dispatchEvent(new CustomEvent('azb-auth-changed'));
+      console.log('[AuthContext] Auth changed event dispatched');
 
       // Return user object so caller can redirect by role
       return normalizedUser;
     } catch (err) {
-      console.error("Login error", err);
+      console.error("[AuthContext] Login error:", err);
+      console.error("[AuthContext] Error details:", {
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
       throw err;
     }
   };
