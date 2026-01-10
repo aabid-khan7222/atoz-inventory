@@ -30,6 +30,19 @@ const renderPool = new Pool({
   },
 });
 
+// Column name mappings for tables with different schemas
+const columnMappings = {
+  'warranty_slabs': {
+    'slab_name': null // This column doesn't exist in Render, skip it
+  },
+  'commission_agents': {
+    'name': 'full_name' // Map 'name' to 'full_name'
+  },
+  'employees': {
+    'address': null // This column doesn't exist in Render, skip it
+  }
+};
+
 // Tables to migrate (in order - respecting foreign key dependencies)
 const tablesOrder = [
   // Base tables (no dependencies)
@@ -160,9 +173,24 @@ async function migrateTable(tableName) {
     
     console.log(`  📊 Found ${rowCount} rows in local database`);
     
-    // Get columns
-    const columns = await getTableColumns(localPool, tableName);
-    const columnNames = columns.map(col => col.column_name).filter(col => col !== 'id' || tableName === 'product_type' || tableName === 'roles' || tableName === 'sales_types');
+    // Get columns from both databases to handle schema differences
+    const localColumns = await getTableColumns(localPool, tableName);
+    const renderColumns = await getTableColumns(renderPool, tableName);
+    const renderColumnNames = new Set(renderColumns.map(col => col.column_name));
+    
+    // Filter columns that exist in both databases
+    // For tables with fixed IDs, include id; for others, exclude it (let SERIAL handle it)
+    const includeId = (tableName === 'product_type' || tableName === 'roles' || tableName === 'sales_types');
+    const columnNames = localColumns
+      .map(col => col.column_name)
+      .filter(col => {
+        // Include id only for fixed ID tables
+        if (col === 'id') {
+          return includeId;
+        }
+        // Only include columns that exist in Render database
+        return renderColumnNames.has(col);
+      });
     
     // Clear existing data in Render and reset sequences
     console.log(`  🗑️  Clearing existing data in Render database...`);
@@ -212,27 +240,34 @@ async function migrateTable(tableName) {
           const placeholders = [];
           let placeholderIndex = 1;
           
-          // Handle special cases for tables with fixed IDs
-          if (tableName === 'product_type' || tableName === 'roles' || tableName === 'sales_types') {
-            // Include id for these tables
-            values.push(row.id);
-            placeholders.push(`$${placeholderIndex++}`);
-          }
+          // Build values, placeholders, and target column names
+          const finalColumnNames = [];
           
           for (const col of columnNames) {
-            if (col === 'id' && (tableName === 'product_type' || tableName === 'roles' || tableName === 'sales_types')) {
-              continue; // Already added
+            // Handle column mappings
+            const mapping = columnMappings[tableName];
+            
+            // Skip columns mapped to null (don't exist in Render)
+            if (mapping && mapping[col] === null) {
+              continue;
             }
-            values.push(row[col] !== undefined ? row[col] : null);
+            
+            // Determine source column (local DB) and target column (Render DB)
+            // sourceCol: column name in local database (always use original 'col')
+            // targetCol: column name in Render database (use mapping if exists, otherwise original)
+            const sourceCol = col; // Always use original column name from local DB
+            const targetCol = (mapping && mapping[col] && mapping[col] !== null) ? mapping[col] : col;
+            
+            // Get value from source column
+            const value = row[sourceCol] !== undefined ? row[sourceCol] : null;
+            
+            values.push(value);
             placeholders.push(`$${placeholderIndex++}`);
+            finalColumnNames.push(targetCol);
           }
           
-          const allColumns = (tableName === 'product_type' || tableName === 'roles' || tableName === 'sales_types') 
-            ? ['id', ...columnNames] 
-            : columnNames;
-          
           const insertQuery = `
-            INSERT INTO ${tableName} (${allColumns.join(', ')})
+            INSERT INTO ${tableName} (${finalColumnNames.join(', ')})
             VALUES (${placeholders.join(', ')})
             ON CONFLICT DO NOTHING;
           `;
