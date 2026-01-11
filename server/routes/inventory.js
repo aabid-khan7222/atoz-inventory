@@ -1283,14 +1283,16 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
           });
           
           try {
-            // Check if old schema columns exist (sku, series, name)
+            // Check if old schema columns exist (sku, series, name, purchase_price)
             const oldColumnsCheck = await client.query(`
               SELECT column_name 
               FROM information_schema.columns 
               WHERE table_name = 'purchases' 
-              AND column_name IN ('sku', 'series', 'name')
+              AND column_name IN ('sku', 'series', 'name', 'purchase_price')
             `);
-            const hasOldColumns = oldColumnsCheck.rows.length > 0;
+            const foundColumns = oldColumnsCheck.rows.map(row => row.column_name);
+            const hasOldColumns = foundColumns.some(col => ['sku', 'series', 'name'].includes(col));
+            const hasPurchasePrice = foundColumns.includes('purchase_price');
             
             // Build INSERT query - include old columns if they exist
             let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity';
@@ -1309,11 +1311,20 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
               finalDiscountPercent,
               1  // quantity: 1 unit per serial number
             ];
+            let paramIndex = 13;
+            
+            // If purchase_price column exists, include it (use finalDp as purchase_price)
+            if (hasPurchasePrice) {
+              insertColumns += ', purchase_price';
+              insertValues += `, $${paramIndex}`;
+              insertParams.push(finalDp);  // Use finalDp as purchase_price
+              paramIndex++;
+            }
             
             // If old columns exist, also insert into them to satisfy NOT NULL constraints
             if (hasOldColumns) {
               insertColumns += ', sku, series, name';
-              insertValues += ', $13, $14, $15';
+              insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}`;
               insertParams.push(
                 product.sku,  // sku
                 product.series || null,  // series
@@ -1352,14 +1363,16 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
           const waterSerialNumber = `${purchaseNumber}-${i + 1}`;
           console.log('[ADD STOCK] Inserting purchase for water product unit:', waterSerialNumber);
           
-          // Check if old schema columns exist
+          // Check if old schema columns exist (sku, series, name, purchase_price)
           const oldColumnsCheck = await client.query(`
             SELECT column_name 
             FROM information_schema.columns 
             WHERE table_name = 'purchases' 
-            AND column_name IN ('sku', 'series', 'name')
+            AND column_name IN ('sku', 'series', 'name', 'purchase_price')
           `);
-          const hasOldColumns = oldColumnsCheck.rows.length > 0;
+          const foundColumns = oldColumnsCheck.rows.map(row => row.column_name);
+          const hasOldColumns = foundColumns.some(col => ['sku', 'series', 'name'].includes(col));
+          const hasPurchasePrice = foundColumns.includes('purchase_price');
           
           // Build INSERT query - include old columns if they exist
           let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity';
@@ -1378,11 +1391,20 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
             finalDiscountPercent,
             1  // quantity: 1 unit per serial number
           ];
+          let paramIndex = 13;
+          
+          // If purchase_price column exists, include it (use finalDp as purchase_price)
+          if (hasPurchasePrice) {
+            insertColumns += ', purchase_price';
+            insertValues += `, $${paramIndex}`;
+            insertParams.push(finalDp);  // Use finalDp as purchase_price
+            paramIndex++;
+          }
           
           // If old columns exist, also insert into them
           if (hasOldColumns) {
             insertColumns += ', sku, series, name';
-            insertValues += ', $13, $14, $15';
+            insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}`;
             insertParams.push(
               product.sku,
               product.series || null,
