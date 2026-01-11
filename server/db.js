@@ -6,16 +6,20 @@ require("dotenv").config();
 const { Pool } = require("pg");
 
 // Determine which database URL to use based on environment
-// Production: Use DATABASE_URL_PROD if set, otherwise fall back to DATABASE_URL
+// Production: Use DATABASE_URL (standard for deployment platforms like Render/Railway)
 // Development: Use DATABASE_URL
 const getDatabaseUrl = () => {
-  if (process.env.NODE_ENV === "production") {
-    // Production environment - prefer DATABASE_URL_PROD, fallback to DATABASE_URL
-    return process.env.DATABASE_URL_PROD || process.env.DATABASE_URL;
-  } else {
-    // Development environment - use DATABASE_URL
-    return process.env.DATABASE_URL;
+  // Use DATABASE_URL in both development and production
+  // Most deployment platforms (Render, Railway, etc.) set DATABASE_URL directly
+  // If DATABASE_URL_PROD is explicitly set, use it (for backward compatibility)
+  const dbUrl = process.env.DATABASE_URL_PROD || process.env.DATABASE_URL;
+  
+  if (!dbUrl) {
+    console.error("❌ Error: DATABASE_URL environment variable is not set!");
+    throw new Error("DATABASE_URL environment variable is required");
   }
+  
+  return dbUrl;
 };
 
 // Base config

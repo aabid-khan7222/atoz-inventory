@@ -1293,8 +1293,8 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
             const hasOldColumns = oldColumnsCheck.rows.length > 0;
             
             // Build INSERT query - include old columns if they exist
-            let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent';
-            let insertValues = '$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11';
+            let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity';
+            let insertValues = '$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12';
             let insertParams = [
               purchaseProductTypeId,
               purchaseDate,
@@ -1306,13 +1306,14 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
               finalDp,
               finalPurchaseValue,
               finalDiscountAmount,
-              finalDiscountPercent
+              finalDiscountPercent,
+              1  // quantity: 1 unit per serial number
             ];
             
             // If old columns exist, also insert into them to satisfy NOT NULL constraints
             if (hasOldColumns) {
               insertColumns += ', sku, series, name';
-              insertValues += ', $12, $13, $14';
+              insertValues += ', $13, $14, $15';
               insertParams.push(
                 product.sku,  // sku
                 product.series || null,  // series
@@ -1332,6 +1333,7 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
                 purchase_value = EXCLUDED.purchase_value,
                 discount_amount = EXCLUDED.discount_amount,
                 discount_percent = EXCLUDED.discount_percent,
+                quantity = EXCLUDED.quantity,
                 updated_at = CURRENT_TIMESTAMP
             `, insertParams);
             console.log('[ADD STOCK] Purchase inserted:', purchaseResult.rowCount, 'rows for serial', serialNumber);
@@ -1360,8 +1362,8 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
           const hasOldColumns = oldColumnsCheck.rows.length > 0;
           
           // Build INSERT query - include old columns if they exist
-          let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent';
-          let insertValues = '$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11';
+          let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity';
+          let insertValues = '$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12';
           let insertParams = [
             purchaseProductTypeId,
             purchaseDate,
@@ -1373,13 +1375,14 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
             finalDp,
             finalPurchaseValue,
             finalDiscountAmount,
-            finalDiscountPercent
+            finalDiscountPercent,
+            1  // quantity: 1 unit per serial number
           ];
           
           // If old columns exist, also insert into them
           if (hasOldColumns) {
             insertColumns += ', sku, series, name';
-            insertValues += ', $12, $13, $14';
+            insertValues += ', $13, $14, $15';
             insertParams.push(
               product.sku,
               product.series || null,
@@ -1399,6 +1402,7 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
               purchase_value = EXCLUDED.purchase_value,
               discount_amount = EXCLUDED.discount_amount,
               discount_percent = EXCLUDED.discount_percent,
+              quantity = EXCLUDED.quantity,
               updated_at = CURRENT_TIMESTAMP
           `, insertParams);
           console.log('[ADD STOCK] Purchase inserted:', purchaseResult.rowCount, 'rows for water unit', waterSerialNumber);
