@@ -728,15 +728,37 @@ router.get('/:id', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    // Exclude commission data from customer-facing response
-    const itemsResult = await db.query(
-      `SELECT 
-        id, customer_id, invoice_number, customer_name, customer_mobile_number,
-        customer_vehicle_number, sales_type, sales_type_id, created_by, purchase_date,
+    // Check which columns exist before selecting
+    const columnsCheck = await client.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'sales_item'
+      AND column_name IN ('created_by', 'customer_business_name', 'customer_gst_number', 'customer_business_address')
+    `);
+    const existingColumns = columnsCheck.rows.map(r => r.column_name);
+    const hasCreatedBy = existingColumns.includes('created_by');
+    const hasBusinessFields = existingColumns.includes('customer_business_name') && 
+                              existingColumns.includes('customer_gst_number') && 
+                              existingColumns.includes('customer_business_address');
+    
+    // Build SELECT query dynamically
+    let selectCols = `id, customer_id, invoice_number, customer_name, customer_mobile_number,
+        customer_vehicle_number, sales_type, sales_type_id, purchase_date,
         SKU, SERIES, CATEGORY, NAME, AH_VA, QUANTITY, WARRANTY, SERIAL_NUMBER,
         MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id,
-        customer_business_name, customer_gst_number, customer_business_address,
-        created_at, updated_at
+        created_at, updated_at`;
+    
+    if (hasCreatedBy) {
+      selectCols += `, created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      selectCols += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    // Exclude commission data from customer-facing response
+    const itemsResult = await client.query(
+      `SELECT ${selectCols}
       FROM sales_item WHERE invoice_number = $1 ORDER BY id`,
       [invoiceNumber]
     );

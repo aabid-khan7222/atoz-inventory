@@ -1075,7 +1075,23 @@ router.get('/sales-items', requireAuth, requireSuperAdminOrAdmin, async (req, re
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const productTypeId = category && category !== 'all' ? getProductTypeId(category) : null;
 
-    // Check if commission_agents table exists AND sales_item has commission_agent_id column
+    // Check which columns exist in sales_item table
+    const salesItemColumnsCheck = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'sales_item'
+      AND column_name IN ('created_by', 'customer_business_name', 'customer_gst_number', 'customer_business_address', 'has_commission', 'commission_agent_id', 'commission_amount')
+    `);
+    const salesItemColumns = salesItemColumnsCheck.rows.map(r => r.column_name);
+    const hasCreatedBy = salesItemColumns.includes('created_by');
+    const hasBusinessFields = salesItemColumns.includes('customer_business_name') && 
+                              salesItemColumns.includes('customer_gst_number') && 
+                              salesItemColumns.includes('customer_business_address');
+    const hasCommissionFields = salesItemColumns.includes('has_commission') && 
+                                salesItemColumns.includes('commission_agent_id') && 
+                                salesItemColumns.includes('commission_amount');
+    
+    // Check if commission_agents table exists
     let hasCommissionAgents = false;
     try {
       const tableCheck = await db.query(`
@@ -1085,33 +1101,61 @@ router.get('/sales-items', requireAuth, requireSuperAdminOrAdmin, async (req, re
           AND table_name = 'commission_agents'
         )
       `);
-      const tableExists = tableCheck.rows[0]?.exists || false;
-      
-      // Also check if sales_item table has commission_agent_id column
-      if (tableExists) {
-        const columnCheck = await db.query(`
-          SELECT EXISTS (
-            SELECT FROM information_schema.columns 
-            WHERE table_schema = 'public' 
-            AND table_name = 'sales_item'
-            AND column_name = 'commission_agent_id'
-          )
-        `);
-        hasCommissionAgents = columnCheck.rows[0]?.exists || false;
-      }
+      hasCommissionAgents = tableCheck.rows[0]?.exists && hasCommissionFields;
     } catch (checkErr) {
-      console.warn('Could not check commission_agents table/column:', checkErr.message);
+      console.warn('Could not check commission_agents table:', checkErr.message);
     }
 
+    // Build SELECT query explicitly listing columns (don't use si.*)
     let query = `
       SELECT 
-        si.*, 
+        si.id,
+        si.customer_id,
+        si.invoice_number,
+        si.customer_name,
+        si.customer_mobile_number,
+        si.customer_vehicle_number,
+        si.sales_type,
+        si.sales_type_id,
+        si.purchase_date,
+        si.SKU,
+        si.SERIES,
+        si.CATEGORY,
+        si.NAME,
+        si.AH_VA,
+        si.QUANTITY,
+        si.WARRANTY,
+        si.SERIAL_NUMBER,
+        si.MRP,
+        si.discount_amount,
+        si.tax,
+        si.final_amount,
+        si.payment_method,
+        si.payment_status,
+        si.product_id,
+        si.created_at,
+        si.updated_at`;
+    
+    // Add optional columns if they exist
+    if (hasCreatedBy) {
+      query += `, si.created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      query += `, si.customer_business_name, si.customer_gst_number, si.customer_business_address`;
+    }
+    
+    if (hasCommissionFields) {
+      query += `, si.has_commission, si.commission_agent_id, si.commission_amount`;
+    }
+    
+    // Add product and commission agent fields
+    query += `,
         p.product_type_id,
         p.name as product_name_from_products,
         p.series as product_series,
         COALESCE(si.NAME, p.name) as display_name,
-        COALESCE(si.SKU, p.sku) as display_sku
-    `;
+        COALESCE(si.SKU, p.sku) as display_sku`;
     
     // Only include commission agent fields if table exists
     if (hasCommissionAgents) {
