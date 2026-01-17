@@ -836,49 +836,85 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
           ? finalCommissionAmount / totalItems 
           : 0;
         
-        // Insert sales_item with corresponding vehicle number
-        const itemResult = await client.query(
-          `INSERT INTO sales_item (
-            customer_id, invoice_number, customer_name, customer_mobile_number,
+        // Check which columns exist in sales_item table
+        const salesItemColumnsCheck = await client.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = 'sales_item'
+          AND column_name IN ('customer_business_name', 'customer_gst_number', 'customer_business_address', 'has_commission', 'commission_agent_id', 'commission_amount')
+        `);
+        const salesItemColumns = salesItemColumnsCheck.rows.map(r => r.column_name);
+        const hasBusinessFields = salesItemColumns.includes('customer_business_name') && 
+                                  salesItemColumns.includes('customer_gst_number') && 
+                                  salesItemColumns.includes('customer_business_address');
+        const hasCommissionFields = salesItemColumns.includes('has_commission') && 
+                                    salesItemColumns.includes('commission_agent_id') && 
+                                    salesItemColumns.includes('commission_amount');
+        
+        // Build INSERT query dynamically based on available columns
+        let insertColumns = `customer_id, invoice_number, customer_name, customer_mobile_number,
             customer_vehicle_number, sales_type, sales_type_id, created_by, purchase_date,
             SKU, SERIES, CATEGORY, NAME, AH_VA, QUANTITY, WARRANTY, SERIAL_NUMBER,
-            MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id,
-            customer_business_name, customer_gst_number, customer_business_address,
-            has_commission, commission_agent_id, commission_amount
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
-          RETURNING *`,
-          [
-            customer.id,
-            invoiceNumber,
-            customerName.trim(),
-            customerMobileNumber.trim(),
-            vehicleNumber, // Use the corresponding vehicle number for this battery
-            finalSalesType,
-            salesTypeId,
-            req.user.id, // created_by
-            purchaseDate ? new Date(purchaseDate) : new Date(),
-            product.sku,
-            product.series || null,
-            normalizedCategory,
-            product.name,
-            product.ah_va || null,
-            1, // Always 1 per row
-            product.warranty || null,
-            serial,
-            perUnitMRP,
-            perUnitDiscount,
-            perUnitTax,
-            perUnitFinal,
-            paymentMethod || 'cash',
-            paymentStatus,
-            product.id,
+            MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id`;
+        let insertValues = `$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24`;
+        let insertParams = [
+          customer.id,
+          invoiceNumber,
+          customerName.trim(),
+          customerMobileNumber.trim(),
+          vehicleNumber,
+          finalSalesType,
+          salesTypeId,
+          req.user.id,
+          purchaseDate ? new Date(purchaseDate) : new Date(),
+          product.sku,
+          product.series || null,
+          normalizedCategory,
+          product.name,
+          product.ah_va || null,
+          1,
+          product.warranty || null,
+          serial,
+          perUnitMRP,
+          perUnitDiscount,
+          perUnitTax,
+          perUnitFinal,
+          paymentMethod || 'cash',
+          paymentStatus,
+          product.id
+        ];
+        let paramIndex = 25;
+        
+        // Add business fields if they exist
+        if (hasBusinessFields) {
+          insertColumns += `, customer_business_name, customer_gst_number, customer_business_address`;
+          insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}`;
+          insertParams.push(
             customerBusinessName ? customerBusinessName.trim() : null,
             customerGstNumber ? customerGstNumber.trim() : null,
-            customerBusinessAddress ? customerBusinessAddress.trim() : null,
+            customerBusinessAddress ? customerBusinessAddress.trim() : null
+          );
+          paramIndex += 3;
+        }
+        
+        // Add commission fields if they exist
+        if (hasCommissionFields) {
+          insertColumns += `, has_commission, commission_agent_id, commission_amount`;
+          insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}`;
+          insertParams.push(
             hasCommission || false,
             finalCommissionAgentId,
             commissionPerItem
-          ]
+          );
+        }
+        
+        // Insert sales_item with corresponding vehicle number
+        const itemResult = await client.query(
+          `INSERT INTO sales_item (
+            ${insertColumns}
+          ) VALUES (${insertValues})
+          RETURNING *`,
+          insertParams
         );
 
         salesItems.push(itemResult.rows[0]);
