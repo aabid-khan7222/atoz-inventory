@@ -580,10 +580,19 @@ router.post('/', requireAuth, async (req, res) => {
         : undefined,
     });
   } catch (err) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      console.error('Rollback error:', rollbackErr);
+    }
     console.error('Error creating sale:', err);
+    console.error('Error stack:', err.stack);
+    console.error('Error code:', err.code);
+    console.error('Error detail:', err.detail);
+    console.error('Request body:', JSON.stringify(req.body, null, 2));
     res.status(500).json({ 
       error: 'Failed to create sale', 
+      message: err.message || 'Unknown error occurred',
       details: process.env.NODE_ENV === 'development' ? err.message : undefined 
     });
   } finally {
