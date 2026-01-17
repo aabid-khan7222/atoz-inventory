@@ -1,53 +1,48 @@
 // server/db.js
-// env file se variables load karo
+
+// Load environment variables
 require("dotenv").config();
 
-// pg se Pool class lo
 const { Pool } = require("pg");
 
-// Determine which database URL to use based on environment
-// Production: Use DATABASE_URL (standard for deployment platforms like Render/Railway)
-// Development: Use DATABASE_URL
-const getDatabaseUrl = () => {
-  // Use DATABASE_URL in both development and production
-  // Most deployment platforms (Render, Railway, etc.) set DATABASE_URL directly
-  // If DATABASE_URL_PROD is explicitly set, use it (for backward compatibility)
-  const dbUrl = process.env.DATABASE_URL_PROD || process.env.DATABASE_URL;
-  
-  if (!dbUrl) {
-    console.error("❌ Error: DATABASE_URL environment variable is not set!");
-    throw new Error("DATABASE_URL environment variable is required");
-  }
-  
-  return dbUrl;
-};
+// Detect environment
+const isProduction = process.env.NODE_ENV === "production";
 
-// Base config
-const poolConfig = {
-  connectionString: getDatabaseUrl(),
-};
+// Decide database URL
+// Priority: DATABASE_URL > DATABASE_URL_PROD (production) / DATABASE_URL_LOCAL (development)
+const DATABASE_URL = process.env.DATABASE_URL 
+  || (isProduction 
+    ? process.env.DATABASE_URL_PROD   // Production fallback
+    : process.env.DATABASE_URL_LOCAL); // Development fallback
 
-// ✅ Render / Railway / Production PostgreSQL requires SSL
-if (process.env.NODE_ENV === "production") {
-  poolConfig.ssl = {
-    rejectUnauthorized: false,
-  };
+// Safety check
+if (!DATABASE_URL) {
+  console.error("❌ DATABASE_URL is not set");
+  process.exit(1);
 }
 
-// Create pool
-const pool = new Pool(poolConfig);
-
-// Optional: test connection once (helps debugging)
-pool.on("connect", () => {
-  console.log("✅ PostgreSQL connected successfully");
+// Create PostgreSQL pool
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: isProduction
+    ? { rejectUnauthorized: false }   // ✅ REQUIRED for Render
+    : false                           // ❌ Localhost does NOT use SSL
 });
 
+// Log once when connected
+pool.on("connect", () => {
+  console.log(
+    `✅ PostgreSQL connected (${isProduction ? "PRODUCTION" : "LOCAL"})`
+  );
+});
+
+// Handle unexpected errors
 pool.on("error", (err) => {
-  console.error("❌ PostgreSQL pool error", err);
+  console.error("❌ PostgreSQL pool error:", err);
   process.exit(1);
 });
 
-// helper: db.query(sql, params)
+// Export helper
 module.exports = {
   query: (text, params) => pool.query(text, params),
   pool,
