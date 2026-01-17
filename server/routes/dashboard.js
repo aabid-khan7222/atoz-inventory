@@ -523,7 +523,32 @@ router.get('/sales-detail', requireAuth, requireSuperAdminOrAdmin, async (req, r
     }
     // If period is 'all' or anything else, dateFilter remains empty to show all data
 
-    // No need to check - sales_item table has customer_vehicle_number column
+    // Check which columns exist
+    const commissionColumnsCheck = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'sales_item'
+      AND column_name IN ('has_commission', 'commission_agent_id', 'commission_amount')
+    `);
+    const commissionColumns = commissionColumnsCheck.rows.map(r => r.column_name);
+    const hasCommissionFields = commissionColumns.includes('has_commission') && 
+                                commissionColumns.includes('commission_agent_id') && 
+                                commissionColumns.includes('commission_amount');
+    
+    // Check if commission_agents table exists
+    let hasCommissionAgents = false;
+    try {
+      const tableCheck = await db.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'commission_agents'
+        )
+      `);
+      hasCommissionAgents = tableCheck.rows[0]?.exists && hasCommissionFields;
+    } catch (checkErr) {
+      console.warn('Could not check commission_agents table:', checkErr.message);
+    }
 
     // Normalize category server-side to ensure consistent filtering (car-truck-tractor | bike | ups-inverter | other)
     const salesDetailQuery = `
@@ -546,14 +571,16 @@ router.get('/sales-detail', requireAuth, requireSuperAdminOrAdmin, async (req, r
           si.QUANTITY as quantity,
           si.MRP as unit_price,
           si.final_amount as total_price,
-          COALESCE(si.has_commission, false) as has_commission,
-          COALESCE(si.commission_amount, 0) as commission_amount,
-          ca.name as commission_agent_name,
-          ca.mobile_number as commission_agent_mobile
+          ${hasCommissionFields ? `COALESCE(si.has_commission, false) as has_commission,
+          COALESCE(si.commission_amount, 0) as commission_amount,` : `false as has_commission,
+          0 as commission_amount,`}
+          ${hasCommissionAgents ? `ca.name as commission_agent_name,
+          ca.mobile_number as commission_agent_mobile` : `NULL as commission_agent_name,
+          NULL as commission_agent_mobile`}
         FROM sales_item si
         LEFT JOIN products p ON si.product_id = p.id
         LEFT JOIN product_type pt ON p.product_type_id = pt.id
-        LEFT JOIN commission_agents ca ON (si.commission_agent_id = ca.id AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sales_item' AND column_name = 'commission_agent_id'))
+        ${hasCommissionAgents ? `LEFT JOIN commission_agents ca ON si.commission_agent_id = ca.id` : ''}
         ${dateFilter ? `WHERE ${dateFilter}` : ''}
       )
       SELECT

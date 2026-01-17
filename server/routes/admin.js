@@ -266,12 +266,19 @@ router.get(
       }
 
       // 2) Fetch detailed history from multiple tables in parallel
-      const [salesItemsResult, replacementsResult, chargingServicesResult] =
-        await Promise.all([
-          // All individual sale line items for this customer
-          db.query(
-            `SELECT 
-               id,
+      // Check which columns exist
+      const columnsCheck = await db.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'sales_item'
+        AND column_name IN ('customer_business_name', 'customer_gst_number', 'customer_business_address')
+      `);
+      const existingColumns = columnsCheck.rows.map(r => r.column_name);
+      const hasBusinessFields = existingColumns.includes('customer_business_name') && 
+                                existingColumns.includes('customer_gst_number') && 
+                                existingColumns.includes('customer_business_address');
+      
+      let salesItemsSelect = `id,
                invoice_number,
                customer_id,
                customer_name,
@@ -295,11 +302,18 @@ router.get(
                payment_method,
                payment_status,
                product_id,
-               customer_business_name,
-               customer_gst_number,
-               customer_business_address,
                created_at,
-               updated_at
+               updated_at`;
+      
+      if (hasBusinessFields) {
+        salesItemsSelect += `, customer_business_name, customer_gst_number, customer_business_address`;
+      }
+      
+      const [salesItemsResult, replacementsResult, chargingServicesResult] =
+        await Promise.all([
+          // All individual sale line items for this customer
+          db.query(
+            `SELECT ${salesItemsSelect}
              FROM sales_item
              WHERE customer_id = $1
              ORDER BY purchase_date DESC, id DESC`,
