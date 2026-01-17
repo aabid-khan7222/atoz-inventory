@@ -435,9 +435,10 @@ router.post('/', requireAuth, async (req, res) => {
       SELECT column_name 
       FROM information_schema.columns 
       WHERE table_name = 'sales_item'
-      AND column_name IN ('customer_business_name', 'customer_gst_number', 'customer_business_address')
+      AND column_name IN ('created_by', 'customer_business_name', 'customer_gst_number', 'customer_business_address')
     `);
     const salesItemColumns = salesItemColumnsCheck.rows.map(r => r.column_name);
+    const hasCreatedBy = salesItemColumns.includes('created_by');
     const hasBusinessFields = salesItemColumns.includes('customer_business_name') && 
                               salesItemColumns.includes('customer_gst_number') && 
                               salesItemColumns.includes('customer_business_address');
@@ -446,10 +447,8 @@ router.post('/', requireAuth, async (req, res) => {
     for (const item of salesItems) {
       // Build INSERT query dynamically based on available columns
       let insertColumns = `customer_id, invoice_number, customer_name, customer_mobile_number,
-          customer_vehicle_number, sales_type, sales_type_id, created_by, purchase_date,
-          SKU, SERIES, CATEGORY, NAME, AH_VA, QUANTITY, WARRANTY, SERIAL_NUMBER,
-          MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id`;
-      let insertValues = `$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24`;
+          customer_vehicle_number, sales_type, sales_type_id`;
+      let insertValues = `$1, $2, $3, $4, $5, $6, $7`;
       let insertParams = [
         item.customer_id,
         item.invoice_number,
@@ -457,8 +456,23 @@ router.post('/', requireAuth, async (req, res) => {
         item.customer_mobile_number,
         item.customer_vehicle_number,
         item.sales_type,
-        item.sales_type_id,
-        req.user.id, // created_by
+        item.sales_type_id
+      ];
+      let paramIndex = 8;
+      
+      // Add created_by if column exists
+      if (hasCreatedBy) {
+        insertColumns += `, created_by`;
+        insertValues += `, $${paramIndex}`;
+        insertParams.push(req.user.id);
+        paramIndex++;
+      }
+      
+      // Add purchase_date and product fields
+      insertColumns += `, purchase_date, SKU, SERIES, CATEGORY, NAME, AH_VA, QUANTITY, WARRANTY, SERIAL_NUMBER,
+          MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id`;
+      insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9}, $${paramIndex + 10}, $${paramIndex + 11}, $${paramIndex + 12}, $${paramIndex + 13}, $${paramIndex + 14}, $${paramIndex + 15}, $${paramIndex + 16}`;
+      insertParams.push(
         item.purchase_date,
         item.SKU,
         item.SERIES,
@@ -475,8 +489,8 @@ router.post('/', requireAuth, async (req, res) => {
         item.payment_method,
         item.payment_status,
         item.product_id
-      ];
-      let paramIndex = 25;
+      );
+      paramIndex += 17;
       
       // Add business fields if they exist
       if (hasBusinessFields) {
@@ -499,30 +513,43 @@ router.post('/', requireAuth, async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Fetch the complete sale record grouped by invoice_number
-    const saleResult = await client.query(
-      `SELECT 
+    // Fetch the complete sale record grouped by invoice_number (use same column check)
+    let selectQuery = `SELECT 
         invoice_number,
         customer_id,
         customer_name,
         customer_mobile_number,
         customer_vehicle_number,
         sales_type,
-        sales_type_id,
-        created_by,
-        customer_business_name,
-        customer_gst_number,
-        customer_business_address,
+        sales_type_id`;
+    
+    if (hasCreatedBy) {
+      selectQuery += `, created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      selectQuery += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    selectQuery += `,
         MIN(created_at) as created_at,
         MAX(updated_at) as updated_at
       FROM sales_item 
       WHERE invoice_number = $1
       GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number, 
-               customer_vehicle_number, sales_type, sales_type_id, created_by,
-               customer_business_name, customer_gst_number, customer_business_address
-      LIMIT 1`,
-      [invoiceNumber]
-    );
+               customer_vehicle_number, sales_type, sales_type_id`;
+    
+    if (hasCreatedBy) {
+      selectQuery += `, created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      selectQuery += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    selectQuery += ` LIMIT 1`;
+    
+    const saleResult = await client.query(selectQuery, [invoiceNumber]);
 
     const itemsResult = await client.query(
       `SELECT * FROM sales_item WHERE invoice_number = $1 ORDER BY id`,
