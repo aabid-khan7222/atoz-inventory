@@ -1137,11 +1137,14 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
         SELECT column_name 
         FROM information_schema.columns 
         WHERE table_name = 'purchases'
-        AND column_name IN ('product_sku', 'product_series', 'serial_number', 'purchase_number', 'dp', 'purchase_value', 'discount_amount', 'discount_percent', 'product_type_id')
+        AND column_name IN ('product_sku', 'product_series', 'serial_number', 'purchase_number', 'dp', 'purchase_value', 'discount_amount', 'discount_percent', 'product_type_id', 'total_amount')
       `);
       const requiredColumns = ['product_sku', 'product_series', 'serial_number', 'purchase_number', 'dp', 'purchase_value', 'discount_amount', 'discount_percent', 'product_type_id'];
       const existingColumns = columnsCheck.rows.map(r => r.column_name);
       const missingColumns = requiredColumns.filter(col => !existingColumns.includes(col));
+      
+      // Check if total_amount exists (may be required by old schema)
+      const hasTotalAmountColumn = existingColumns.includes('total_amount');
       
       if (missingColumns.length > 0) {
         throw new Error(`Missing required columns in purchases table: ${missingColumns.join(', ')}. Please run /api/init to add them.`);
@@ -1300,16 +1303,17 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
           });
           
           try {
-            // Check if old schema columns exist (sku, series, name, purchase_price)
+            // Check if old schema columns exist (sku, series, name, purchase_price, total_amount)
             const oldColumnsCheck = await client.query(`
               SELECT column_name 
               FROM information_schema.columns 
               WHERE table_name = 'purchases' 
-              AND column_name IN ('sku', 'series', 'name', 'purchase_price')
+              AND column_name IN ('sku', 'series', 'name', 'purchase_price', 'total_amount')
             `);
             const foundColumns = oldColumnsCheck.rows.map(row => row.column_name);
             const hasOldColumns = foundColumns.some(col => ['sku', 'series', 'name'].includes(col));
             const hasPurchasePrice = foundColumns.includes('purchase_price');
+            const hasTotalAmount = foundColumns.includes('total_amount');
             
             // Build INSERT query - include old columns if they exist
             let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity';
@@ -1330,6 +1334,15 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
             ];
             let paramIndex = 13;
             
+            // If total_amount column exists, include it (required for NOT NULL constraint)
+            // total_amount = purchase_value * quantity = purchase_value * 1 = purchase_value
+            if (hasTotalAmount) {
+              insertColumns += ', total_amount';
+              insertValues += `, $${paramIndex}`;
+              insertParams.push(finalPurchaseValue);  // total_amount = purchase_value (since quantity is 1)
+              paramIndex++;
+            }
+            
             // If purchase_price column exists, include it (use finalDp as purchase_price)
             if (hasPurchasePrice) {
               insertColumns += ', purchase_price';
@@ -1349,10 +1362,8 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
               );
             }
             
-            const purchaseResult = await client.query(`
-              INSERT INTO purchases (
-                ${insertColumns}
-              ) VALUES (${insertValues})
+            // Build ON CONFLICT UPDATE clause
+            let conflictUpdate = `
               ON CONFLICT (product_sku, serial_number) DO UPDATE SET
                 purchase_date = EXCLUDED.purchase_date,
                 purchase_number = EXCLUDED.purchase_number,
@@ -1363,6 +1374,21 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
                 discount_percent = EXCLUDED.discount_percent,
                 quantity = EXCLUDED.quantity,
                 updated_at = CURRENT_TIMESTAMP
+            `;
+            
+            // Add total_amount to UPDATE if column exists
+            if (hasTotalAmount) {
+              conflictUpdate = conflictUpdate.replace(
+                'updated_at = CURRENT_TIMESTAMP',
+                'total_amount = EXCLUDED.total_amount, updated_at = CURRENT_TIMESTAMP'
+              );
+            }
+            
+            const purchaseResult = await client.query(`
+              INSERT INTO purchases (
+                ${insertColumns}
+              ) VALUES (${insertValues})
+              ${conflictUpdate}
             `, insertParams);
             console.log('[ADD STOCK] Purchase inserted:', purchaseResult.rowCount, 'rows for serial', serialNumber);
           } catch (insertErr) {
@@ -1380,16 +1406,17 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
           const waterSerialNumber = `${purchaseNumber}-${i + 1}`;
           console.log('[ADD STOCK] Inserting purchase for water product unit:', waterSerialNumber);
           
-          // Check if old schema columns exist (sku, series, name, purchase_price)
+          // Check if old schema columns exist (sku, series, name, purchase_price, total_amount)
           const oldColumnsCheck = await client.query(`
             SELECT column_name 
             FROM information_schema.columns 
             WHERE table_name = 'purchases' 
-            AND column_name IN ('sku', 'series', 'name', 'purchase_price')
+            AND column_name IN ('sku', 'series', 'name', 'purchase_price', 'total_amount')
           `);
           const foundColumns = oldColumnsCheck.rows.map(row => row.column_name);
           const hasOldColumns = foundColumns.some(col => ['sku', 'series', 'name'].includes(col));
           const hasPurchasePrice = foundColumns.includes('purchase_price');
+          const hasTotalAmount = foundColumns.includes('total_amount');
           
           // Build INSERT query - include old columns if they exist
           let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity';
@@ -1410,6 +1437,15 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
           ];
           let paramIndex = 13;
           
+          // If total_amount column exists, include it (required for NOT NULL constraint)
+          // total_amount = purchase_value * quantity = purchase_value * 1 = purchase_value
+          if (hasTotalAmount) {
+            insertColumns += ', total_amount';
+            insertValues += `, $${paramIndex}`;
+            insertParams.push(finalPurchaseValue);  // total_amount = purchase_value (since quantity is 1)
+            paramIndex++;
+          }
+          
           // If purchase_price column exists, include it (use finalDp as purchase_price)
           if (hasPurchasePrice) {
             insertColumns += ', purchase_price';
@@ -1429,10 +1465,8 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
             );
           }
           
-          const purchaseResult = await client.query(`
-            INSERT INTO purchases (
-              ${insertColumns}
-            ) VALUES (${insertValues})
+          // Build ON CONFLICT UPDATE clause
+          let conflictUpdate = `
             ON CONFLICT (product_sku, serial_number) DO UPDATE SET
               purchase_date = EXCLUDED.purchase_date,
               purchase_number = EXCLUDED.purchase_number,
@@ -1443,6 +1477,21 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
               discount_percent = EXCLUDED.discount_percent,
               quantity = EXCLUDED.quantity,
               updated_at = CURRENT_TIMESTAMP
+          `;
+          
+          // Add total_amount to UPDATE if column exists
+          if (hasTotalAmount) {
+            conflictUpdate = conflictUpdate.replace(
+              'updated_at = CURRENT_TIMESTAMP',
+              'total_amount = EXCLUDED.total_amount, updated_at = CURRENT_TIMESTAMP'
+            );
+          }
+          
+          const purchaseResult = await client.query(`
+            INSERT INTO purchases (
+              ${insertColumns}
+            ) VALUES (${insertValues})
+            ${conflictUpdate}
           `, insertParams);
           console.log('[ADD STOCK] Purchase inserted:', purchaseResult.rowCount, 'rows for water unit', waterSerialNumber);
         }
