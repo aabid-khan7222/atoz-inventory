@@ -808,6 +808,28 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
       // GST = MRP * 0.18 / 1.18 (since MRP includes GST)
       const perUnitTax = (perUnitMRP * 0.18) / 1.18;
 
+      // Check which columns exist in sales_item table (check ONCE before loop)
+      const salesItemColumnsCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'sales_item'
+        AND column_name IN ('created_by', 'customer_business_name', 'customer_gst_number', 'customer_business_address', 'has_commission', 'commission_agent_id', 'commission_amount')
+      `);
+      const salesItemColumns = salesItemColumnsCheck.rows.map(r => r.column_name);
+      const hasCreatedBy = salesItemColumns.includes('created_by');
+      const hasBusinessFields = salesItemColumns.includes('customer_business_name') && 
+                                salesItemColumns.includes('customer_gst_number') && 
+                                salesItemColumns.includes('customer_business_address');
+      const hasCommissionFields = salesItemColumns.includes('has_commission') && 
+                                  salesItemColumns.includes('commission_agent_id') && 
+                                  salesItemColumns.includes('commission_amount');
+
+      // Calculate commission per item (distribute evenly if multiple items)
+      const totalItems = itemsToProcess.reduce((sum, item) => sum + item.quantity, 0);
+      const commissionPerItem = finalCommissionAmount > 0 && totalItems > 0 
+        ? finalCommissionAmount / totalItems 
+        : 0;
+
       // Create one sales_item row per battery (no sales_id needed)
       for (let i = 0; i < quantity; i++) {
         const serial = serialNumbers[i];
@@ -829,28 +851,6 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
           `UPDATE products SET qty = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
           [newStock, productId]
         );
-
-        // Calculate commission per item (distribute evenly if multiple items)
-        const totalItems = itemsToProcess.reduce((sum, item) => sum + item.quantity, 0);
-        const commissionPerItem = finalCommissionAmount > 0 && totalItems > 0 
-          ? finalCommissionAmount / totalItems 
-          : 0;
-        
-        // Check which columns exist in sales_item table
-        const salesItemColumnsCheck = await client.query(`
-          SELECT column_name 
-          FROM information_schema.columns 
-          WHERE table_name = 'sales_item'
-          AND column_name IN ('created_by', 'customer_business_name', 'customer_gst_number', 'customer_business_address', 'has_commission', 'commission_agent_id', 'commission_amount')
-        `);
-        const salesItemColumns = salesItemColumnsCheck.rows.map(r => r.column_name);
-        const hasCreatedBy = salesItemColumns.includes('created_by');
-        const hasBusinessFields = salesItemColumns.includes('customer_business_name') && 
-                                  salesItemColumns.includes('customer_gst_number') && 
-                                  salesItemColumns.includes('customer_business_address');
-        const hasCommissionFields = salesItemColumns.includes('has_commission') && 
-                                    salesItemColumns.includes('commission_agent_id') && 
-                                    salesItemColumns.includes('commission_amount');
         
         // Build INSERT query dynamically based on available columns
         let insertColumns = `customer_id, invoice_number, customer_name, customer_mobile_number,
@@ -875,10 +875,10 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
           paramIndex++;
         }
         
-        // Add purchase_date and product fields
+        // Add purchase_date and product fields (16 fields total)
         insertColumns += `, purchase_date, SKU, SERIES, CATEGORY, NAME, AH_VA, QUANTITY, WARRANTY, SERIAL_NUMBER,
             MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id`;
-        insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9}, $${paramIndex + 10}, $${paramIndex + 11}, $${paramIndex + 12}, $${paramIndex + 13}, $${paramIndex + 14}, $${paramIndex + 15}, $${paramIndex + 16}`;
+        insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9}, $${paramIndex + 10}, $${paramIndex + 11}, $${paramIndex + 12}, $${paramIndex + 13}, $${paramIndex + 14}, $${paramIndex + 15}`;
         insertParams.push(
           purchaseDate ? new Date(purchaseDate) : new Date(),
           product.sku,
@@ -897,7 +897,7 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
           paymentStatus,
           product.id
         );
-        paramIndex += 17;
+        paramIndex += 16;
         
         // Add business fields if they exist
         if (hasBusinessFields) {
