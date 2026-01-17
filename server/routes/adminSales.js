@@ -965,9 +965,21 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
 
     await client.query('COMMIT');
 
-    // Fetch complete sale record grouped by invoice_number
-    const saleResult = await client.query(
-      `SELECT 
+    // Check which columns exist for the SELECT query
+    const selectColumnsCheck = await client.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'sales_item'
+      AND column_name IN ('created_by', 'customer_business_name', 'customer_gst_number', 'customer_business_address')
+    `);
+    const selectColumns = selectColumnsCheck.rows.map(r => r.column_name);
+    const hasCreatedByInSelect = selectColumns.includes('created_by');
+    const hasBusinessFieldsInSelect = selectColumns.includes('customer_business_name') && 
+                                      selectColumns.includes('customer_gst_number') && 
+                                      selectColumns.includes('customer_business_address');
+    
+    // Build SELECT query dynamically
+    let selectQuery = `SELECT 
         invoice_number as id,
         invoice_number,
         customer_id,
@@ -975,21 +987,35 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
         customer_mobile_number,
         customer_vehicle_number,
         sales_type,
-        sales_type_id,
-        created_by,
-        customer_business_name,
-        customer_gst_number,
-        customer_business_address,
+        sales_type_id`;
+    
+    if (hasCreatedByInSelect) {
+      selectQuery += `, created_by`;
+    }
+    
+    if (hasBusinessFieldsInSelect) {
+      selectQuery += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    selectQuery += `,
         MIN(created_at) as created_at,
         MAX(updated_at) as updated_at
       FROM sales_item 
       WHERE invoice_number = $1
       GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number,
-               customer_vehicle_number, sales_type, sales_type_id, created_by,
-               customer_business_name, customer_gst_number, customer_business_address
-      LIMIT 1`,
-      [invoiceNumber]
-    );
+               customer_vehicle_number, sales_type, sales_type_id`;
+    
+    if (hasCreatedByInSelect) {
+      selectQuery += `, created_by`;
+    }
+    
+    if (hasBusinessFieldsInSelect) {
+      selectQuery += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    selectQuery += ` LIMIT 1`;
+    
+    const saleResult = await client.query(selectQuery, [invoiceNumber]);
 
     res.status(201).json({
       success: true,
