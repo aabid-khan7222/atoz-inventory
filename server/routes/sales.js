@@ -430,45 +430,70 @@ router.post('/', requireAuth, async (req, res) => {
     // Get sales_type_id (1 for retail, 2 for wholesale)
     const salesTypeId = sale_type === 'wholesale' ? 2 : 1;
 
+    // Check which columns exist in sales_item table (check once before loop)
+    const salesItemColumnsCheck = await client.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'sales_item'
+      AND column_name IN ('customer_business_name', 'customer_gst_number', 'customer_business_address')
+    `);
+    const salesItemColumns = salesItemColumnsCheck.rows.map(r => r.column_name);
+    const hasBusinessFields = salesItemColumns.includes('customer_business_name') && 
+                              salesItemColumns.includes('customer_gst_number') && 
+                              salesItemColumns.includes('customer_business_address');
+
     // Insert all sales_item records (no sales_id needed)
     for (const item of salesItems) {
-      await client.query(
-        `INSERT INTO sales_item (
-          customer_id, invoice_number, customer_name, customer_mobile_number,
+      // Build INSERT query dynamically based on available columns
+      let insertColumns = `customer_id, invoice_number, customer_name, customer_mobile_number,
           customer_vehicle_number, sales_type, sales_type_id, created_by, purchase_date,
           SKU, SERIES, CATEGORY, NAME, AH_VA, QUANTITY, WARRANTY, SERIAL_NUMBER,
-          MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id,
-          customer_business_name, customer_gst_number, customer_business_address
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)`,
-        [
-          item.customer_id,
-          item.invoice_number,
-          item.customer_name,
-          item.customer_mobile_number,
-          item.customer_vehicle_number,
-          item.sales_type,
-          item.sales_type_id,
-          req.user.id, // created_by
-          item.purchase_date,
-          item.SKU,
-          item.SERIES,
-          item.CATEGORY,
-          item.NAME,
-          item.AH_VA,
-          item.QUANTITY,
-          item.WARRANTY,
-          item.SERIAL_NUMBER,
-          item.MRP,
-          item.discount_amount,
-          item.tax,
-          item.final_amount,
-          item.payment_method,
-          item.payment_status,
-          item.product_id,
+          MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id`;
+      let insertValues = `$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24`;
+      let insertParams = [
+        item.customer_id,
+        item.invoice_number,
+        item.customer_name,
+        item.customer_mobile_number,
+        item.customer_vehicle_number,
+        item.sales_type,
+        item.sales_type_id,
+        req.user.id, // created_by
+        item.purchase_date,
+        item.SKU,
+        item.SERIES,
+        item.CATEGORY,
+        item.NAME,
+        item.AH_VA,
+        item.QUANTITY,
+        item.WARRANTY,
+        item.SERIAL_NUMBER,
+        item.MRP,
+        item.discount_amount,
+        item.tax,
+        item.final_amount,
+        item.payment_method,
+        item.payment_status,
+        item.product_id
+      ];
+      let paramIndex = 25;
+      
+      // Add business fields if they exist
+      if (hasBusinessFields) {
+        insertColumns += `, customer_business_name, customer_gst_number, customer_business_address`;
+        insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}`;
+        insertParams.push(
           item.customer_business_name,
           item.customer_gst_number,
           item.customer_business_address
-        ]
+        );
+      }
+      
+      await client.query(
+        `INSERT INTO sales_item (
+          ${insertColumns}
+        ) VALUES (${insertValues})`,
+        insertParams
       );
     }
 
