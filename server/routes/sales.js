@@ -551,8 +551,23 @@ router.post('/', requireAuth, async (req, res) => {
     
     const saleResult = await client.query(selectQuery, [invoiceNumber]);
 
+    // Use same column check from earlier in the function
+    let itemsSelectCols = `id, customer_id, invoice_number, customer_name, customer_mobile_number,
+        customer_vehicle_number, sales_type, sales_type_id, purchase_date,
+        SKU, SERIES, CATEGORY, NAME, AH_VA, QUANTITY, WARRANTY, SERIAL_NUMBER,
+        MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id,
+        created_at, updated_at`;
+    
+    if (hasCreatedBy) {
+      itemsSelectCols += `, created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      itemsSelectCols += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
     const itemsResult = await client.query(
-      `SELECT * FROM sales_item WHERE invoice_number = $1 ORDER BY id`,
+      `SELECT ${itemsSelectCols} FROM sales_item WHERE invoice_number = $1 ORDER BY id`,
       [invoiceNumber]
     );
 
@@ -633,6 +648,19 @@ router.get('/', requireAuth, async (req, res) => {
     const { page = 1, limit = 20, customer_id } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
+    // Check which columns exist
+    const columnsCheck = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'sales_item'
+      AND column_name IN ('created_by', 'customer_business_name', 'customer_gst_number', 'customer_business_address')
+    `);
+    const existingColumns = columnsCheck.rows.map(r => r.column_name);
+    const hasCreatedBy = existingColumns.includes('created_by');
+    const hasBusinessFields = existingColumns.includes('customer_business_name') && 
+                              existingColumns.includes('customer_gst_number') && 
+                              existingColumns.includes('customer_business_address');
+
     let query = `
       SELECT DISTINCT
         invoice_number as id,
@@ -642,11 +670,17 @@ router.get('/', requireAuth, async (req, res) => {
         customer_mobile_number,
         customer_vehicle_number,
         sales_type,
-        sales_type_id,
-        created_by,
-        customer_business_name,
-        customer_gst_number,
-        customer_business_address,
+        sales_type_id`;
+    
+    if (hasCreatedBy) {
+      query += `, created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      query += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    query += `,
         MIN(created_at) as created_at,
         MAX(updated_at) as updated_at,
         COUNT(*) as item_count
@@ -670,8 +704,17 @@ router.get('/', requireAuth, async (req, res) => {
 
     query += ` 
       GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number,
-               customer_vehicle_number, sales_type, sales_type_id, created_by,
-               customer_business_name, customer_gst_number, customer_business_address
+               customer_vehicle_number, sales_type, sales_type_id`;
+    
+    if (hasCreatedBy) {
+      query += `, created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      query += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    query += `
       ORDER BY MIN(created_at) DESC 
       LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(parseInt(limit), offset);
@@ -692,44 +735,8 @@ router.get('/:id', requireAuth, async (req, res) => {
     // After migration, it will always be an invoice_number
     const invoiceNumber = id;
 
-    const saleResult = await db.query(
-      `SELECT 
-        invoice_number as id,
-        invoice_number,
-        customer_id,
-        customer_name,
-        customer_mobile_number,
-        customer_vehicle_number,
-        sales_type,
-        sales_type_id,
-        created_by,
-        customer_business_name,
-        customer_gst_number,
-        customer_business_address,
-        MIN(created_at) as created_at,
-        MAX(updated_at) as updated_at
-      FROM sales_item 
-      WHERE invoice_number = $1
-      GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number, 
-               customer_vehicle_number, sales_type, sales_type_id, created_by,
-               customer_business_name, customer_gst_number, customer_business_address
-      LIMIT 1`,
-      [invoiceNumber]
-    );
-
-    if (saleResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Sale not found' });
-    }
-
-    const sale = saleResult.rows[0];
-
-    // Check permissions
-    if (req.user.role_id >= 3 && sale.customer_id !== req.user.id) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
     // Check which columns exist before selecting
-    const columnsCheck = await client.query(`
+    const columnsCheck = await db.query(`
       SELECT column_name 
       FROM information_schema.columns 
       WHERE table_name = 'sales_item'
@@ -741,7 +748,57 @@ router.get('/:id', requireAuth, async (req, res) => {
                               existingColumns.includes('customer_gst_number') && 
                               existingColumns.includes('customer_business_address');
     
-    // Build SELECT query dynamically
+    // Build SELECT query dynamically for sale header
+    let saleSelectQuery = `SELECT 
+        invoice_number as id,
+        invoice_number,
+        customer_id,
+        customer_name,
+        customer_mobile_number,
+        customer_vehicle_number,
+        sales_type,
+        sales_type_id`;
+    
+    if (hasCreatedBy) {
+      saleSelectQuery += `, created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      saleSelectQuery += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    saleSelectQuery += `,
+        MIN(created_at) as created_at,
+        MAX(updated_at) as updated_at
+      FROM sales_item 
+      WHERE invoice_number = $1
+      GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number, 
+               customer_vehicle_number, sales_type, sales_type_id`;
+    
+    if (hasCreatedBy) {
+      saleSelectQuery += `, created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      saleSelectQuery += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    saleSelectQuery += ` LIMIT 1`;
+    
+    const saleResult = await db.query(saleSelectQuery, [invoiceNumber]);
+
+    if (saleResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Sale not found' });
+    }
+
+    const sale = saleResult.rows[0];
+
+    // Check permissions
+    if (req.user.role_id >= 3 && sale.customer_id !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    
+    // Build SELECT query dynamically for items
     let selectCols = `id, customer_id, invoice_number, customer_name, customer_mobile_number,
         customer_vehicle_number, sales_type, sales_type_id, purchase_date,
         SKU, SERIES, CATEGORY, NAME, AH_VA, QUANTITY, WARRANTY, SERIAL_NUMBER,
@@ -757,7 +814,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     }
     
     // Exclude commission data from customer-facing response
-    const itemsResult = await client.query(
+    const itemsResult = await db.query(
       `SELECT ${selectCols}
       FROM sales_item WHERE invoice_number = $1 ORDER BY id`,
       [invoiceNumber]
@@ -776,8 +833,20 @@ router.get('/:id', requireAuth, async (req, res) => {
 // Get pending orders (orders without serial numbers assigned) - Admin/Super Admin only
 router.get('/pending/orders', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const result = await db.query(
-      `SELECT DISTINCT
+    // Check which columns exist
+    const columnsCheck = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'sales_item'
+      AND column_name IN ('created_by', 'customer_business_name', 'customer_gst_number', 'customer_business_address')
+    `);
+    const existingColumns = columnsCheck.rows.map(r => r.column_name);
+    const hasCreatedBy = existingColumns.includes('created_by');
+    const hasBusinessFields = existingColumns.includes('customer_business_name') && 
+                              existingColumns.includes('customer_gst_number') && 
+                              existingColumns.includes('customer_business_address');
+    
+    let query = `SELECT DISTINCT
         invoice_number as id,
         invoice_number,
         customer_id,
@@ -785,11 +854,17 @@ router.get('/pending/orders', requireAuth, requireAdmin, async (req, res) => {
         customer_mobile_number,
         customer_vehicle_number,
         sales_type,
-        sales_type_id,
-        created_by,
-        customer_business_name,
-        customer_gst_number,
-        customer_business_address,
+        sales_type_id`;
+    
+    if (hasCreatedBy) {
+      query += `, created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      query += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    query += `,
         MIN(created_at) as created_at,
         MAX(updated_at) as updated_at,
         COUNT(*) as item_count,
@@ -797,11 +872,21 @@ router.get('/pending/orders', requireAuth, requireAdmin, async (req, res) => {
       FROM sales_item
       WHERE SERIAL_NUMBER IS NULL
       GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number,
-               customer_vehicle_number, sales_type, sales_type_id, created_by,
-               customer_business_name, customer_gst_number, customer_business_address
+               customer_vehicle_number, sales_type, sales_type_id`;
+    
+    if (hasCreatedBy) {
+      query += `, created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      query += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    query += `
       HAVING COUNT(CASE WHEN SERIAL_NUMBER IS NULL THEN 1 END) > 0
-      ORDER BY MIN(created_at) DESC`
-    );
+      ORDER BY MIN(created_at) DESC`;
+    
+    const result = await db.query(query);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching pending orders:', err);
@@ -814,8 +899,20 @@ router.get('/pending/orders/:invoiceNumber', requireAuth, requireAdmin, async (r
   try {
     const { invoiceNumber } = req.params;
 
-    const saleResult = await db.query(
-      `SELECT DISTINCT
+    // Check which columns exist
+    const columnsCheck = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'sales_item'
+      AND column_name IN ('created_by', 'customer_business_name', 'customer_gst_number', 'customer_business_address')
+    `);
+    const existingColumns = columnsCheck.rows.map(r => r.column_name);
+    const hasCreatedBy = existingColumns.includes('created_by');
+    const hasBusinessFields = existingColumns.includes('customer_business_name') && 
+                              existingColumns.includes('customer_gst_number') && 
+                              existingColumns.includes('customer_business_address');
+    
+    let saleSelectQuery = `SELECT DISTINCT
         invoice_number as id,
         invoice_number,
         customer_id,
@@ -823,34 +920,57 @@ router.get('/pending/orders/:invoiceNumber', requireAuth, requireAdmin, async (r
         customer_mobile_number,
         customer_vehicle_number,
         sales_type,
-        sales_type_id,
-        created_by,
-        customer_business_name,
-        customer_gst_number,
-        customer_business_address,
+        sales_type_id`;
+    
+    if (hasCreatedBy) {
+      saleSelectQuery += `, created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      saleSelectQuery += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    saleSelectQuery += `,
         MIN(created_at) as created_at,
         MAX(updated_at) as updated_at
       FROM sales_item 
       WHERE invoice_number = $1
       GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number, 
-               customer_vehicle_number, sales_type, sales_type_id, created_by,
-               customer_business_name, customer_gst_number, customer_business_address
-      LIMIT 1`,
-      [invoiceNumber]
-    );
+               customer_vehicle_number, sales_type, sales_type_id`;
+    
+    if (hasCreatedBy) {
+      saleSelectQuery += `, created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      saleSelectQuery += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    saleSelectQuery += ` LIMIT 1`;
+    
+    const saleResult = await db.query(saleSelectQuery, [invoiceNumber]);
 
     if (saleResult.rows.length === 0) {
       return res.status(404).json({ error: 'Order not found' });
     }
-
-    const itemsResult = await db.query(
-      `SELECT 
-        id, customer_id, invoice_number, customer_name, customer_mobile_number,
-        customer_vehicle_number, sales_type, sales_type_id, created_by, purchase_date,
+    
+    // Build SELECT query for items (use same column check)
+    let itemsSelectCols = `id, customer_id, invoice_number, customer_name, customer_mobile_number,
+        customer_vehicle_number, sales_type, sales_type_id, purchase_date,
         SKU, SERIES, CATEGORY, NAME, AH_VA, QUANTITY, WARRANTY, SERIAL_NUMBER,
         MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id,
-        customer_business_name, customer_gst_number, customer_business_address,
-        created_at, updated_at
+        created_at, updated_at`;
+    
+    if (hasCreatedBy) {
+      itemsSelectCols += `, created_by`;
+    }
+    
+    if (hasBusinessFields) {
+      itemsSelectCols += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+
+    const itemsResult = await db.query(
+      `SELECT ${itemsSelectCols}
       FROM sales_item 
       WHERE invoice_number = $1 
       ORDER BY id`,
