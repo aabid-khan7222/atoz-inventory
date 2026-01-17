@@ -841,9 +841,10 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
           SELECT column_name 
           FROM information_schema.columns 
           WHERE table_name = 'sales_item'
-          AND column_name IN ('customer_business_name', 'customer_gst_number', 'customer_business_address', 'has_commission', 'commission_agent_id', 'commission_amount')
+          AND column_name IN ('created_by', 'customer_business_name', 'customer_gst_number', 'customer_business_address', 'has_commission', 'commission_agent_id', 'commission_amount')
         `);
         const salesItemColumns = salesItemColumnsCheck.rows.map(r => r.column_name);
+        const hasCreatedBy = salesItemColumns.includes('created_by');
         const hasBusinessFields = salesItemColumns.includes('customer_business_name') && 
                                   salesItemColumns.includes('customer_gst_number') && 
                                   salesItemColumns.includes('customer_business_address');
@@ -853,10 +854,8 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
         
         // Build INSERT query dynamically based on available columns
         let insertColumns = `customer_id, invoice_number, customer_name, customer_mobile_number,
-            customer_vehicle_number, sales_type, sales_type_id, created_by, purchase_date,
-            SKU, SERIES, CATEGORY, NAME, AH_VA, QUANTITY, WARRANTY, SERIAL_NUMBER,
-            MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id`;
-        let insertValues = `$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24`;
+            customer_vehicle_number, sales_type, sales_type_id`;
+        let insertValues = `$1, $2, $3, $4, $5, $6, $7`;
         let insertParams = [
           customer.id,
           invoiceNumber,
@@ -864,8 +863,23 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
           customerMobileNumber.trim(),
           vehicleNumber,
           finalSalesType,
-          salesTypeId,
-          req.user.id,
+          salesTypeId
+        ];
+        let paramIndex = 8;
+        
+        // Add created_by if column exists
+        if (hasCreatedBy) {
+          insertColumns += `, created_by`;
+          insertValues += `, $${paramIndex}`;
+          insertParams.push(req.user.id);
+          paramIndex++;
+        }
+        
+        // Add purchase_date and product fields
+        insertColumns += `, purchase_date, SKU, SERIES, CATEGORY, NAME, AH_VA, QUANTITY, WARRANTY, SERIAL_NUMBER,
+            MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id`;
+        insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9}, $${paramIndex + 10}, $${paramIndex + 11}, $${paramIndex + 12}, $${paramIndex + 13}, $${paramIndex + 14}, $${paramIndex + 15}, $${paramIndex + 16}`;
+        insertParams.push(
           purchaseDate ? new Date(purchaseDate) : new Date(),
           product.sku,
           product.series || null,
@@ -882,8 +896,8 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
           paymentMethod || 'cash',
           paymentStatus,
           product.id
-        ];
-        let paramIndex = 25;
+        );
+        paramIndex += 17;
         
         // Add business fields if they exist
         if (hasBusinessFields) {
