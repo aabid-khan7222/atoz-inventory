@@ -7,16 +7,46 @@ const router = express.Router();
 // Get all commission agents (searchable)
 router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   try {
+    // Check if commission_agents table exists
+    const tableCheck = await db.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'commission_agents'
+      )
+    `);
+    
+    if (!tableCheck.rows[0]?.exists) {
+      // Table doesn't exist - return empty array
+      return res.json([]);
+    }
+    
+    // Check which schema version exists (old: full_name/phone, new: name/mobile_number)
+    const columnCheck = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'commission_agents'
+      AND column_name IN ('name', 'full_name', 'mobile_number', 'phone')
+    `);
+    
+    const columns = columnCheck.rows.map(r => r.column_name);
+    const hasNewSchema = columns.includes('name') && columns.includes('mobile_number');
+    const hasOldSchema = columns.includes('full_name') && columns.includes('phone');
+    
     const { search } = req.query;
+    
+    // Build query based on schema version
+    let nameColumn = hasNewSchema ? 'name' : (hasOldSchema ? 'full_name' : 'name');
+    let mobileColumn = hasNewSchema ? 'mobile_number' : (hasOldSchema ? 'phone' : 'mobile_number');
     
     let query = `
       SELECT 
         id,
-        name,
-        mobile_number,
+        ${nameColumn} as name,
+        ${mobileColumn} as mobile_number,
         email,
-        address,
-        total_commission_paid,
+        ${hasNewSchema ? 'address' : 'NULL as address'},
+        ${columns.includes('total_commission_paid') ? 'total_commission_paid' : '0 as total_commission_paid'},
         created_at,
         updated_at
       FROM commission_agents
@@ -26,20 +56,24 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
     
     if (search) {
       query += ` AND (
-        name ILIKE $1 OR
-        mobile_number ILIKE $1 OR
-        email ILIKE $1
+        ${nameColumn} ILIKE $1 OR
+        ${mobileColumn} ILIKE $1 OR
+        COALESCE(email, '') ILIKE $1
       )`;
       params.push(`%${search}%`);
     }
     
-    query += ` ORDER BY name ASC`;
+    query += ` ORDER BY ${nameColumn} ASC`;
     
     const result = await db.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching commission agents:', err);
-    res.status(500).json({ error: 'Failed to fetch commission agents' });
+    // If table doesn't exist or other error, return empty array instead of error
+    if (err.code === '42P01') { // Table doesn't exist
+      return res.json([]);
+    }
+    res.status(500).json({ error: 'Failed to fetch commission agents', details: process.env.NODE_ENV === 'development' ? err.message : undefined });
   }
 });
 

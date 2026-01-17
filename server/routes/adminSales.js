@@ -384,14 +384,48 @@ async function findOrCreateCommissionAgent(agentName, agentMobile, client) {
     return null;
   }
 
+  // Check if commission_agents table exists
+  const tableCheck = await client.query(`
+    SELECT EXISTS (
+      SELECT FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name = 'commission_agents'
+    )
+  `);
+  
+  if (!tableCheck.rows[0]?.exists) {
+    console.warn('[findOrCreateCommissionAgent] commission_agents table does not exist');
+    return null;
+  }
+
+  // Check which schema version exists
+  const columnCheck = await client.query(`
+    SELECT column_name 
+    FROM information_schema.columns 
+    WHERE table_name = 'commission_agents'
+    AND column_name IN ('name', 'full_name', 'mobile_number', 'phone')
+  `);
+  
+  const columns = columnCheck.rows.map(r => r.column_name);
+  const hasNewSchema = columns.includes('name') && columns.includes('mobile_number');
+  const hasOldSchema = columns.includes('full_name') && columns.includes('phone');
+  
+  if (!hasNewSchema && !hasOldSchema) {
+    console.warn('[findOrCreateCommissionAgent] commission_agents table has unexpected schema');
+    return null;
+  }
+
   const cleanMobile = agentMobile.trim().replace(/\D/g, '');
   if (cleanMobile.length !== 10) {
     throw new Error('Invalid mobile number for commission agent');
   }
 
+  const nameColumn = hasNewSchema ? 'name' : 'full_name';
+  const mobileColumn = hasNewSchema ? 'mobile_number' : 'phone';
+
   // Try to find existing agent by mobile number
   const existingResult = await client.query(
-    `SELECT id FROM commission_agents WHERE mobile_number = $1 LIMIT 1`,
+    `SELECT id FROM commission_agents WHERE ${mobileColumn} = $1 LIMIT 1`,
     [cleanMobile]
   );
 
@@ -401,7 +435,7 @@ async function findOrCreateCommissionAgent(agentName, agentMobile, client) {
 
   // Create new agent
   const insertResult = await client.query(
-    `INSERT INTO commission_agents (name, mobile_number)
+    `INSERT INTO commission_agents (${nameColumn}, ${mobileColumn})
      VALUES ($1, $2)
      RETURNING id`,
     [agentName.trim(), cleanMobile]
@@ -851,15 +885,32 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
       }
     }
 
-    // Update commission agent's total commission paid
+    // Update commission agent's total commission paid (if column exists)
     if (finalCommissionAgentId && finalCommissionAmount > 0) {
-      await client.query(
-        `UPDATE commission_agents 
-         SET total_commission_paid = total_commission_paid + $1,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $2`,
-        [finalCommissionAmount, finalCommissionAgentId]
-      );
+      try {
+        // Check if total_commission_paid column exists
+        const columnCheck = await client.query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = 'commission_agents'
+            AND column_name = 'total_commission_paid'
+          )
+        `);
+        
+        if (columnCheck.rows[0]?.exists) {
+          await client.query(
+            `UPDATE commission_agents 
+             SET total_commission_paid = total_commission_paid + $1,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2`,
+            [finalCommissionAmount, finalCommissionAgentId]
+          );
+        }
+      } catch (updateErr) {
+        console.warn('[sell-stock] Could not update commission agent total:', updateErr.message);
+        // Don't fail the transaction if commission update fails
+      }
     }
 
     await client.query('COMMIT');
