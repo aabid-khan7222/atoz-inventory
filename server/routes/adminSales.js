@@ -922,6 +922,16 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
           );
         }
         
+        // Debug: Verify column and param counts match
+        const columnCount = insertColumns.split(',').length;
+        const paramCount = insertParams.length;
+        if (columnCount !== paramCount) {
+          console.error(`[ADD STOCK] MISMATCH: Columns: ${columnCount}, Params: ${paramCount}`);
+          console.error(`[ADD STOCK] Columns: ${insertColumns}`);
+          console.error(`[ADD STOCK] Values: ${insertValues}`);
+          throw new Error(`Column count (${columnCount}) does not match parameter count (${paramCount})`);
+        }
+        
         // Insert sales_item with corresponding vehicle number
         const itemResult = await client.query(
           `INSERT INTO sales_item (
