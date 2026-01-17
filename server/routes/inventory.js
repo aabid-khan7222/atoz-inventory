@@ -128,18 +128,35 @@ async function recordPurchase({ purchaseDate, purchasedFrom, product, serialNumb
 
     const purchase_number = await generatePurchaseNumber(purchaseDate);
     let purchaseId;
-
+    
+    // 🔴 YAHI ADD KARO (JUST ABOVE INSERT)
+    const total_amount = 0;
+    
     try {
       const insertResult = await db.query(
         `
-          INSERT INTO purchases (
-            purchase_number, supplier_name, purchase_date, total_amount, payment_status, created_at, updated_at
-          ) VALUES ($1, $2, $3, 0, 'paid', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-          RETURNING id
+        INSERT INTO purchases (
+          purchase_number,
+          supplier_name,
+          purchase_date,
+          total_amount,
+          payment_status,
+          created_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3, $4, 'paid', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING id
         `,
-        [purchase_number, purchasedFrom || null, purchaseDate || new Date()]
+        [
+          purchase_number,
+          purchasedFrom || null,
+          purchaseDate || new Date(),
+          total_amount
+        ]
       );
-      purchaseId = insertResult.rows[0]?.id;
+    
+      purchaseId = insertResult.rows[0].id;
+    
     } catch (insertErr) {
       // If unique constraint hit, reuse existing header
       if (insertErr.code === '23505') {

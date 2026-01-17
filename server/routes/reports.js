@@ -1167,88 +1167,118 @@ router.get('/summary', requireAuth, requireSuperAdminOrAdmin, async (req, res) =
       WHERE 1=1 ${salesDateFilter}
     `, salesParams);
 
-    // Commission summary - check if commission columns exist
-    let commissionSummary;
-    try {
-      // Check if commission columns exist
-      const columnCheck = await db.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'sales_item' 
-        AND column_name IN ('has_commission', 'commission_amount', 'commission_agent_id')
-      `);
-      const hasCommissionColumns = columnCheck.rows.length >= 2; // At least has_commission and commission_amount
-      
-      if (hasCommissionColumns) {
-        commissionSummary = await db.query(`
-          SELECT 
-            COUNT(*) FILTER (WHERE si.has_commission = true) as total_commission_sales,
-            COALESCE(SUM(si.commission_amount), 0) as total_commission_paid,
-            COUNT(DISTINCT si.commission_agent_id) FILTER (WHERE si.has_commission = true) as unique_agents
-          FROM sales_item si
-          WHERE si.has_commission = true ${salesDateFilter}
-        `, salesParams);
-      } else {
-        // Return empty commission summary if columns don't exist
-        commissionSummary = { rows: [{ total_commission_sales: 0, total_commission_paid: 0, unique_agents: 0 }] };
-      }
-    } catch (commissionErr) {
-      console.warn('Commission columns not available, returning empty summary:', commissionErr.message);
-      commissionSummary = { rows: [{ total_commission_sales: 0, total_commission_paid: 0, unique_agents: 0 }] };
-    }
-
-    // Charging services summary
-    const chargingSummary = await db.query(`
-      SELECT 
-        COUNT(*) as total_services,
-        COALESCE(SUM(cs.service_price) FILTER (WHERE cs.status IN ('completed', 'collected')), 0) as total_revenue
-      FROM charging_services cs
-      WHERE 1=1 ${chargingDateFilter}
-    `, chargingParams);
-
-    // Calculate total profit from sales (revenue - purchase cost)
-    let totalSalesProfit = 0;
-    try {
-      const salesItemsQuery = `
-        SELECT 
-          si.SERIAL_NUMBER as serial_number,
-          si.SKU as sku,
-          si.final_amount
-        FROM sales_item si
-        WHERE 1=1 ${salesDateFilter}
-        LIMIT 1000
-      `;
-      const salesItemsResult = await db.query(salesItemsQuery, salesParams);
-      
-      for (const item of salesItemsResult.rows) {
-        const revenue = parseFloat(item.final_amount || 0);
-        const serialNum = item.serial_number || item.SERIAL_NUMBER;
-        const sku = item.sku || item.SKU;
-        if (serialNum || sku) {
-          const purchasePrice = await getPurchasePrice(serialNum, sku);
-          totalSalesProfit += (revenue - purchasePrice);
+        // Commission summary - check if commission columns exist
+        let commissionSummary;
+        try {
+          // Check if commission columns exist
+          const columnCheck = await db.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'sales_item' 
+            AND column_name IN ('has_commission', 'commission_amount', 'commission_agent_id')
+          `);
+          const hasCommissionColumns = columnCheck.rows.length >= 2; // At least has_commission and commission_amount
+          
+          if (hasCommissionColumns) {
+            commissionSummary = await db.query(`
+              SELECT 
+                COUNT(*) FILTER (WHERE si.has_commission = true) as total_commission_sales,
+                COALESCE(SUM(si.commission_amount), 0) as total_commission_paid,
+                COUNT(DISTINCT si.commission_agent_id) FILTER (WHERE si.has_commission = true) as unique_agents
+              FROM sales_item si
+              WHERE si.has_commission = true ${salesDateFilter}
+            `, salesParams);
+          } else {
+            // Return empty commission summary if columns don't exist
+            commissionSummary = { rows: [{ total_commission_sales: 0, total_commission_paid: 0, unique_agents: 0 }] };
+          }
+        } catch (commissionErr) {
+          console.warn('Commission columns not available, returning empty summary:', commissionErr.message);
+          commissionSummary = { rows: [{ total_commission_sales: 0, total_commission_paid: 0, unique_agents: 0 }] };
         }
-      }
-      
-      // Scale profit if we limited results
-      const totalCountResult = await db.query(
-        `SELECT COUNT(*) as total FROM sales_item si WHERE 1=1 ${salesDateFilter}`,
-        salesParams
-      );
-      const totalCount = parseInt(totalCountResult.rows[0]?.total || salesItemsResult.rows.length);
-      if (totalCount > salesItemsResult.rows.length && salesItemsResult.rows.length > 0) {
-        const scaleFactor = totalCount / salesItemsResult.rows.length;
-        totalSalesProfit = totalSalesProfit * scaleFactor;
-      }
-    } catch (err) {
-      console.error('Error calculating sales profit:', err);
-      totalSalesProfit = 0;
-    }
-
-    // Calculate charging services profit (assuming 70% profit margin)
-    const chargingRevenue = parseFloat(chargingSummary.rows[0]?.total_revenue || 0);
-    const chargingProfit = chargingRevenue * 0.7; // 70% profit margin
-
+    
+        // Charging services summary (SAFE: handles missing service_price column)
+        let chargingSummary;
+        try {
+          // Check which price column exists in production DB
+          const chargingColumnCheck = await db.query(`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'charging_services'
+            AND column_name IN ('service_price', 'price', 'amount', 'service_charge', 'total_amount')
+          `);
+    
+          const availableColumns = chargingColumnCheck.rows.map(r => r.column_name);
+    
+          // Choose the best matching column
+          const priceColumn =
+            availableColumns.includes('service_price') ? 'service_price' :
+            availableColumns.includes('price') ? 'price' :
+            availableColumns.includes('amount') ? 'amount' :
+            availableColumns.includes('service_charge') ? 'service_charge' :
+            availableColumns.includes('total_amount') ? 'total_amount' :
+            null;
+    
+          if (!priceColumn) {
+            // If no price column exists, return safe zero summary (no crash)
+            chargingSummary = { rows: [{ total_services: 0, total_revenue: 0 }] };
+          } else {
+            chargingSummary = await db.query(`
+              SELECT 
+                COUNT(*) as total_services,
+                COALESCE(SUM(cs.${priceColumn}) FILTER (WHERE cs.status IN ('completed', 'collected')), 0) as total_revenue
+              FROM charging_services cs
+              WHERE 1=1 ${chargingDateFilter}
+            `, chargingParams);
+          }
+        } catch (chargingErr) {
+          console.warn('Charging services summary failed, returning zero:', chargingErr.message);
+          chargingSummary = { rows: [{ total_services: 0, total_revenue: 0 }] };
+        }
+    
+        // Calculate total profit from sales (revenue - purchase cost)
+        let totalSalesProfit = 0;
+        try {
+          const salesItemsQuery = `
+            SELECT 
+              si.SERIAL_NUMBER as serial_number,
+              si.SKU as sku,
+              si.final_amount
+            FROM sales_item si
+            WHERE 1=1 ${salesDateFilter}
+            LIMIT 1000
+          `;
+          const salesItemsResult = await db.query(salesItemsQuery, salesParams);
+          
+          for (const item of salesItemsResult.rows) {
+            const revenue = parseFloat(item.final_amount || 0);
+            const serialNum = item.serial_number || item.SERIAL_NUMBER;
+            const sku = item.sku || item.SKU;
+            if (serialNum || sku) {
+              const purchasePrice = await getPurchasePrice(serialNum, sku);
+              totalSalesProfit += (revenue - purchasePrice);
+            }
+          }
+          
+          // Scale profit if we limited results
+          const totalCountResult = await db.query(
+            `SELECT COUNT(*) as total FROM sales_item si WHERE 1=1 ${salesDateFilter}`,
+            salesParams
+          );
+          const totalCount = parseInt(totalCountResult.rows[0]?.total || salesItemsResult.rows.length);
+          if (totalCount > salesItemsResult.rows.length && salesItemsResult.rows.length > 0) {
+            const scaleFactor = totalCount / salesItemsResult.rows.length;
+            totalSalesProfit = totalSalesProfit * scaleFactor;
+          }
+        } catch (err) {
+          console.error('Error calculating sales profit:', err);
+          totalSalesProfit = 0;
+        }
+    
+        // Calculate charging services profit (assuming 70% profit margin)
+        const chargingRevenue = parseFloat(chargingSummary.rows[0]?.total_revenue || 0);
+        const chargingProfit = chargingRevenue * 0.7; // 70% profit margin
+    
     // Calculate services profit (service_requests - 100% profit as it's service charge)
     let servicesProfit = 0;
     try {
