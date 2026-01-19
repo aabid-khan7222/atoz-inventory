@@ -1274,24 +1274,14 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
               1, purchasedFrom, product.warranty, product.product_type_id, product.id, sn
             ]);
             
-            // Try with index name first, fallback to column names
+            // Insert into stock table - try multiple ON CONFLICT methods
+            let stockResult = null;
+            let stockInsertSuccess = false;
+            
+            // Method 1: Try with column names (most compatible)
             try {
-              const stockResult = await client.query(`
-                INSERT INTO stock (
-                  purchase_date, sku, series, category, name, ah_va, quantity,
-                  purchased_from, warranty, product_type_id, product_id, serial_number, status
-                ) VALUES ${stockValues}
-                ON CONFLICT ON CONSTRAINT idx_stock_product_serial_unique
-                DO UPDATE SET
-                  purchase_date = EXCLUDED.purchase_date,
-                  purchased_from = EXCLUDED.purchased_from,
-                  updated_at = CURRENT_TIMESTAMP
-              `, stockParams);
-              console.log(`[ADD STOCK] Batch inserted/updated ${stockResult.rowCount} stock records`);
-            } catch (indexErr) {
-              // Fallback: try with column names (for databases without the named constraint)
-              console.log('[ADD STOCK] Trying ON CONFLICT with column names...');
-              const stockResult = await client.query(`
+              console.log('[ADD STOCK] Attempting stock insert with column-based ON CONFLICT...');
+              stockResult = await client.query(`
                 INSERT INTO stock (
                   purchase_date, sku, series, category, name, ah_va, quantity,
                   purchased_from, warranty, product_type_id, product_id, serial_number, status
@@ -1303,7 +1293,78 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
                   purchased_from = EXCLUDED.purchased_from,
                   updated_at = CURRENT_TIMESTAMP
               `, stockParams);
-              console.log(`[ADD STOCK] Batch inserted/updated ${stockResult.rowCount} stock records`);
+              console.log(`[ADD STOCK] ✅ Successfully inserted/updated ${stockResult.rowCount} stock records`);
+              stockInsertSuccess = true;
+            } catch (colErr) {
+              console.error('[ADD STOCK] Column-based ON CONFLICT failed:', colErr.message);
+              console.error('[ADD STOCK] Error code:', colErr.code);
+              console.error('[ADD STOCK] Error detail:', colErr.detail);
+              
+              // Method 2: Try without WHERE clause (for non-partial indexes)
+              try {
+                console.log('[ADD STOCK] Trying stock insert without WHERE clause...');
+                stockResult = await client.query(`
+                  INSERT INTO stock (
+                    purchase_date, sku, series, category, name, ah_va, quantity,
+                    purchased_from, warranty, product_type_id, product_id, serial_number, status
+                  ) VALUES ${stockValues}
+                  ON CONFLICT (product_id, serial_number)
+                  DO UPDATE SET
+                    purchase_date = EXCLUDED.purchase_date,
+                    purchased_from = EXCLUDED.purchased_from,
+                    updated_at = CURRENT_TIMESTAMP
+                `, stockParams);
+                console.log(`[ADD STOCK] ✅ Successfully inserted/updated ${stockResult.rowCount} stock records (method 2)`);
+                stockInsertSuccess = true;
+              } catch (simpleErr) {
+                console.error('[ADD STOCK] Simple ON CONFLICT also failed:', simpleErr.message);
+                
+                // Method 3: Try without ON CONFLICT (just insert, ignore duplicates)
+                try {
+                  console.log('[ADD STOCK] Trying stock insert without ON CONFLICT (ignore duplicates)...');
+                  // First check which serials already exist
+                  const existingSerials = await client.query(`
+                    SELECT serial_number FROM stock 
+                    WHERE product_id = $1 AND serial_number = ANY($2::text[])
+                  `, [product.id, serialNumbers]);
+                  
+                  const existingSerialSet = new Set(existingSerials.rows.map(r => r.serial_number));
+                  const newSerials = serialNumbers.filter(sn => !existingSerialSet.has(sn));
+                  
+                  if (newSerials.length > 0) {
+                    const newStockValues = newSerials.map((_, idx) => 
+                      `($${idx * 12 + 1}, $${idx * 12 + 2}, $${idx * 12 + 3}, $${idx * 12 + 4}, $${idx * 12 + 5}, $${idx * 12 + 6}, $${idx * 12 + 7}, $${idx * 12 + 8}, $${idx * 12 + 9}, $${idx * 12 + 10}, $${idx * 12 + 11}, $${idx * 12 + 12}, 'available')`
+                    ).join(', ');
+                    const newStockParams = newSerials.flatMap(sn => [
+                      purchaseDate, product.sku, product.series, product.category, product.name, product.ah_va,
+                      1, purchasedFrom, product.warranty, product.product_type_id, product.id, sn
+                    ]);
+                    
+                    stockResult = await client.query(`
+                      INSERT INTO stock (
+                        purchase_date, sku, series, category, name, ah_va, quantity,
+                        purchased_from, warranty, product_type_id, product_id, serial_number, status
+                      ) VALUES ${newStockValues}
+                    `, newStockParams);
+                    console.log(`[ADD STOCK] ✅ Successfully inserted ${stockResult.rowCount} new stock records (method 3, skipped ${serialNumbers.length - newSerials.length} duplicates)`);
+                    stockInsertSuccess = true;
+                  } else {
+                    console.log('[ADD STOCK] All serial numbers already exist in stock table');
+                    stockInsertSuccess = true; // Not an error, just nothing to insert
+                  }
+                } catch (insertErr) {
+                  console.error('[ADD STOCK] ❌ All stock insert methods failed!');
+                  console.error('[ADD STOCK] Final error:', insertErr.message);
+                  console.error('[ADD STOCK] Error code:', insertErr.code);
+                  console.error('[ADD STOCK] Error detail:', insertErr.detail);
+                  // Don't throw - log and continue, but mark as failed
+                  stockInsertSuccess = false;
+                }
+              }
+            }
+            
+            if (!stockInsertSuccess) {
+              console.error('[ADD STOCK] ⚠️ WARNING: Stock table insert failed but continuing with purchases insert');
             }
             await client.query('RELEASE SAVEPOINT before_stock');
           }
