@@ -42,19 +42,42 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim())
   : [];
 
+// Default allowed origins (for development and common production URLs)
+const defaultAllowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+  'https://atoz-frontend.onrender.com',
+  'https://atoz-inventory-frontend.onrender.com'
+];
+
+// Combine environment and default origins
+const allAllowedOrigins = [...new Set([...defaultAllowedOrigins, ...allowedOrigins])];
+
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow server-to-server / Postman requests
+      // Allow server-to-server / Postman requests (no origin)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
+      // Check if origin is in allowed list
+      if (allAllowedOrigins.includes(origin)) {
         return callback(null, true);
       }
 
-      return callback(new Error("Not allowed by CORS"));
+      // In production, be strict; in development, allow localhost
+      const isProduction = process.env.NODE_ENV === 'production';
+      if (!isProduction && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+        return callback(null, true);
+      }
+
+      console.warn(`[CORS] Blocked origin: ${origin}`);
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   })
 );
 
