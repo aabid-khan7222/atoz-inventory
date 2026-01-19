@@ -1213,8 +1213,10 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
         }
 
         // OPTIMIZED: Batch insert/update stock table entries (much faster)
+        // Use SAVEPOINT to prevent transaction abort if operation fails
         console.log('[ADD STOCK] Batch inserting into stock table...');
         try {
+          await client.query('SAVEPOINT before_stock');
           // Use INSERT ... ON CONFLICT to handle both insert and update in one query
           const stockValues = serialNumbers.map((_, idx) => 
             `($${idx * 12 + 1}, $${idx * 12 + 2}, $${idx * 12 + 3}, $${idx * 12 + 4}, $${idx * 12 + 5}, $${idx * 12 + 6}, $${idx * 12 + 7}, $${idx * 12 + 8}, $${idx * 12 + 9}, $${idx * 12 + 10}, $${idx * 12 + 11}, $${idx * 12 + 12}, 'available')`
@@ -1237,7 +1239,17 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
               updated_at = CURRENT_TIMESTAMP
           `, stockParams);
           console.log(`[ADD STOCK] Batch inserted/updated ${serialNumbers.length} stock records`);
+          await client.query('RELEASE SAVEPOINT before_stock');
         } catch (stockErr) {
+          // Rollback to savepoint to continue transaction
+          try {
+            await client.query('ROLLBACK TO SAVEPOINT before_stock');
+            await client.query('RELEASE SAVEPOINT before_stock');
+          } catch (rollbackErr) {
+            console.warn('[ADD STOCK] Could not rollback to savepoint:', rollbackErr.message);
+            // If we can't rollback, transaction is already aborted - need to throw
+            throw new Error(`Stock table error: ${stockErr.message}. Transaction aborted.`);
+          }
           console.warn('[ADD STOCK] Stock table operation failed (non-critical):', stockErr.message);
           // Continue - stock table is optional
         }
