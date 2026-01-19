@@ -1293,43 +1293,8 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
         
         // OPTIMIZED: Batch insert all purchases in one query (much faster!)
         console.log('[ADD STOCK] Batch inserting into purchases table...');
-        const purchaseValues = serialNumbers.map((serialNumber, idx) => {
-          let values = [];
-          let paramOffset = idx * baseParamCount;
-          
-          // Base values (same order as insertColumns)
-          values.push(
-            `$${paramOffset + 1}`, // product_type_id
-            `$${paramOffset + 2}`, // purchase_date
-            `$${paramOffset + 3}`, // purchase_number
-            `$${paramOffset + 4}`, // product_series
-            `$${paramOffset + 5}`, // product_sku
-            `$${paramOffset + 6}`, // serial_number
-            `$${paramOffset + 7}`, // supplier_name
-            `$${paramOffset + 8}`, // dp
-            `$${paramOffset + 9}`, // purchase_value
-            `$${paramOffset + 10}`, // discount_amount
-            `$${paramOffset + 11}`, // discount_percent
-            `$${paramOffset + 12}`  // quantity
-          );
-          
-          let nextParam = paramOffset + 13;
-          if (hasTotalAmount) {
-            values.push(`$${nextParam}`);
-            nextParam++;
-          }
-          if (hasPurchasePrice) {
-            values.push(`$${nextParam}`);
-            nextParam++;
-          }
-          if (hasOldColumns) {
-            values.push(`$${nextParam}`, `$${nextParam + 1}`, `$${nextParam + 2}`);
-          }
-          
-          return `(${values.join(', ')})`;
-        }).join(', ');
         
-        // Build parameters array
+        // Build parameters array first
         const purchaseParams = serialNumbers.flatMap(serialNumber => {
           const params = [
             purchaseProductTypeId,
@@ -1353,11 +1318,53 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
           return params;
         });
         
-        const purchaseResult = await client.query(`
-          INSERT INTO purchases (${insertColumns})
-          VALUES ${purchaseValues}
-          ${conflictUpdate}
-        `, purchaseParams);
+        // Build VALUES clause with sequential parameter numbers
+        const purchaseValues = serialNumbers.map((serialNumber, idx) => {
+          let values = [];
+          let paramNum = idx * baseParamCount + 1; // Start from 1, then 13, 25, etc.
+          
+          // Base values (same order as insertColumns)
+          values.push(
+            `$${paramNum++}`, // product_type_id
+            `$${paramNum++}`, // purchase_date
+            `$${paramNum++}`, // purchase_number
+            `$${paramNum++}`, // product_series
+            `$${paramNum++}`, // product_sku
+            `$${paramNum++}`, // serial_number
+            `$${paramNum++}`, // supplier_name
+            `$${paramNum++}`, // dp
+            `$${paramNum++}`, // purchase_value
+            `$${paramNum++}`, // discount_amount
+            `$${paramNum++}`, // discount_percent
+            `$${paramNum++}`  // quantity
+          );
+          
+          if (hasTotalAmount) {
+            values.push(`$${paramNum++}`);
+          }
+          if (hasPurchasePrice) {
+            values.push(`$${paramNum++}`);
+          }
+          if (hasOldColumns) {
+            values.push(`$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`);
+          }
+          
+          return `(${values.join(', ')})`;
+        }).join(', ');
+        
+        try {
+          const purchaseResult = await client.query(`
+            INSERT INTO purchases (${insertColumns})
+            VALUES ${purchaseValues}
+            ${conflictUpdate}
+          `, purchaseParams);
+          console.log(`[ADD STOCK] Batch inserted ${purchaseResult.rowCount} purchase records`);
+        } catch (insertErr) {
+          console.error('[ADD STOCK] Error in batch insert:', insertErr.message);
+          console.error('[ADD STOCK] SQL:', `INSERT INTO purchases (${insertColumns}) VALUES ${purchaseValues.substring(0, 200)}...`);
+          console.error('[ADD STOCK] Params count:', purchaseParams.length, 'Expected:', serialNumbers.length * baseParamCount);
+          throw insertErr;
+        }
         console.log(`[ADD STOCK] Batch inserted ${purchaseResult.rowCount} purchase records`);
       } else {
         // OPTIMIZED: Check columns ONCE before loop (not inside loop!)
@@ -1413,42 +1420,7 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
         console.log('[ADD STOCK] Batch inserting into purchases table for water product...');
         const waterSerialNumbers = Array.from({ length: quantity }, (_, i) => `${purchaseNumber}-${i + 1}`);
         
-        const purchaseValues = waterSerialNumbers.map((waterSerialNumber, idx) => {
-          let values = [];
-          let paramOffset = idx * baseParamCount;
-          
-          values.push(
-            `$${paramOffset + 1}`, // product_type_id
-            `$${paramOffset + 2}`, // purchase_date
-            `$${paramOffset + 3}`, // purchase_number
-            `$${paramOffset + 4}`, // product_series
-            `$${paramOffset + 5}`, // product_sku
-            `$${paramOffset + 6}`, // serial_number
-            `$${paramOffset + 7}`, // supplier_name
-            `$${paramOffset + 8}`, // dp
-            `$${paramOffset + 9}`, // purchase_value
-            `$${paramOffset + 10}`, // discount_amount
-            `$${paramOffset + 11}`, // discount_percent
-            `$${paramOffset + 12}`  // quantity
-          );
-          
-          let nextParam = paramOffset + 13;
-          if (hasTotalAmount) {
-            values.push(`$${nextParam}`);
-            nextParam++;
-          }
-          if (hasPurchasePrice) {
-            values.push(`$${nextParam}`);
-            nextParam++;
-          }
-          if (hasOldColumns) {
-            values.push(`$${nextParam}`, `$${nextParam + 1}`, `$${nextParam + 2}`);
-          }
-          
-          return `(${values.join(', ')})`;
-        }).join(', ');
-        
-        // Build parameters array
+        // Build parameters array first
         const purchaseParams = waterSerialNumbers.flatMap(waterSerialNumber => {
           const params = [
             purchaseProductTypeId,
@@ -1472,11 +1444,52 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
           return params;
         });
         
-        const purchaseResult = await client.query(`
-          INSERT INTO purchases (${insertColumns})
-          VALUES ${purchaseValues}
-          ${conflictUpdate}
-        `, purchaseParams);
+        // Build VALUES clause with sequential parameter numbers
+        const purchaseValues = waterSerialNumbers.map((waterSerialNumber, idx) => {
+          let values = [];
+          let paramNum = idx * baseParamCount + 1; // Start from 1, then 13, 25, etc.
+          
+          values.push(
+            `$${paramNum++}`, // product_type_id
+            `$${paramNum++}`, // purchase_date
+            `$${paramNum++}`, // purchase_number
+            `$${paramNum++}`, // product_series
+            `$${paramNum++}`, // product_sku
+            `$${paramNum++}`, // serial_number
+            `$${paramNum++}`, // supplier_name
+            `$${paramNum++}`, // dp
+            `$${paramNum++}`, // purchase_value
+            `$${paramNum++}`, // discount_amount
+            `$${paramNum++}`, // discount_percent
+            `$${paramNum++}`  // quantity
+          );
+          
+          if (hasTotalAmount) {
+            values.push(`$${paramNum++}`);
+          }
+          if (hasPurchasePrice) {
+            values.push(`$${paramNum++}`);
+          }
+          if (hasOldColumns) {
+            values.push(`$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`);
+          }
+          
+          return `(${values.join(', ')})`;
+        }).join(', ');
+        
+        try {
+          const purchaseResult = await client.query(`
+            INSERT INTO purchases (${insertColumns})
+            VALUES ${purchaseValues}
+            ${conflictUpdate}
+          `, purchaseParams);
+          console.log(`[ADD STOCK] Batch inserted ${purchaseResult.rowCount} water product purchase records`);
+        } catch (insertErr) {
+          console.error('[ADD STOCK] Error in batch insert (water):', insertErr.message);
+          console.error('[ADD STOCK] SQL:', `INSERT INTO purchases (${insertColumns}) VALUES ${purchaseValues.substring(0, 200)}...`);
+          console.error('[ADD STOCK] Params count:', purchaseParams.length, 'Expected:', waterSerialNumbers.length * baseParamCount);
+          throw insertErr;
+        }
         console.log(`[ADD STOCK] Batch inserted ${purchaseResult.rowCount} water product purchase records`);
       }
 
