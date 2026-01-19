@@ -1017,8 +1017,7 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
     if (!productId || isNaN(parseInt(productId, 10))) {
       return res.status(400).json({ error: 'Valid product ID is required' });
     }
-54
-';76RES
+
     if (!quantity || isNaN(quantity) || quantity <= 0) {
       return res.status(400).json({ error: 'Valid quantity (greater than 0) is required' });
     }
