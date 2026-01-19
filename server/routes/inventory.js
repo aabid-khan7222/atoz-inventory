@@ -1356,7 +1356,11 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
             finalDiscountPercent,
             1  // quantity
           ];
-          if (hasTotalAmount) params.push(finalPurchaseValue);
+          if (hasTotalAmount) {
+            // Ensure total_amount is never null - use purchase_value * quantity (which is 1 per row)
+            const totalAmount = finalPurchaseValue * 1; // quantity is always 1 per serial number
+            params.push(totalAmount);
+          }
           if (hasPurchasePrice) params.push(finalDp);
           if (hasOldColumns) {
             params.push(product.sku, product.series || null, product.name || 'Unknown Product');
