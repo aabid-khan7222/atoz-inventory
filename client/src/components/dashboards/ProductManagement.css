@@ -455,15 +455,6 @@
   table-layout: auto;
 }
 
-.products-table tbody tr {
-  height: auto;
-}
-
-.products-table tbody tr td {
-  vertical-align: middle !important;
-  padding: 1rem !important;
-}
-
 .products-table thead {
   background: #f5f5f5;
 }
@@ -483,35 +474,42 @@
   vertical-align: middle !important;
 }
 
+.products-table tbody tr {
+  vertical-align: middle;
+}
+
 .products-table tbody tr:hover {
   background: #f9f9f9;
 }
 
-/* Cell-specific alignment styles */
+/* Cell-specific alignment styles - Ensure all cells align properly */
+.products-table .sku-cell,
+.products-table .name-cell,
+.products-table .text-cell {
+  vertical-align: middle !important;
+  line-height: 1.5;
+}
+
 .products-table .sku-cell {
   font-family: 'Courier New', monospace;
   font-weight: 500;
   color: #3B82F6;
-  vertical-align: middle !important;
   white-space: nowrap;
 }
 
 .products-table .name-cell {
   font-weight: 500;
-  vertical-align: middle !important;
 }
 
-.products-table .text-cell {
-  vertical-align: middle !important;
-}
-
-.products-table .price-cell {
-  font-weight: 600;
+/* Price and discount cells - ensure flex containers align properly */
+.products-table .price-cell,
+.products-table .discount-cell {
   vertical-align: middle !important;
   padding: 1rem !important;
 }
 
-.products-table .price-cell > div {
+.products-table .price-cell > div,
+.products-table .discount-cell > div {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -519,12 +517,8 @@
   align-items: flex-start;
 }
 
-.products-table .discount-cell {
-  vertical-align: middle !important;
-  padding: 1rem !important;
-}
-
-.products-table .discount-cell > div {
+/* Ensure discount-edit-group also aligns properly */
+.products-table .discount-cell .discount-edit-group {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
