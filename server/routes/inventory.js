@@ -1000,6 +1000,16 @@ router.put('/:category/bulk-discount', requireAuth, requireSuperAdminOrAdmin, as
 // Add stock with serial numbers
 router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   try {
+    // Log incoming request for debugging
+    console.log('[ADD STOCK] add-stock-with-serials payload:', {
+      category: req.params.category,
+      productId: req.body.productId,
+      quantity: req.body.quantity,
+      serialNumbers: req.body.serialNumbers?.length || 0,
+      purchase_date: req.body.purchase_date,
+      purchased_from: req.body.purchased_from
+    });
+    
     const { category } = req.params;
     const { productId, quantity, serialNumbers, purchase_date, purchased_from, amount, dp, purchase_value, discount_amount, discount_percent } = req.body;
     const userId = req.user?.id;
@@ -1401,7 +1411,6 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
           console.error('[ADD STOCK] Params count:', purchaseParams.length, 'Expected:', serialNumbers.length * baseParamCount);
           throw insertErr;
         }
-        console.log(`[ADD STOCK] Batch inserted ${purchaseResult.rowCount} purchase records`);
       } else {
         // OPTIMIZED: Check columns ONCE before loop (not inside loop!)
         const oldColumnsCheck = await client.query(`
@@ -1472,7 +1481,11 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
             finalDiscountPercent,
             1  // quantity
           ];
-          if (hasTotalAmount) params.push(finalPurchaseValue);
+          if (hasTotalAmount) {
+            // Ensure total_amount is never null - use purchase_value * quantity (which is 1 per row)
+            const totalAmount = finalPurchaseValue * 1; // quantity is always 1 per serial number
+            params.push(totalAmount);
+          }
           if (hasPurchasePrice) params.push(finalDp);
           if (hasOldColumns) {
             params.push(product.sku, product.series || null, product.name || 'Unknown Product');
@@ -1526,7 +1539,6 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
           console.error('[ADD STOCK] Params count:', purchaseParams.length, 'Expected:', waterSerialNumbers.length * baseParamCount);
           throw insertErr;
         }
-        console.log(`[ADD STOCK] Batch inserted ${purchaseResult.rowCount} water product purchase records`);
       }
 
       // Commit transaction
