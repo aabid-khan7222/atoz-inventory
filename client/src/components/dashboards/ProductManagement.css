@@ -452,6 +452,16 @@
 .products-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: auto;
+}
+
+.products-table tbody tr {
+  height: auto;
+}
+
+.products-table tbody tr td {
+  height: auto;
+  vertical-align: middle !important;
 }
 
 .products-table thead {
@@ -496,16 +506,23 @@
   vertical-align: middle !important;
 }
 
+.products-table .price-cell {
+  height: auto;
+  min-height: 60px;
+}
+
 .products-table .price-cell > div {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   justify-content: center;
   align-items: flex-start;
+  min-height: 50px;
 }
 
 .products-table .discount-cell {
-  vertical-align: middle !important;
+  height: auto;
+  min-height: 60px;
 }
 
 .products-table .discount-cell > div {
@@ -514,6 +531,7 @@
   gap: 0.3rem;
   justify-content: center;
   align-items: flex-start;
+  min-height: 50px;
 }
 
 .btn-edit,
