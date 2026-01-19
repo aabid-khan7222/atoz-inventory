@@ -891,8 +891,8 @@ await fetchProducts();
                                 <tr>
                                   <td className="sku-cell">{product.sku || 'N/A'}</td>
                                   <td className="name-cell">{product.name || 'N/A'}</td>
-                                  <td>{product.ah_va || 'N/A'}</td>
-                                  <td>{product.warranty || 'N/A'}</td>
+                                  <td className="text-cell">{product.ah_va || 'N/A'}</td>
+                                  <td className="text-cell">{product.warranty || 'N/A'}</td>
                                   <td className="price-cell">
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                       <span style={{ fontWeight: 600, color: '#059669' }}>

@@ -501,6 +501,10 @@
   vertical-align: middle !important;
 }
 
+.products-table .text-cell {
+  vertical-align: middle !important;
+}
+
 .products-table .price-cell {
   font-weight: 600;
   vertical-align: middle !important;
