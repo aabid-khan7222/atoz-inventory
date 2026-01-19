@@ -48,12 +48,17 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-// Create PostgreSQL pool
+// Create PostgreSQL pool with optimized settings
 const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: isProduction
     ? { rejectUnauthorized: false }   // ✅ REQUIRED for Render
-    : false                           // ❌ Localhost does NOT use SSL
+    : false,                          // ❌ Localhost does NOT use SSL
+  max: 20,                            // Maximum number of clients in the pool
+  idleTimeoutMillis: 30000,          // Close idle clients after 30 seconds
+  connectionTimeoutMillis: 10000,     // Return error after 10 seconds if connection cannot be established
+  statement_timeout: 30000,          // Query timeout: 30 seconds (prevents hanging queries)
+  query_timeout: 30000                // Alternative query timeout
 });
 
 // Log once when connected

@@ -1192,236 +1192,265 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
       
       // Skip stock_history and stock table operations for water products
       if (!isWaterProduct) {
-        // Insert serial numbers into stock_history table (optional - use SAVEPOINT)
-        for (const serialNumber of serialNumbers) {
-          const savepointName = `sp_stock_history_${serialNumber}`;
-          try {
-            await client.query(`SAVEPOINT ${savepointName}`);
+        // OPTIMIZED: Batch insert into stock_history table (much faster than individual queries)
+        try {
+          if (serialNumbers.length > 0) {
+            const stockHistoryValues = serialNumbers.map((_, idx) => 
+              `($${idx * 3 + 1}, 'add', 1, $${idx * 3 + 2}, $${idx * 3 + 3}, CURRENT_TIMESTAMP)`
+            ).join(', ');
+            const stockHistoryParams = serialNumbers.flatMap(sn => [productId, sn, userId || null]);
             await client.query(`
               INSERT INTO stock_history 
               (product_id, transaction_type, quantity, serial_number, user_id, created_at)
-              VALUES ($1, 'add', 1, $2, $3, CURRENT_TIMESTAMP)
-            `, [productId, serialNumber, userId || null]);
-            await client.query(`RELEASE SAVEPOINT ${savepointName}`);
-          } catch (err) {
-            // Rollback to savepoint to continue transaction
-            try {
-              await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
-            } catch (rollbackErr) {
-              // If savepoint doesn't exist, transaction might be aborted
-              console.error('[ADD STOCK] Could not rollback to savepoint:', rollbackErr.message);
-            }
-            // If table doesn't exist or other error, log but continue
-            console.warn('[ADD STOCK] Could not insert into stock_history:', err.message);
+              VALUES ${stockHistoryValues}
+              ON CONFLICT DO NOTHING
+            `, stockHistoryParams);
+            console.log(`[ADD STOCK] Batch inserted ${serialNumbers.length} stock_history records`);
           }
+        } catch (err) {
+          // If table doesn't exist or other error, log but continue
+          console.warn('[ADD STOCK] Could not insert into stock_history (non-critical):', err.message);
         }
 
-        // Create stock table entries - one row per serial number (optional - use SAVEPOINT)
-        console.log('[ADD STOCK] Inserting into stock table...');
-        for (const serialNumber of serialNumbers) {
-          const savepointName = `sp_stock_${serialNumber}`;
-          try {
-            await client.query(`SAVEPOINT ${savepointName}`);
-            
-            // Check if stock entry already exists
-            const existingStock = await client.query(`
-              SELECT id FROM stock 
-              WHERE product_id = $1 AND serial_number = $2 AND status = 'available'
-            `, [product.id, serialNumber]);
-
-            if (existingStock.rows.length === 0) {
-              // Insert new stock entry
-              console.log('[ADD STOCK] Inserting new stock entry for serial:', serialNumber);
-              const stockResult = await client.query(`
-                INSERT INTO stock (
-                  purchase_date, sku, series, category, name, ah_va, quantity,
-                  purchased_from, warranty, product_type_id, product_id, serial_number, status
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'available')
-              `, [
-                purchaseDate,
-                product.sku,
-                product.series,
-                product.category,
-                product.name,
-                product.ah_va,
-                1, // Always 1 per row
-                purchasedFrom,
-                product.warranty,
-                product.product_type_id,
-                product.id,
-                serialNumber
-              ]);
-              console.log('[ADD STOCK] Stock entry inserted:', stockResult.rowCount, 'rows');
-            } else {
-              // Update existing stock entry
-              console.log('[ADD STOCK] Updating existing stock entry for serial:', serialNumber);
-              const updateStockResult = await client.query(`
-                UPDATE stock SET
-                  purchase_date = $1,
-                  purchased_from = $2,
-                  updated_at = CURRENT_TIMESTAMP
-                WHERE product_id = $3 AND serial_number = $4 AND status = 'available'
-              `, [
-                purchaseDate,
-                purchasedFrom,
-                product.id,
-                serialNumber
-              ]);
-              console.log('[ADD STOCK] Stock entry updated:', updateStockResult.rowCount, 'rows');
-            }
-            
-            await client.query(`RELEASE SAVEPOINT ${savepointName}`);
-          } catch (stockErr) {
-            // Rollback to savepoint to continue transaction
-            try {
-              await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
-            } catch (rollbackErr) {
-              console.error('[ADD STOCK] Could not rollback to savepoint:', rollbackErr.message);
-              // If we can't rollback, transaction is already aborted
-              throw new Error(`Stock table error: ${stockErr.message}${stockErr.detail ? ` (${stockErr.detail})` : ''}`);
-            }
-            console.warn('[ADD STOCK] Stock table operation failed, continuing:', stockErr.message);
-          }
-        }
-
-        // For non-water products, create one row per serial number (one row per unit)
-        console.log('[ADD STOCK] Inserting into purchases table...');
-        for (const serialNumber of serialNumbers) {
-          console.log('[ADD STOCK] Inserting purchase for serial:', serialNumber);
-          console.log('[ADD STOCK] Values:', {
-            product_type_id: purchaseProductTypeId,
-            purchase_date: purchaseDate,
-            purchase_number: purchaseNumber,
-            product_series: product.series || null,
-            product_sku: product.sku,
-            serial_number: serialNumber,
-            supplier_name: purchasedFrom || null,
-            dp: finalDp,
-            purchase_value: finalPurchaseValue,
-            discount_amount: finalDiscountAmount,
-            discount_percent: finalDiscountPercent
-          });
+        // OPTIMIZED: Batch insert/update stock table entries (much faster)
+        console.log('[ADD STOCK] Batch inserting into stock table...');
+        try {
+          // Use INSERT ... ON CONFLICT to handle both insert and update in one query
+          const stockValues = serialNumbers.map((_, idx) => 
+            `($${idx * 12 + 1}, $${idx * 12 + 2}, $${idx * 12 + 3}, $${idx * 12 + 4}, $${idx * 12 + 5}, $${idx * 12 + 6}, $${idx * 12 + 7}, $${idx * 12 + 8}, $${idx * 12 + 9}, $${idx * 12 + 10}, $${idx * 12 + 11}, $${idx * 12 + 12}, 'available')`
+          ).join(', ');
+          const stockParams = serialNumbers.flatMap(sn => [
+            purchaseDate, product.sku, product.series, product.category, product.name, product.ah_va,
+            1, purchasedFrom, product.warranty, product.product_type_id, product.id, sn
+          ]);
           
-          try {
-            // Check if old schema columns exist (sku, series, name, purchase_price, total_amount)
-            const oldColumnsCheck = await client.query(`
-              SELECT column_name 
-              FROM information_schema.columns 
-              WHERE table_name = 'purchases' 
-              AND column_name IN ('sku', 'series', 'name', 'purchase_price', 'total_amount')
-            `);
-            const foundColumns = oldColumnsCheck.rows.map(row => row.column_name);
-            const hasOldColumns = foundColumns.some(col => ['sku', 'series', 'name'].includes(col));
-            const hasPurchasePrice = foundColumns.includes('purchase_price');
-            const hasTotalAmount = foundColumns.includes('total_amount');
-            
-            // Build INSERT query - include old columns if they exist
-            let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity';
-            let insertValues = '$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12';
-            let insertParams = [
-              purchaseProductTypeId,
-              purchaseDate,
-              purchaseNumber,
-              product.series || null,
-              product.sku,
-              serialNumber,
-              purchasedFrom || null,
-              finalDp,
-              finalPurchaseValue,
-              finalDiscountAmount,
-              finalDiscountPercent,
-              1  // quantity: 1 unit per serial number
-            ];
-            let paramIndex = 13;
-            
-            // If total_amount column exists, include it (required for NOT NULL constraint)
-            // total_amount = purchase_value * quantity = purchase_value * 1 = purchase_value
-            if (hasTotalAmount) {
-              insertColumns += ', total_amount';
-              insertValues += `, $${paramIndex}`;
-              insertParams.push(finalPurchaseValue);  // total_amount = purchase_value (since quantity is 1)
-              paramIndex++;
-            }
-            
-            // If purchase_price column exists, include it (use finalDp as purchase_price)
-            if (hasPurchasePrice) {
-              insertColumns += ', purchase_price';
-              insertValues += `, $${paramIndex}`;
-              insertParams.push(finalDp);  // Use finalDp as purchase_price
-              paramIndex++;
-            }
-            
-            // If old columns exist, also insert into them to satisfy NOT NULL constraints
-            if (hasOldColumns) {
-              insertColumns += ', sku, series, name';
-              insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}`;
-              insertParams.push(
-                product.sku,  // sku
-                product.series || null,  // series
-                product.name || 'Unknown Product'  // name
-              );
-            }
-            
-            // Build ON CONFLICT UPDATE clause
-            let conflictUpdate = `
-              ON CONFLICT (product_sku, serial_number) DO UPDATE SET
-                purchase_date = EXCLUDED.purchase_date,
-                purchase_number = EXCLUDED.purchase_number,
-                supplier_name = EXCLUDED.supplier_name,
-                dp = EXCLUDED.dp,
-                purchase_value = EXCLUDED.purchase_value,
-                discount_amount = EXCLUDED.discount_amount,
-                discount_percent = EXCLUDED.discount_percent,
-                quantity = EXCLUDED.quantity,
-                updated_at = CURRENT_TIMESTAMP
-            `;
-            
-            // Add total_amount to UPDATE if column exists
-            if (hasTotalAmount) {
-              conflictUpdate = conflictUpdate.replace(
-                'updated_at = CURRENT_TIMESTAMP',
-                'total_amount = EXCLUDED.total_amount, updated_at = CURRENT_TIMESTAMP'
-              );
-            }
-            
-            const purchaseResult = await client.query(`
-              INSERT INTO purchases (
-                ${insertColumns}
-              ) VALUES (${insertValues})
-              ${conflictUpdate}
-            `, insertParams);
-            console.log('[ADD STOCK] Purchase inserted:', purchaseResult.rowCount, 'rows for serial', serialNumber);
-          } catch (insertErr) {
-            console.error('[ADD STOCK] Error inserting purchase:', insertErr.message);
-            console.error('[ADD STOCK] Error code:', insertErr.code);
-            console.error('[ADD STOCK] Error detail:', insertErr.detail);
-            throw new Error(`Failed to insert purchase: ${insertErr.message}${insertErr.detail ? ` (${insertErr.detail})` : ''}`);
-          }
+          await client.query(`
+            INSERT INTO stock (
+              purchase_date, sku, series, category, name, ah_va, quantity,
+              purchased_from, warranty, product_type_id, product_id, serial_number, status
+            ) VALUES ${stockValues}
+            ON CONFLICT (product_id, serial_number) 
+            WHERE serial_number IS NOT NULL
+            DO UPDATE SET
+              purchase_date = EXCLUDED.purchase_date,
+              purchased_from = EXCLUDED.purchased_from,
+              updated_at = CURRENT_TIMESTAMP
+          `, stockParams);
+          console.log(`[ADD STOCK] Batch inserted/updated ${serialNumbers.length} stock records`);
+        } catch (stockErr) {
+          console.warn('[ADD STOCK] Stock table operation failed (non-critical):', stockErr.message);
+          // Continue - stock table is optional
         }
+
+        // OPTIMIZED: Check columns ONCE before loop (not inside loop!)
+        const oldColumnsCheck = await client.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = 'purchases' 
+          AND column_name IN ('sku', 'series', 'name', 'purchase_price', 'total_amount')
+        `);
+        const foundColumns = oldColumnsCheck.rows.map(row => row.column_name);
+        const hasOldColumns = foundColumns.some(col => ['sku', 'series', 'name'].includes(col));
+        const hasPurchasePrice = foundColumns.includes('purchase_price');
+        const hasTotalAmount = foundColumns.includes('total_amount');
+        
+        // Build INSERT query structure (same for all rows)
+        let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity';
+        let baseParamCount = 12;
+        
+        if (hasTotalAmount) {
+          insertColumns += ', total_amount';
+          baseParamCount++;
+        }
+        if (hasPurchasePrice) {
+          insertColumns += ', purchase_price';
+          baseParamCount++;
+        }
+        if (hasOldColumns) {
+          insertColumns += ', sku, series, name';
+          baseParamCount += 3;
+        }
+        
+        // Build ON CONFLICT UPDATE clause
+        let conflictUpdate = `
+          ON CONFLICT (product_sku, serial_number) DO UPDATE SET
+            purchase_date = EXCLUDED.purchase_date,
+            purchase_number = EXCLUDED.purchase_number,
+            supplier_name = EXCLUDED.supplier_name,
+            dp = EXCLUDED.dp,
+            purchase_value = EXCLUDED.purchase_value,
+            discount_amount = EXCLUDED.discount_amount,
+            discount_percent = EXCLUDED.discount_percent,
+            quantity = EXCLUDED.quantity,
+            updated_at = CURRENT_TIMESTAMP
+        `;
+        if (hasTotalAmount) {
+          conflictUpdate = conflictUpdate.replace(
+            'updated_at = CURRENT_TIMESTAMP',
+            'total_amount = EXCLUDED.total_amount, updated_at = CURRENT_TIMESTAMP'
+          );
+        }
+        
+        // OPTIMIZED: Batch insert all purchases in one query (much faster!)
+        console.log('[ADD STOCK] Batch inserting into purchases table...');
+        const purchaseValues = serialNumbers.map((serialNumber, idx) => {
+          let values = [];
+          let paramOffset = idx * baseParamCount;
+          
+          // Base values (same order as insertColumns)
+          values.push(
+            `$${paramOffset + 1}`, // product_type_id
+            `$${paramOffset + 2}`, // purchase_date
+            `$${paramOffset + 3}`, // purchase_number
+            `$${paramOffset + 4}`, // product_series
+            `$${paramOffset + 5}`, // product_sku
+            `$${paramOffset + 6}`, // serial_number
+            `$${paramOffset + 7}`, // supplier_name
+            `$${paramOffset + 8}`, // dp
+            `$${paramOffset + 9}`, // purchase_value
+            `$${paramOffset + 10}`, // discount_amount
+            `$${paramOffset + 11}`, // discount_percent
+            `$${paramOffset + 12}`  // quantity
+          );
+          
+          let nextParam = paramOffset + 13;
+          if (hasTotalAmount) {
+            values.push(`$${nextParam}`);
+            nextParam++;
+          }
+          if (hasPurchasePrice) {
+            values.push(`$${nextParam}`);
+            nextParam++;
+          }
+          if (hasOldColumns) {
+            values.push(`$${nextParam}`, `$${nextParam + 1}`, `$${nextParam + 2}`);
+          }
+          
+          return `(${values.join(', ')})`;
+        }).join(', ');
+        
+        // Build parameters array
+        const purchaseParams = serialNumbers.flatMap(serialNumber => {
+          const params = [
+            purchaseProductTypeId,
+            purchaseDate,
+            purchaseNumber,
+            product.series || null,
+            product.sku,
+            serialNumber,
+            purchasedFrom || null,
+            finalDp,
+            finalPurchaseValue,
+            finalDiscountAmount,
+            finalDiscountPercent,
+            1  // quantity
+          ];
+          if (hasTotalAmount) params.push(finalPurchaseValue);
+          if (hasPurchasePrice) params.push(finalDp);
+          if (hasOldColumns) {
+            params.push(product.sku, product.series || null, product.name || 'Unknown Product');
+          }
+          return params;
+        });
+        
+        const purchaseResult = await client.query(`
+          INSERT INTO purchases (${insertColumns})
+          VALUES ${purchaseValues}
+          ${conflictUpdate}
+        `, purchaseParams);
+        console.log(`[ADD STOCK] Batch inserted ${purchaseResult.rowCount} purchase records`);
       } else {
-        // For water products, generate unique serial numbers using purchase_number + index
-        console.log('[ADD STOCK] Inserting into purchases table for water product...');
-        for (let i = 0; i < quantity; i++) {
-          // Generate unique serial number: purchase_number-{index}
-          const waterSerialNumber = `${purchaseNumber}-${i + 1}`;
-          console.log('[ADD STOCK] Inserting purchase for water product unit:', waterSerialNumber);
+        // OPTIMIZED: Check columns ONCE before loop (not inside loop!)
+        const oldColumnsCheck = await client.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = 'purchases' 
+          AND column_name IN ('sku', 'series', 'name', 'purchase_price', 'total_amount')
+        `);
+        const foundColumns = oldColumnsCheck.rows.map(row => row.column_name);
+        const hasOldColumns = foundColumns.some(col => ['sku', 'series', 'name'].includes(col));
+        const hasPurchasePrice = foundColumns.includes('purchase_price');
+        const hasTotalAmount = foundColumns.includes('total_amount');
+        
+        // Build INSERT query structure (same for all rows)
+        let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity';
+        let baseParamCount = 12;
+        
+        if (hasTotalAmount) {
+          insertColumns += ', total_amount';
+          baseParamCount++;
+        }
+        if (hasPurchasePrice) {
+          insertColumns += ', purchase_price';
+          baseParamCount++;
+        }
+        if (hasOldColumns) {
+          insertColumns += ', sku, series, name';
+          baseParamCount += 3;
+        }
+        
+        // Build ON CONFLICT UPDATE clause
+        let conflictUpdate = `
+          ON CONFLICT (product_sku, serial_number) DO UPDATE SET
+            purchase_date = EXCLUDED.purchase_date,
+            purchase_number = EXCLUDED.purchase_number,
+            supplier_name = EXCLUDED.supplier_name,
+            dp = EXCLUDED.dp,
+            purchase_value = EXCLUDED.purchase_value,
+            discount_amount = EXCLUDED.discount_amount,
+            discount_percent = EXCLUDED.discount_percent,
+            quantity = EXCLUDED.quantity,
+            updated_at = CURRENT_TIMESTAMP
+        `;
+        if (hasTotalAmount) {
+          conflictUpdate = conflictUpdate.replace(
+            'updated_at = CURRENT_TIMESTAMP',
+            'total_amount = EXCLUDED.total_amount, updated_at = CURRENT_TIMESTAMP'
+          );
+        }
+        
+        // OPTIMIZED: Batch insert all water product purchases in one query
+        console.log('[ADD STOCK] Batch inserting into purchases table for water product...');
+        const waterSerialNumbers = Array.from({ length: quantity }, (_, i) => `${purchaseNumber}-${i + 1}`);
+        
+        const purchaseValues = waterSerialNumbers.map((waterSerialNumber, idx) => {
+          let values = [];
+          let paramOffset = idx * baseParamCount;
           
-          // Check if old schema columns exist (sku, series, name, purchase_price, total_amount)
-          const oldColumnsCheck = await client.query(`
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'purchases' 
-            AND column_name IN ('sku', 'series', 'name', 'purchase_price', 'total_amount')
-          `);
-          const foundColumns = oldColumnsCheck.rows.map(row => row.column_name);
-          const hasOldColumns = foundColumns.some(col => ['sku', 'series', 'name'].includes(col));
-          const hasPurchasePrice = foundColumns.includes('purchase_price');
-          const hasTotalAmount = foundColumns.includes('total_amount');
+          values.push(
+            `$${paramOffset + 1}`, // product_type_id
+            `$${paramOffset + 2}`, // purchase_date
+            `$${paramOffset + 3}`, // purchase_number
+            `$${paramOffset + 4}`, // product_series
+            `$${paramOffset + 5}`, // product_sku
+            `$${paramOffset + 6}`, // serial_number
+            `$${paramOffset + 7}`, // supplier_name
+            `$${paramOffset + 8}`, // dp
+            `$${paramOffset + 9}`, // purchase_value
+            `$${paramOffset + 10}`, // discount_amount
+            `$${paramOffset + 11}`, // discount_percent
+            `$${paramOffset + 12}`  // quantity
+          );
           
-          // Build INSERT query - include old columns if they exist
-          let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity';
-          let insertValues = '$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12';
-          let insertParams = [
+          let nextParam = paramOffset + 13;
+          if (hasTotalAmount) {
+            values.push(`$${nextParam}`);
+            nextParam++;
+          }
+          if (hasPurchasePrice) {
+            values.push(`$${nextParam}`);
+            nextParam++;
+          }
+          if (hasOldColumns) {
+            values.push(`$${nextParam}`, `$${nextParam + 1}`, `$${nextParam + 2}`);
+          }
+          
+          return `(${values.join(', ')})`;
+        }).join(', ');
+        
+        // Build parameters array
+        const purchaseParams = waterSerialNumbers.flatMap(waterSerialNumber => {
+          const params = [
             purchaseProductTypeId,
             purchaseDate,
             purchaseNumber,
@@ -1433,68 +1462,22 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
             finalPurchaseValue,
             finalDiscountAmount,
             finalDiscountPercent,
-            1  // quantity: 1 unit per serial number
+            1  // quantity
           ];
-          let paramIndex = 13;
-          
-          // If total_amount column exists, include it (required for NOT NULL constraint)
-          // total_amount = purchase_value * quantity = purchase_value * 1 = purchase_value
-          if (hasTotalAmount) {
-            insertColumns += ', total_amount';
-            insertValues += `, $${paramIndex}`;
-            insertParams.push(finalPurchaseValue);  // total_amount = purchase_value (since quantity is 1)
-            paramIndex++;
-          }
-          
-          // If purchase_price column exists, include it (use finalDp as purchase_price)
-          if (hasPurchasePrice) {
-            insertColumns += ', purchase_price';
-            insertValues += `, $${paramIndex}`;
-            insertParams.push(finalDp);  // Use finalDp as purchase_price
-            paramIndex++;
-          }
-          
-          // If old columns exist, also insert into them
+          if (hasTotalAmount) params.push(finalPurchaseValue);
+          if (hasPurchasePrice) params.push(finalDp);
           if (hasOldColumns) {
-            insertColumns += ', sku, series, name';
-            insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}`;
-            insertParams.push(
-              product.sku,
-              product.series || null,
-              product.name || 'Unknown Product'
-            );
+            params.push(product.sku, product.series || null, product.name || 'Unknown Product');
           }
-          
-          // Build ON CONFLICT UPDATE clause
-          let conflictUpdate = `
-            ON CONFLICT (product_sku, serial_number) DO UPDATE SET
-              purchase_date = EXCLUDED.purchase_date,
-              purchase_number = EXCLUDED.purchase_number,
-              supplier_name = EXCLUDED.supplier_name,
-              dp = EXCLUDED.dp,
-              purchase_value = EXCLUDED.purchase_value,
-              discount_amount = EXCLUDED.discount_amount,
-              discount_percent = EXCLUDED.discount_percent,
-              quantity = EXCLUDED.quantity,
-              updated_at = CURRENT_TIMESTAMP
-          `;
-          
-          // Add total_amount to UPDATE if column exists
-          if (hasTotalAmount) {
-            conflictUpdate = conflictUpdate.replace(
-              'updated_at = CURRENT_TIMESTAMP',
-              'total_amount = EXCLUDED.total_amount, updated_at = CURRENT_TIMESTAMP'
-            );
-          }
-          
-          const purchaseResult = await client.query(`
-            INSERT INTO purchases (
-              ${insertColumns}
-            ) VALUES (${insertValues})
-            ${conflictUpdate}
-          `, insertParams);
-          console.log('[ADD STOCK] Purchase inserted:', purchaseResult.rowCount, 'rows for water unit', waterSerialNumber);
-        }
+          return params;
+        });
+        
+        const purchaseResult = await client.query(`
+          INSERT INTO purchases (${insertColumns})
+          VALUES ${purchaseValues}
+          ${conflictUpdate}
+        `, purchaseParams);
+        console.log(`[ADD STOCK] Batch inserted ${purchaseResult.rowCount} water product purchase records`);
       }
 
       // Commit transaction

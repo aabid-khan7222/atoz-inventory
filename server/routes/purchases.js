@@ -28,7 +28,7 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
       sortBy = 'purchase_date',
       sortOrder = 'desc',
       page = 1,
-      limit = 100
+      limit = 50
     } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -75,18 +75,18 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 
     if (supplier) {
       paramCount++;
-      query += ` AND supplier_name ILIKE $${paramCount}`;
+      query += ` AND LOWER(supplier_name) LIKE LOWER($${paramCount})`;
       params.push(`%${supplier}%`);
     }
 
     if (search) {
       paramCount++;
       query += ` AND (
-        product_sku ILIKE $${paramCount} OR
-        serial_number ILIKE $${paramCount} OR
-        product_series ILIKE $${paramCount} OR
-        purchase_number ILIKE $${paramCount} OR
-        supplier_name ILIKE $${paramCount}
+        LOWER(product_sku) LIKE LOWER($${paramCount}) OR
+        LOWER(serial_number) LIKE LOWER($${paramCount}) OR
+        LOWER(product_series) LIKE LOWER($${paramCount}) OR
+        LOWER(purchase_number) LIKE LOWER($${paramCount}) OR
+        LOWER(supplier_name) LIKE LOWER($${paramCount})
       )`;
       params.push(`%${search}%`);
     }
@@ -109,7 +109,8 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 
     const { rows } = await db.query(query, params);
 
-    // Get total count for pagination
+    // OPTIMIZED: Get total count for pagination (use same filters as main query)
+    // For better performance, we can estimate if no search/filters, but for accuracy we count
     let countQuery = `SELECT COUNT(*) as total FROM purchases WHERE 1=1`;
     const countParams = [];
     let countParamCount = 0;
@@ -134,23 +135,29 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 
     if (supplier) {
       countParamCount++;
-      countQuery += ` AND supplier_name ILIKE $${countParamCount}`;
+      countQuery += ` AND LOWER(supplier_name) LIKE LOWER($${countParamCount})`;
       countParams.push(`%${supplier}%`);
     }
 
     if (search) {
       countParamCount++;
       countQuery += ` AND (
-        product_sku ILIKE $${countParamCount} OR
-        serial_number ILIKE $${countParamCount} OR
-        product_series ILIKE $${countParamCount} OR
-        purchase_number ILIKE $${countParamCount} OR
-        supplier_name ILIKE $${countParamCount}
+        LOWER(product_sku) LIKE LOWER($${countParamCount}) OR
+        LOWER(serial_number) LIKE LOWER($${countParamCount}) OR
+        LOWER(product_series) LIKE LOWER($${countParamCount}) OR
+        LOWER(purchase_number) LIKE LOWER($${countParamCount}) OR
+        LOWER(supplier_name) LIKE LOWER($${countParamCount})
       )`;
       countParams.push(`%${search}%`);
     }
 
+    // Use query timeout to prevent hanging
+    const countStartTime = Date.now();
     const { rows: countRows } = await db.query(countQuery, countParams);
+    const countTime = Date.now() - countStartTime;
+    if (countTime > 5000) {
+      console.warn(`[PERF] Slow COUNT query took ${countTime}ms`);
+    }
     const total = parseInt(countRows[0]?.total || 0);
 
     res.json({

@@ -19,7 +19,7 @@ const PurchaseSection = ({ onBack }) => {
     search: ''
   });
   const [sortConfig, setSortConfig] = useState(() => savedState?.sortConfig || { field: 'purchase_date', direction: 'desc' });
-  const [pagination, setPagination] = useState(() => savedState?.pagination || { page: 1, limit: 100, total: 0, totalPages: 0 });
+  const [pagination, setPagination] = useState(() => savedState?.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 });
   const [stats, setStats] = useState(null);
   
   const [isInitialMount, setIsInitialMount] = useState(true);
