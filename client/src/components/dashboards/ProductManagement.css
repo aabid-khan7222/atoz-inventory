@@ -493,11 +493,27 @@
 
 .products-table .price-cell {
   font-weight: 600;
-  vertical-align: middle;
+  vertical-align: middle !important;
+}
+
+.products-table .price-cell > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  justify-content: center;
+  align-items: flex-start;
 }
 
 .products-table .discount-cell {
-  vertical-align: middle;
+  vertical-align: middle !important;
+}
+
+.products-table .discount-cell > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  justify-content: center;
+  align-items: flex-start;
 }
 
 .btn-edit,

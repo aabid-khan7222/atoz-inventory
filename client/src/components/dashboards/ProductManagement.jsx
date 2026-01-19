@@ -901,6 +901,7 @@ await fetchProducts();
                                           maximumFractionDigits: 2
                                         })}
                                       </span>
+                                      <small style={{ fontSize: '0.65rem', color: '#64748b' }}>MRP</small>
                                     </div>
                                   </td>
                                   {/* DP (Dealer Price) */}
