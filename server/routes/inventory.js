@@ -1017,7 +1017,8 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
     if (!productId || isNaN(parseInt(productId, 10))) {
       return res.status(400).json({ error: 'Valid product ID is required' });
     }
-
+54
+';76RES
     if (!quantity || isNaN(quantity) || quantity <= 0) {
       return res.status(400).json({ error: 'Valid quantity (greater than 0) is required' });
     }
@@ -1246,46 +1247,82 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
           console.warn('[ADD STOCK] Could not insert into stock_history (non-critical):', err.message);
         }
 
-        // OPTIMIZED: Batch insert/update stock table entries (much faster)
-        // Use SAVEPOINT to prevent transaction abort if operation fails
+        // CRITICAL: Batch insert/update stock table entries (REQUIRED for Current Stock section)
         console.log('[ADD STOCK] Batch inserting into stock table...');
         try {
           await client.query('SAVEPOINT before_stock');
-          // Use INSERT ... ON CONFLICT to handle both insert and update in one query
-          const stockValues = serialNumbers.map((_, idx) => 
-            `($${idx * 12 + 1}, $${idx * 12 + 2}, $${idx * 12 + 3}, $${idx * 12 + 4}, $${idx * 12 + 5}, $${idx * 12 + 6}, $${idx * 12 + 7}, $${idx * 12 + 8}, $${idx * 12 + 9}, $${idx * 12 + 10}, $${idx * 12 + 11}, $${idx * 12 + 12}, 'available')`
-          ).join(', ');
-          const stockParams = serialNumbers.flatMap(sn => [
-            purchaseDate, product.sku, product.series, product.category, product.name, product.ah_va,
-            1, purchasedFrom, product.warranty, product.product_type_id, product.id, sn
-          ]);
           
-          await client.query(`
-            INSERT INTO stock (
-              purchase_date, sku, series, category, name, ah_va, quantity,
-              purchased_from, warranty, product_type_id, product_id, serial_number, status
-            ) VALUES ${stockValues}
-            ON CONFLICT (product_id, serial_number) 
-            WHERE serial_number IS NOT NULL
-            DO UPDATE SET
-              purchase_date = EXCLUDED.purchase_date,
-              purchased_from = EXCLUDED.purchased_from,
-              updated_at = CURRENT_TIMESTAMP
-          `, stockParams);
-          console.log(`[ADD STOCK] Batch inserted/updated ${serialNumbers.length} stock records`);
-          await client.query('RELEASE SAVEPOINT before_stock');
+          // Check if stock table exists first
+          const stockTableCheck = await client.query(`
+            SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = 'public' 
+              AND table_name = 'stock'
+            )
+          `);
+          
+          if (!stockTableCheck.rows[0].exists) {
+            console.warn('[ADD STOCK] Stock table does not exist, skipping...');
+            await client.query('RELEASE SAVEPOINT before_stock');
+          } else {
+            // Use INSERT ... ON CONFLICT to handle both insert and update in one query
+            // Use the index name for ON CONFLICT (partial unique index)
+            const stockValues = serialNumbers.map((_, idx) => 
+              `($${idx * 12 + 1}, $${idx * 12 + 2}, $${idx * 12 + 3}, $${idx * 12 + 4}, $${idx * 12 + 5}, $${idx * 12 + 6}, $${idx * 12 + 7}, $${idx * 12 + 8}, $${idx * 12 + 9}, $${idx * 12 + 10}, $${idx * 12 + 11}, $${idx * 12 + 12}, 'available')`
+            ).join(', ');
+            const stockParams = serialNumbers.flatMap(sn => [
+              purchaseDate, product.sku, product.series, product.category, product.name, product.ah_va,
+              1, purchasedFrom, product.warranty, product.product_type_id, product.id, sn
+            ]);
+            
+            // Try with index name first, fallback to column names
+            try {
+              const stockResult = await client.query(`
+                INSERT INTO stock (
+                  purchase_date, sku, series, category, name, ah_va, quantity,
+                  purchased_from, warranty, product_type_id, product_id, serial_number, status
+                ) VALUES ${stockValues}
+                ON CONFLICT ON CONSTRAINT idx_stock_product_serial_unique
+                DO UPDATE SET
+                  purchase_date = EXCLUDED.purchase_date,
+                  purchased_from = EXCLUDED.purchased_from,
+                  updated_at = CURRENT_TIMESTAMP
+              `, stockParams);
+              console.log(`[ADD STOCK] Batch inserted/updated ${stockResult.rowCount} stock records`);
+            } catch (indexErr) {
+              // Fallback: try with column names (for databases without the named constraint)
+              console.log('[ADD STOCK] Trying ON CONFLICT with column names...');
+              const stockResult = await client.query(`
+                INSERT INTO stock (
+                  purchase_date, sku, series, category, name, ah_va, quantity,
+                  purchased_from, warranty, product_type_id, product_id, serial_number, status
+                ) VALUES ${stockValues}
+                ON CONFLICT (product_id, serial_number) 
+                WHERE serial_number IS NOT NULL
+                DO UPDATE SET
+                  purchase_date = EXCLUDED.purchase_date,
+                  purchased_from = EXCLUDED.purchased_from,
+                  updated_at = CURRENT_TIMESTAMP
+              `, stockParams);
+              console.log(`[ADD STOCK] Batch inserted/updated ${stockResult.rowCount} stock records`);
+            }
+            await client.query('RELEASE SAVEPOINT before_stock');
+          }
         } catch (stockErr) {
           // Rollback to savepoint to continue transaction
           try {
             await client.query('ROLLBACK TO SAVEPOINT before_stock');
             await client.query('RELEASE SAVEPOINT before_stock');
           } catch (rollbackErr) {
-            console.warn('[ADD STOCK] Could not rollback to savepoint:', rollbackErr.message);
+            console.error('[ADD STOCK] Could not rollback to savepoint:', rollbackErr.message);
             // If we can't rollback, transaction is already aborted - need to throw
             throw new Error(`Stock table error: ${stockErr.message}. Transaction aborted.`);
           }
-          console.warn('[ADD STOCK] Stock table operation failed (non-critical):', stockErr.message);
-          // Continue - stock table is optional
+          console.error('[ADD STOCK] Stock table operation failed:', stockErr.message);
+          console.error('[ADD STOCK] Stock table error code:', stockErr.code);
+          console.error('[ADD STOCK] Stock table error detail:', stockErr.detail);
+          // Don't throw - continue with purchases insert, but log the error
+          // Stock table is important but we don't want to fail the entire operation
         }
 
         // OPTIMIZED: Check columns ONCE before loop (not inside loop!)
