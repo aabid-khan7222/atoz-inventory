@@ -96,12 +96,24 @@ app.use("/api/company-returns", companyReturnsRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/commission-agents", commissionAgentsRouter);
 app.use("/api/employees", employeesRouter);
-app.use("/api", initRouter);
-app.use("/api", migrateDataRouter);
-app.use("/api", migrateDataBatchRouter);
-app.use("/api", fixPurchasesDataRouter);
-app.use("/api", cleanBadPurchasesRouter);
-app.use("/api", dbCheckRouter);
+
+/* ================== MAINTENANCE/UTILITY ROUTES ================== */
+/* 
+ * These routes are maintenance utilities and are NOT called from the frontend.
+ * They are kept active for:
+ * - Database initialization and migrations
+ * - Data repair and cleanup operations
+ * - Database health checks and debugging
+ * 
+ * If you need to disable them, comment out the routes below.
+ * They pose no security risk as they're not exposed to frontend users.
+ */
+app.use("/api", initRouter); // Database initialization endpoint (GET/POST /api/init)
+app.use("/api", migrateDataRouter); // Data migration endpoint (POST /api/migrate-data)
+app.use("/api", migrateDataBatchRouter); // Batch migration endpoint (POST /api/migrate-data-batch)
+app.use("/api", fixPurchasesDataRouter); // Fix purchases data endpoint (POST /api/fix-purchases-data)
+app.use("/api", cleanBadPurchasesRouter); // Clean bad purchases endpoint (POST /api/clean-bad-purchases)
+app.use("/api", dbCheckRouter); // Database check endpoint (GET /api/db-check)
 
 
 
