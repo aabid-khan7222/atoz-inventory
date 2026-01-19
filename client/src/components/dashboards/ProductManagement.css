@@ -464,17 +464,40 @@
   font-weight: 600;
   color: #333;
   border-bottom: 2px solid #ddd;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .products-table td {
   padding: 1rem;
   border-bottom: 1px solid #eee;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .products-table tbody tr:hover {
   background: #f9f9f9;
+}
+
+/* Cell-specific alignment styles */
+.products-table .sku-cell {
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+  color: #3B82F6;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.products-table .name-cell {
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.products-table .price-cell {
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.products-table .discount-cell {
+  vertical-align: middle;
 }
 
 .btn-edit,
