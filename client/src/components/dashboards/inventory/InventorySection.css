@@ -965,6 +965,8 @@
   padding: 1.5rem;
   background: var(--corp-bg-card, #f8fafc);
   border-radius: 8px;
+  border: 1px solid var(--corp-border, #e2e8f0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 [data-theme="dark"] .filters-container {
@@ -1007,14 +1009,153 @@
 
 .history-table-container {
   overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+  background: var(--corp-bg-card, #ffffff);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .history-table-container {
+  background: var(--corp-bg-card, #1e293b);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Custom scrollbar styling for better UX */
+.history-table-container::-webkit-scrollbar {
+  height: 12px;
+}
+
+.history-table-container::-webkit-scrollbar-track {
+  background: var(--corp-bg-secondary, #f1f5f9);
+  border-radius: 6px;
+  margin: 0 8px;
+}
+
+.history-table-container::-webkit-scrollbar-thumb {
+  background: var(--corp-border, #cbd5e1);
+  border-radius: 6px;
+  border: 2px solid var(--corp-bg-secondary, #f1f5f9);
+}
+
+.history-table-container::-webkit-scrollbar-thumb:hover {
+  background: var(--corp-text-muted, #94a3b8);
+}
+
+[data-theme="dark"] .history-table-container::-webkit-scrollbar-track {
+  background: var(--corp-bg-secondary, #334155);
+}
+
+[data-theme="dark"] .history-table-container::-webkit-scrollbar-thumb {
+  background: var(--corp-border, #475569);
+  border-color: var(--corp-bg-secondary, #334155);
+}
+
+[data-theme="dark"] .history-table-container::-webkit-scrollbar-thumb:hover {
+  background: var(--corp-text-muted, #64748b);
 }
 
 .history-table {
   width: 100%;
+  min-width: 1400px; /* Ensure table is wide enough to trigger horizontal scroll */
   border-collapse: collapse;
   background: var(--corp-bg-card, #ffffff);
   border-radius: 8px;
   overflow: hidden;
+}
+
+/* Sold batteries table specific styling */
+.sold-batteries-table {
+  min-width: 1800px; /* Wider table for sold batteries with all columns */
+  table-layout: auto;
+}
+
+.sold-batteries-table th,
+.sold-batteries-table td {
+  white-space: nowrap;
+  min-width: 120px;
+  padding: 0.875rem 1rem;
+}
+
+.sold-batteries-table th:first-child,
+.sold-batteries-table td:first-child {
+  min-width: 180px; /* Invoice number column wider for buttons */
+  white-space: normal;
+}
+
+.sold-batteries-table th:nth-child(2),
+.sold-batteries-table td:nth-child(2) {
+  min-width: 160px; /* Sold Date */
+}
+
+.sold-batteries-table th:nth-child(3),
+.sold-batteries-table td:nth-child(3) {
+  min-width: 200px; /* Product Name */
+  white-space: normal;
+}
+
+.sold-batteries-table th:nth-child(4),
+.sold-batteries-table td:nth-child(4) {
+  min-width: 130px; /* SKU */
+}
+
+.sold-batteries-table th:nth-child(5),
+.sold-batteries-table td:nth-child(5) {
+  min-width: 150px; /* Serial Number */
+}
+
+.sold-batteries-table th:nth-child(6),
+.sold-batteries-table td:nth-child(6) {
+  min-width: 150px; /* Customer Name */
+  white-space: normal;
+}
+
+.sold-batteries-table th:nth-child(7),
+.sold-batteries-table td:nth-child(7) {
+  min-width: 130px; /* Mobile Number */
+}
+
+.sold-batteries-table th:nth-child(8),
+.sold-batteries-table td:nth-child(8) {
+  min-width: 130px; /* Vehicle Number */
+}
+
+.sold-batteries-table th:nth-child(9),
+.sold-batteries-table td:nth-child(9) {
+  min-width: 100px; /* MRP */
+}
+
+.sold-batteries-table th:nth-child(10),
+.sold-batteries-table td:nth-child(10) {
+  min-width: 120px; /* Discount Amount */
+}
+
+.sold-batteries-table th:nth-child(11),
+.sold-batteries-table td:nth-child(11) {
+  min-width: 100px; /* Discount % */
+}
+
+.sold-batteries-table th:nth-child(12),
+.sold-batteries-table td:nth-child(12) {
+  min-width: 130px; /* Final Amount */
+  white-space: normal;
+}
+
+.sold-batteries-table th:nth-child(13),
+.sold-batteries-table td:nth-child(13) {
+  min-width: 150px; /* Commission */
+  white-space: normal;
+}
+
+.sold-batteries-table th:nth-child(14),
+.sold-batteries-table td:nth-child(14) {
+  min-width: 180px; /* Old Battery Trade-In */
+  white-space: normal;
 }
 
 [data-theme="dark"] .history-table {
@@ -1230,6 +1371,34 @@
   .history-table th,
   .history-table td {
     padding: 0.5rem;
+  }
+
+  .sold-batteries-table {
+    min-width: 1600px;
+  }
+
+  .history-table-container {
+    overflow-x: scroll;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .history-table-container::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .history-table-container::-webkit-scrollbar-track {
+    background: var(--corp-bg-secondary, #f1f5f9);
+    border-radius: 4px;
+  }
+
+  .history-table-container::-webkit-scrollbar-thumb {
+    background: var(--corp-border, #cbd5e1);
+    border-radius: 4px;
+  }
+
+  .history-table-container::-webkit-scrollbar-thumb:hover {
+    background: var(--corp-text-muted, #94a3b8);
   }
   
 }

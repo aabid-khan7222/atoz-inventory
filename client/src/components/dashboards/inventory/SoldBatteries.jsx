@@ -280,9 +280,9 @@ const SoldBatteries = ({ onBack }) => {
 
         {/* Sold Batteries Table */}
         {!loading && !error && (
-          <div className="table-container">
+          <div className="history-table-container">
             {getFilteredBatteries().length > 0 ? (
-              <table className="history-table">
+              <table className="history-table sold-batteries-table">
                 <thead>
                   <tr>
                     <th>Invoice Number</th>
@@ -319,20 +319,51 @@ const SoldBatteries = ({ onBack }) => {
                       <tr key={battery.id}>
                         {index === 0 && (
                           <>
-                            <td rowSpan={batteries.length} style={{ fontWeight: 'bold', verticalAlign: 'top', paddingTop: '1rem' }}>
-                              {invoiceNumber}
-                              <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <td rowSpan={batteries.length} style={{ 
+                              fontWeight: '600', 
+                              verticalAlign: 'top', 
+                              paddingTop: '1rem',
+                              minWidth: '180px'
+                            }}>
+                              <div style={{ 
+                                fontSize: '0.875rem',
+                                color: 'var(--corp-text-primary, #1e293b)',
+                                marginBottom: '0.75rem',
+                                wordBreak: 'break-word'
+                              }}>
+                                {invoiceNumber}
+                              </div>
+                              <div style={{ 
+                                marginTop: '0.5rem', 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                gap: '0.5rem',
+                                minWidth: '140px'
+                              }}>
                                 <button
                                   onClick={() => handlePrintInvoice(invoiceNumber)}
                                   style={{
-                                    padding: '0.4rem 0.8rem',
+                                    padding: '0.5rem 0.75rem',
                                     fontSize: '0.875rem',
+                                    fontWeight: '500',
                                     backgroundColor: '#2563eb',
                                     color: 'white',
                                     border: 'none',
-                                    borderRadius: '0.375rem',
+                                    borderRadius: '0.5rem',
                                     cursor: 'pointer',
-                                    width: '100%'
+                                    width: '100%',
+                                    transition: 'all 0.2s ease',
+                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#1d4ed8';
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.15)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#2563eb';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.1)';
                                   }}
                                 >
                                   Print
@@ -340,14 +371,27 @@ const SoldBatteries = ({ onBack }) => {
                                 <button
                                   onClick={() => handleDownloadPDF(invoiceNumber)}
                                   style={{
-                                    padding: '0.4rem 0.8rem',
+                                    padding: '0.5rem 0.75rem',
                                     fontSize: '0.875rem',
+                                    fontWeight: '500',
                                     backgroundColor: '#059669',
                                     color: 'white',
                                     border: 'none',
-                                    borderRadius: '0.375rem',
+                                    borderRadius: '0.5rem',
                                     cursor: 'pointer',
-                                    width: '100%'
+                                    width: '100%',
+                                    transition: 'all 0.2s ease',
+                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#047857';
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.15)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#059669';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.1)';
                                   }}
                                 >
                                   Download
@@ -464,15 +508,38 @@ const SoldBatteries = ({ onBack }) => {
 
         {/* Summary */}
         {!loading && !error && getFilteredBatteries().length > 0 && (
-          <div className="summary-section" style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <strong>Total Sold: {getFilteredBatteries().length} batteries</strong>
+          <div className="summary-section" style={{ 
+            marginTop: '1.5rem', 
+            padding: '1.25rem 1.5rem', 
+            background: 'var(--corp-bg-secondary, #f8fafc)', 
+            borderRadius: '0.75rem',
+            border: '1px solid var(--corp-border, #e2e8f0)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '1rem'
+            }}>
+              <div style={{ 
+                fontSize: '1rem',
+                color: 'var(--corp-text-primary, #1e293b)',
+                fontWeight: '600'
+              }}>
+                <span style={{ color: 'var(--corp-text-muted, #64748b)', fontWeight: '500' }}>Total Sold: </span>
+                {getFilteredBatteries().length} batteries
               </div>
-              <div>
-                <strong>Total Amount: {formatCurrency(
+              <div style={{ 
+                fontSize: '1.125rem',
+                color: 'var(--corp-text-primary, #1e293b)',
+                fontWeight: '700'
+              }}>
+                <span style={{ color: 'var(--corp-text-muted, #64748b)', fontWeight: '500', fontSize: '1rem' }}>Total Amount: </span>
+                <span style={{ color: '#059669' }}>{formatCurrency(
                   getFilteredBatteries().reduce((sum, b) => sum + (parseFloat(b.final_amount || b.amount) || 0), 0)
-                )}</strong>
+                )}</span>
               </div>
             </div>
           </div>
