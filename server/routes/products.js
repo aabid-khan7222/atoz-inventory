@@ -274,9 +274,9 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
       INSERT INTO products (
         sku, series, category, name, qty, 
         dp, mrp_price, selling_price, discount, discount_percent,
-        b2b_selling_price, b2b_discount, b2b_discount_percent,
+        b2b_mrp, b2b_selling_price, b2b_discount, b2b_discount_percent,
         ah_va, warranty, guarantee_period_months, order_index, product_type_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) 
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) 
       RETURNING *
     `, [
       sku.trim(),
@@ -289,6 +289,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
       b2cSellingPrice,
       finalB2cDiscountAmount,
       finalB2cDiscountPercent,
+      finalMrp, // b2b_mrp - same as mrp_price
       b2bSellingPrice,
       finalB2bDiscountAmount,
       finalB2bDiscountPercent,
@@ -575,13 +576,14 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
         mrp_price = $9,
         discount = $10,
         discount_percent = $11,
-        b2b_selling_price = $12,
-        b2b_discount = $13,
-        b2b_discount_percent = $14,
-        ah_va = $15,
-        warranty = $16,
-        order_index = COALESCE($17, order_index),
-        product_type_id = $18,
+        b2b_mrp = $12,
+        b2b_selling_price = $13,
+        b2b_discount = $14,
+        b2b_discount_percent = $15,
+        ah_va = $16,
+        warranty = $17,
+        order_index = COALESCE($18, order_index),
+        product_type_id = $19,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
       RETURNING *
@@ -597,6 +599,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
       finalMrp,
       finalB2cDiscountAmount,
       finalB2cDiscountPercent,
+      finalMrp, // b2b_mrp - same as mrp_price
       b2bSellingPrice,
       finalB2bDiscountAmount,
       finalB2bDiscountPercent,

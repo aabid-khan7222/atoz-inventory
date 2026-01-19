@@ -430,7 +430,7 @@ router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
           // Update product quantity
           await client.query(
             'UPDATE products SET qty = qty + 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-            [receivedProductIdInt]
+            [product.id]
           );
 
           // Add purchase record for replacement battery
