@@ -1193,21 +1193,45 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
       // Skip stock_history and stock table operations for water products
       if (!isWaterProduct) {
         // OPTIMIZED: Batch insert into stock_history table (much faster than individual queries)
+        // Use SAVEPOINT to prevent transaction abort if table doesn't exist
         try {
+          await client.query('SAVEPOINT before_stock_history');
           if (serialNumbers.length > 0) {
-            const stockHistoryValues = serialNumbers.map((_, idx) => 
-              `($${idx * 3 + 1}, 'add', 1, $${idx * 3 + 2}, $${idx * 3 + 3}, CURRENT_TIMESTAMP)`
-            ).join(', ');
-            const stockHistoryParams = serialNumbers.flatMap(sn => [productId, sn, userId || null]);
-            await client.query(`
-              INSERT INTO stock_history 
-              (product_id, transaction_type, quantity, serial_number, user_id, created_at)
-              VALUES ${stockHistoryValues}
-              ON CONFLICT DO NOTHING
-            `, stockHistoryParams);
-            console.log(`[ADD STOCK] Batch inserted ${serialNumbers.length} stock_history records`);
+            // Check if stock_history table exists first
+            const tableCheck = await client.query(`
+              SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'stock_history'
+              )
+            `);
+            
+            if (tableCheck.rows[0].exists) {
+              const stockHistoryValues = serialNumbers.map((_, idx) => 
+                `($${idx * 3 + 1}, 'add', 1, $${idx * 3 + 2}, $${idx * 3 + 3}, CURRENT_TIMESTAMP)`
+              ).join(', ');
+              const stockHistoryParams = serialNumbers.flatMap(sn => [productId, sn, userId || null]);
+              await client.query(`
+                INSERT INTO stock_history 
+                (product_id, transaction_type, quantity, serial_number, user_id, created_at)
+                VALUES ${stockHistoryValues}
+                ON CONFLICT DO NOTHING
+              `, stockHistoryParams);
+              console.log(`[ADD STOCK] Batch inserted ${serialNumbers.length} stock_history records`);
+            } else {
+              console.log('[ADD STOCK] stock_history table does not exist, skipping...');
+            }
           }
+          await client.query('RELEASE SAVEPOINT before_stock_history');
         } catch (err) {
+          // Rollback to savepoint to continue transaction
+          try {
+            await client.query('ROLLBACK TO SAVEPOINT before_stock_history');
+            await client.query('RELEASE SAVEPOINT before_stock_history');
+          } catch (rollbackErr) {
+            // If savepoint doesn't exist, transaction might be aborted
+            console.warn('[ADD STOCK] Could not rollback to savepoint:', rollbackErr.message);
+          }
           // If table doesn't exist or other error, log but continue
           console.warn('[ADD STOCK] Could not insert into stock_history (non-critical):', err.message);
         }
