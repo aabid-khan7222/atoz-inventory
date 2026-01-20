@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAllServiceRequests, updateServiceRequestStatus, confirmServiceRequest, cancelPendingServiceRequestByAdmin } from '../../api';
+import { getAllServiceRequests, updateServiceRequestStatus, confirmServiceRequest, cancelPendingServiceRequestByAdmin, getCustomers, createServiceRequestByAdmin } from '../../api';
 import Swal from 'sweetalert2';
 import { getFormState, saveFormState } from '../../utils/formStateManager';
 import './DashboardContent.css';
@@ -37,6 +37,35 @@ const ServiceManagement = () => {
   
   const [isInitialMount, setIsInitialMount] = useState(true);
   
+  // New Service Modal State
+  const [showNewServiceModal, setShowNewServiceModal] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [newServiceForm, setNewServiceForm] = useState({
+    serviceType: 'battery_testing',
+    vehicleName: '',
+    fuelType: 'petrol',
+    vehicleNumber: '',
+    inverterVa: '',
+    inverterVoltage: '',
+    batteryAmpereRating: '',
+    notes: '',
+    customerName: '',
+    customerPhone: '',
+    customerEmail: '',
+    customerPassword: ''
+  });
+  const [submittingService, setSubmittingService] = useState(false);
+  const FUEL_TYPES = ['petrol', 'diesel', 'gas', 'electric'];
+  const SERVICE_TYPES_ARRAY = [
+    { value: 'battery_testing', label: 'Battery Testing Service' },
+    { value: 'jump_start', label: 'Jump Start Service' },
+    { value: 'inverter_repair', label: 'Inverter Repairing Service' },
+    { value: 'inverter_battery', label: 'Inverter Battery Service' }
+  ];
+  
   // Save state to sessionStorage
   useEffect(() => {
     if (isInitialMount) {
@@ -65,6 +94,84 @@ const ServiceManagement = () => {
   useEffect(() => {
     loadServices(1);
   }, [statusFilter, serviceTypeFilter, searchTerm]);
+
+  // Load customers for dropdown
+  useEffect(() => {
+    if (showNewServiceModal && !isNewCustomer) {
+      loadCustomers();
+    }
+  }, [showNewServiceModal, customerSearchTerm, isNewCustomer]);
+
+  const loadCustomers = async () => {
+    try {
+      const response = await getCustomers({ search: customerSearchTerm, limit: 100 });
+      setCustomers(response.items || []);
+    } catch (err) {
+      console.error('Failed to load customers:', err);
+    }
+  };
+
+  const handleCustomerSelect = (customer) => {
+    setSelectedCustomer(customer);
+    setNewServiceForm(prev => ({
+      ...prev,
+      customerName: customer.name || '',
+      customerPhone: customer.phone || '',
+      customerEmail: customer.email || ''
+    }));
+  };
+
+  const handleNewServiceSubmit = async (e) => {
+    e.preventDefault();
+    setSubmittingService(true);
+
+    try {
+      const payload = {
+        customerId: isNewCustomer ? null : selectedCustomer?.id,
+        isNewCustomer,
+        customerName: newServiceForm.customerName,
+        customerPhone: newServiceForm.customerPhone,
+        customerEmail: newServiceForm.customerEmail,
+        customerPassword: newServiceForm.customerPassword,
+        serviceType: newServiceForm.serviceType,
+        vehicleName: ['battery_testing', 'jump_start'].includes(newServiceForm.serviceType) ? newServiceForm.vehicleName : undefined,
+        fuelType: ['battery_testing', 'jump_start'].includes(newServiceForm.serviceType) ? newServiceForm.fuelType : undefined,
+        vehicleNumber: ['battery_testing', 'jump_start'].includes(newServiceForm.serviceType) ? newServiceForm.vehicleNumber : undefined,
+        inverterVa: newServiceForm.serviceType === 'inverter_repair' ? newServiceForm.inverterVa : undefined,
+        inverterVoltage: newServiceForm.serviceType === 'inverter_repair' ? newServiceForm.inverterVoltage : undefined,
+        batteryAmpereRating: newServiceForm.serviceType === 'inverter_battery' ? newServiceForm.batteryAmpereRating : undefined,
+        notes: newServiceForm.notes || undefined
+      };
+
+      await createServiceRequestByAdmin(payload);
+      await Swal.fire('Success!', 'Service request created successfully.', 'success');
+      
+      setShowNewServiceModal(false);
+      setSelectedCustomer(null);
+      setIsNewCustomer(false);
+      setNewServiceForm({
+        serviceType: 'battery_testing',
+        vehicleName: '',
+        fuelType: 'petrol',
+        vehicleNumber: '',
+        inverterVa: '',
+        inverterVoltage: '',
+        batteryAmpereRating: '',
+        notes: '',
+        customerName: '',
+        customerPhone: '',
+        customerEmail: '',
+        customerPassword: ''
+      });
+      setCustomerSearchTerm('');
+      loadServices(pagination.currentPage);
+    } catch (err) {
+      console.error('Failed to create service:', err);
+      await Swal.fire('Error!', `Failed to create service: ${err.message}`, 'error');
+    } finally {
+      setSubmittingService(false);
+    }
+  };
 
   const loadServices = async (page = 1) => {
     setLoading(true);
@@ -389,11 +496,31 @@ const ServiceManagement = () => {
 
   return (
     <div className="dashboard-content">
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h2>Service Management</h2>
-        <p style={{ color: 'var(--corp-text-secondary, #64748b)', marginTop: '0.5rem' }}>
-          View and manage all customer service requests
-        </p>
+      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2>Service Management</h2>
+          <p style={{ color: 'var(--corp-text-secondary, #64748b)', marginTop: '0.5rem' }}>
+            View and manage all customer service requests
+          </p>
+        </div>
+        <button
+          onClick={() => setShowNewServiceModal(true)}
+          style={{
+            padding: '0.75rem 1.5rem',
+            background: '#059669',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '0.875rem',
+            fontWeight: '600',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}
+        >
+          <span>+</span> New Service
+        </button>
       </div>
 
       {/* Filters */}
@@ -752,6 +879,463 @@ const ServiceManagement = () => {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* New Service Modal */}
+      {showNewServiceModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '2rem'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '12px',
+            width: '100%',
+            maxWidth: '800px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+          }}>
+            <div style={{
+              padding: '1.5rem',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h3 style={{ margin: 0 }}>Create New Service</h3>
+              <button
+                onClick={() => {
+                  setShowNewServiceModal(false);
+                  setSelectedCustomer(null);
+                  setIsNewCustomer(false);
+                  setCustomerSearchTerm('');
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: '#64748b'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <form onSubmit={handleNewServiceSubmit} style={{ padding: '1.5rem' }}>
+              {/* Customer Selection */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Customer
+                </label>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNewCustomer(false);
+                      setSelectedCustomer(null);
+                      setNewServiceForm(prev => ({
+                        ...prev,
+                        customerName: '',
+                        customerPhone: '',
+                        customerEmail: '',
+                        customerPassword: ''
+                      }));
+                    }}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      border: `1px solid ${!isNewCustomer ? '#059669' : '#cbd5e1'}`,
+                      borderRadius: '6px',
+                      background: !isNewCustomer ? '#059669' : '#ffffff',
+                      color: !isNewCustomer ? '#ffffff' : '#64748b',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    Existing Customer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNewCustomer(true);
+                      setSelectedCustomer(null);
+                      setCustomerSearchTerm('');
+                    }}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      border: `1px solid ${isNewCustomer ? '#059669' : '#cbd5e1'}`,
+                      borderRadius: '6px',
+                      background: isNewCustomer ? '#059669' : '#ffffff',
+                      color: isNewCustomer ? '#ffffff' : '#64748b',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    New Customer
+                  </button>
+                </div>
+
+                {!isNewCustomer ? (
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Search customer by name, phone, or email..."
+                      value={customerSearchTerm}
+                      onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.625rem 0.75rem',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        fontSize: '0.875rem',
+                        marginBottom: '0.5rem'
+                      }}
+                    />
+                    {customers.length > 0 && (
+                      <div style={{
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '6px'
+                      }}>
+                        {customers.map((customer) => (
+                          <div
+                            key={customer.id}
+                            onClick={() => handleCustomerSelect(customer)}
+                            style={{
+                              padding: '0.75rem',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #f1f5f9',
+                              background: selectedCustomer?.id === customer.id ? '#f0fdf4' : '#ffffff',
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (selectedCustomer?.id !== customer.id) {
+                                e.currentTarget.style.background = '#f8fafc';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (selectedCustomer?.id !== customer.id) {
+                                e.currentTarget.style.background = '#ffffff';
+                              }
+                            }}
+                          >
+                            <div style={{ fontWeight: '600' }}>{customer.name}</div>
+                            <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
+                              {customer.phone} {customer.email ? `• ${customer.email}` : ''}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                        Customer Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={newServiceForm.customerName}
+                        onChange={(e) => setNewServiceForm(prev => ({ ...prev, customerName: e.target.value }))}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '0.625rem 0.75rem',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          fontSize: '0.875rem'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                        Mobile Number *
+                      </label>
+                      <input
+                        type="text"
+                        value={newServiceForm.customerPhone}
+                        onChange={(e) => setNewServiceForm(prev => ({ ...prev, customerPhone: e.target.value }))}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '0.625rem 0.75rem',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          fontSize: '0.875rem'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                        Email ID *
+                      </label>
+                      <input
+                        type="email"
+                        value={newServiceForm.customerEmail}
+                        onChange={(e) => setNewServiceForm(prev => ({ ...prev, customerEmail: e.target.value }))}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '0.625rem 0.75rem',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          fontSize: '0.875rem'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                        Password *
+                      </label>
+                      <input
+                        type="password"
+                        value={newServiceForm.customerPassword}
+                        onChange={(e) => setNewServiceForm(prev => ({ ...prev, customerPassword: e.target.value }))}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '0.625rem 0.75rem',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          fontSize: '0.875rem'
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Service Details */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4 style={{ marginBottom: '1rem' }}>Service Details</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                      Service Type *
+                    </label>
+                    <select
+                      value={newServiceForm.serviceType}
+                      onChange={(e) => setNewServiceForm(prev => ({ ...prev, serviceType: e.target.value }))}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '0.625rem 0.75rem',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      {SERVICE_TYPES_ARRAY.map(s => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {['battery_testing', 'jump_start'].includes(newServiceForm.serviceType) && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                        Vehicle Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={newServiceForm.vehicleName}
+                        onChange={(e) => setNewServiceForm(prev => ({ ...prev, vehicleName: e.target.value }))}
+                        required
+                        placeholder="e.g., Maruti Baleno"
+                        style={{
+                          width: '100%',
+                          padding: '0.625rem 0.75rem',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          fontSize: '0.875rem'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                        Fuel Type *
+                      </label>
+                      <select
+                        value={newServiceForm.fuelType}
+                        onChange={(e) => setNewServiceForm(prev => ({ ...prev, fuelType: e.target.value }))}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '0.625rem 0.75rem',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        {FUEL_TYPES.map(f => (
+                          <option key={f} value={f}>{f.toUpperCase()}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                        Vehicle Number *
+                      </label>
+                      <input
+                        type="text"
+                        value={newServiceForm.vehicleNumber}
+                        onChange={(e) => setNewServiceForm(prev => ({ ...prev, vehicleNumber: e.target.value }))}
+                        required
+                        placeholder="e.g., MH12AB1234"
+                        style={{
+                          width: '100%',
+                          padding: '0.625rem 0.75rem',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          fontSize: '0.875rem'
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {newServiceForm.serviceType === 'inverter_repair' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                        Inverter VA *
+                      </label>
+                      <input
+                        type="text"
+                        value={newServiceForm.inverterVa}
+                        onChange={(e) => setNewServiceForm(prev => ({ ...prev, inverterVa: e.target.value }))}
+                        required
+                        placeholder="e.g., 900VA"
+                        style={{
+                          width: '100%',
+                          padding: '0.625rem 0.75rem',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          fontSize: '0.875rem'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                        Inverter Voltage *
+                      </label>
+                      <input
+                        type="text"
+                        value={newServiceForm.inverterVoltage}
+                        onChange={(e) => setNewServiceForm(prev => ({ ...prev, inverterVoltage: e.target.value }))}
+                        required
+                        placeholder="e.g., 12V / 24V"
+                        style={{
+                          width: '100%',
+                          padding: '0.625rem 0.75rem',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          fontSize: '0.875rem'
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {newServiceForm.serviceType === 'inverter_battery' && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                      Battery Ampere Rating *
+                    </label>
+                    <input
+                      type="text"
+                      value={newServiceForm.batteryAmpereRating}
+                      onChange={(e) => setNewServiceForm(prev => ({ ...prev, batteryAmpereRating: e.target.value }))}
+                      required
+                      placeholder="e.g., 150Ah"
+                      style={{
+                        width: '100%',
+                        padding: '0.625rem 0.75rem',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        fontSize: '0.875rem'
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div style={{ marginTop: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                    Additional Notes (Optional)
+                  </label>
+                  <textarea
+                    value={newServiceForm.notes}
+                    onChange={(e) => setNewServiceForm(prev => ({ ...prev, notes: e.target.value }))}
+                    rows={3}
+                    placeholder="Any extra information..."
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem 0.75rem',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      fontSize: '0.875rem',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNewServiceModal(false);
+                    setSelectedCustomer(null);
+                    setIsNewCustomer(false);
+                    setCustomerSearchTerm('');
+                  }}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    background: '#ffffff',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '500'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingService || (!isNewCustomer && !selectedCustomer) || (isNewCustomer && (!newServiceForm.customerName || !newServiceForm.customerPhone || !newServiceForm.customerEmail || !newServiceForm.customerPassword))}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    border: 'none',
+                    borderRadius: '6px',
+                    background: submittingService ? '#94a3b8' : '#059669',
+                    color: '#ffffff',
+                    cursor: submittingService ? 'not-allowed' : 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '600'
+                  }}
+                >
+                  {submittingService ? 'Creating...' : 'Create Service'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

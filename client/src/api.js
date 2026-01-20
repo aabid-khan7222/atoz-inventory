@@ -945,6 +945,19 @@ export async function cancelPendingServiceRequest(id) {
   }
 }
 
+// Admin/Super Admin: Create service request for customer
+export async function createServiceRequestByAdmin(payload) {
+  try {
+    return await request('/service-requests/admin', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    console.error('Failed to create service request by admin:', error);
+    throw error;
+  }
+}
+
 // Notifications API functions
 export async function getNotifications({ unreadOnly = false, limit = 50 } = {}) {
   try {
@@ -1620,6 +1633,7 @@ const api = {
   confirmServiceRequest,
   cancelPendingServiceRequestByAdmin,
   cancelPendingServiceRequest,
+  createServiceRequestByAdmin,
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,

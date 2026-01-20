@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcrypt');
 const db = require('../db');
 const { requireAuth, requireSuperAdminOrAdmin } = require('../middleware/auth');
 const { createNotification } = require('./notifications');
