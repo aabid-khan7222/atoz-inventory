@@ -361,36 +361,39 @@ const CustomerProductListing = () => {
             )}
           </div>
 
-          {/* Series Filter */}
-          <div className="filter-wrapper series-filter-wrapper">
-            <select
-              id="series-filter"
-              className="filter-select series-filter"
-              value={selectedSeries}
-              onChange={(e) => setSelectedSeries(e.target.value)}
-            >
-              <option value="all">All Series</option>
-              {(() => {
-                // Get unique series from all products (before filtering)
-                const uniqueSeries = [...new Set(filteredProducts.map(p => p.series).filter(Boolean))].sort();
-                return uniqueSeries.map(series => (
-                  <option key={series} value={series}>{series}</option>
-                ));
-              })()}
-            </select>
-          </div>
+          {/* Filters Row - Side by side on mobile/tablet */}
+          <div className="filters-row">
+            {/* Series Filter */}
+            <div className="filter-wrapper series-filter-wrapper">
+              <select
+                id="series-filter"
+                className="filter-select series-filter"
+                value={selectedSeries}
+                onChange={(e) => setSelectedSeries(e.target.value)}
+              >
+                <option value="all">All Series</option>
+                {(() => {
+                  // Get unique series from all products (before filtering)
+                  const uniqueSeries = [...new Set(filteredProducts.map(p => p.series).filter(Boolean))].sort();
+                  return uniqueSeries.map(series => (
+                    <option key={series} value={series}>{series}</option>
+                  ));
+                })()}
+              </select>
+            </div>
 
-          {/* In-Stock Filter */}
-          <div className="filter-wrapper in-stock-filter-wrapper">
-            <label className={`filter-checkbox-label ${inStockOnly ? 'checked' : ''}`}>
-              <input
-                type="checkbox"
-                className="filter-checkbox"
-                checked={inStockOnly}
-                onChange={(e) => setInStockOnly(e.target.checked)}
-              />
-              <span className="filter-checkbox-text">In Stock Only</span>
-            </label>
+            {/* In-Stock Filter */}
+            <div className="filter-wrapper in-stock-filter-wrapper">
+              <label className={`filter-checkbox-label ${inStockOnly ? 'checked' : ''}`}>
+                <input
+                  type="checkbox"
+                  className="filter-checkbox"
+                  checked={inStockOnly}
+                  onChange={(e) => setInStockOnly(e.target.checked)}
+                />
+                <span className="filter-checkbox-text">In Stock Only</span>
+              </label>
+            </div>
           </div>
         </div>
 
