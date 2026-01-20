@@ -357,7 +357,7 @@ export default function CustomerServices() {
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table className="transaction-table" style={{ minWidth: '1100px' }}>
+            <table className="transaction-table" style={{ minWidth: '1200px', width: '100%' }}>
               <thead>
                 <tr>
                   <th>Date</th>
