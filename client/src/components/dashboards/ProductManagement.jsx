@@ -1350,7 +1350,7 @@ await fetchProducts();
               <form onSubmit={handleAddProduct}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: '#475569' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--azb-text-secondary, #475569)' }}>
                     SKU *
                   </label>
                   <input
@@ -1361,16 +1361,18 @@ await fetchProducts();
                     style={{
                       width: '100%',
                       padding: '0.75rem',
-                      border: '1px solid #cbd5e1',
+                      border: '1px solid var(--azb-border-subtle, #cbd5e1)',
                       borderRadius: '0.375rem',
-                      fontSize: '0.875rem'
+                      fontSize: '0.875rem',
+                      background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
+                      color: 'var(--azb-text-primary, #0f172a)'
                     }}
                     placeholder="Enter SKU"
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: '#475569' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--azb-text-secondary, #475569)' }}>
                     Product Name *
                   </label>
                   <input
@@ -1381,9 +1383,11 @@ await fetchProducts();
                     style={{
                       width: '100%',
                       padding: '0.75rem',
-                      border: '1px solid #cbd5e1',
+                      border: '1px solid var(--azb-border-subtle, #cbd5e1)',
                       borderRadius: '0.375rem',
-                      fontSize: '0.875rem'
+                      fontSize: '0.875rem',
+                      background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
+                      color: 'var(--azb-text-primary, #0f172a)'
                     }}
                     placeholder="Enter product name"
                   />
@@ -1403,7 +1407,7 @@ await fetchProducts();
                       border: '1px solid var(--azb-border-subtle, #cbd5e1)',
                       borderRadius: '0.375rem',
                       fontSize: '0.875rem',
-                      background: 'var(--azb-bg-card, #ffffff)',
+                      background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
                       color: 'var(--azb-text-primary, #0f172a)'
                     }}
                     placeholder="Enter series (optional)"
@@ -1442,7 +1446,7 @@ await fetchProducts();
                       border: '1px solid var(--azb-border-subtle, #cbd5e1)',
                       borderRadius: '0.375rem',
                       fontSize: '0.875rem',
-                      background: 'var(--azb-bg-card, #ffffff)',
+                      background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
                       color: 'var(--azb-text-primary, #0f172a)'
                     }}
                     placeholder="Enter DP (Dealer Price)"
@@ -1487,7 +1491,7 @@ await fetchProducts();
                       border: '1px solid var(--azb-border-subtle, #cbd5e1)',
                       borderRadius: '0.375rem',
                       fontSize: '0.875rem',
-                      background: 'var(--azb-bg-card, #ffffff)',
+                      background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
                       color: 'var(--azb-text-primary, #0f172a)'
                     }}
                     placeholder="Enter MRP"
@@ -1498,11 +1502,11 @@ await fetchProducts();
                 </div>
 
                 {/* B2C Pricing Section */}
-                <div style={{ 
+                <div className="b2c-pricing-section" style={{ 
                   padding: '1rem', 
-                  background: '#f8fafc', 
+                  background: 'var(--azb-bg-hover, #f8fafc)', 
                   borderRadius: '0.5rem',
-                  border: '1px solid #e2e8f0'
+                  border: '1px solid var(--azb-border-subtle, #e2e8f0)'
                 }}>
                   <h4 style={{ 
                     margin: '0 0 1rem 0', 
@@ -1624,13 +1628,14 @@ await fetchProducts();
                     </div>
                   </div>
                   {newProduct.mrp && (
-                    <div style={{ 
+                    <div className="pricing-summary-box" style={{ 
                       marginTop: '0.75rem', 
                       padding: '0.5rem', 
-                      background: '#ecfdf5', 
+                      background: 'var(--azb-bg-hover, #ecfdf5)', 
                       borderRadius: '0.25rem',
                       fontSize: '0.875rem',
-                      color: '#065f46'
+                      color: 'var(--azb-text-primary, #065f46)',
+                      border: '1px solid var(--azb-border-subtle, rgba(6, 95, 70, 0.2))'
                     }}>
                       <strong>B2C Selling Price:</strong> ₹{(
                         parseFloat(newProduct.b2c_sellingPrice || (parseFloat(newProduct.mrp || 0) - parseFloat(newProduct.b2c_discountAmount || 0)))
@@ -1640,11 +1645,11 @@ await fetchProducts();
                 </div>
 
                 {/* B2B Pricing Section */}
-                <div style={{ 
+                <div className="b2b-pricing-section" style={{ 
                   padding: '1rem', 
-                  background: '#fef3c7', 
+                  background: 'var(--azb-bg-hover, #fef3c7)', 
                   borderRadius: '0.5rem',
-                  border: '1px solid #fde68a'
+                  border: '1px solid var(--azb-border-subtle, #fde68a)'
                 }}>
                   <h4 style={{ 
                     margin: '0 0 1rem 0', 
@@ -1766,13 +1771,14 @@ await fetchProducts();
                     </div>
                   </div>
                   {newProduct.mrp && (
-                    <div style={{ 
+                    <div className="pricing-summary-box" style={{ 
                       marginTop: '0.75rem', 
                       padding: '0.5rem', 
-                      background: '#ecfdf5', 
+                      background: 'var(--azb-bg-hover, #ecfdf5)', 
                       borderRadius: '0.25rem',
                       fontSize: '0.875rem',
-                      color: '#065f46'
+                      color: 'var(--azb-text-primary, #065f46)',
+                      border: '1px solid var(--azb-border-subtle, rgba(6, 95, 70, 0.2))'
                     }}>
                       <strong>B2B Selling Price:</strong> ₹{(
                         parseFloat(newProduct.b2b_sellingPrice || newProduct.mrp || 0)

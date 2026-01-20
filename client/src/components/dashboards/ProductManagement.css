@@ -569,3 +569,51 @@
     padding: 0.5rem;
   }
 }
+
+/* ===================== */
+/*  Add Product Form Dark Mode Fixes */
+/* ===================== */
+
+/* B2C Pricing Section - Dark Mode */
+[data-theme="dark"] .b2c-pricing-section {
+  background: rgba(51, 65, 85, 0.5) !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+}
+
+/* B2B Pricing Section - Dark Mode */
+[data-theme="dark"] .b2b-pricing-section {
+  background: rgba(59, 130, 246, 0.1) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Form inputs in dark mode */
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background-color: var(--azb-bg-input, #334155) !important;
+  border-color: var(--azb-border-subtle, rgba(148, 163, 184, 0.3)) !important;
+  color: var(--azb-text-primary, #f1f5f9) !important;
+}
+
+[data-theme="dark"] input[type="text"]:focus,
+[data-theme="dark"] input[type="number"]:focus,
+[data-theme="dark"] input[type="date"]:focus,
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] select:focus {
+  border-color: var(--azb-accent, #60a5fa) !important;
+  outline: none;
+}
+
+/* Labels in dark mode */
+[data-theme="dark"] label {
+  color: var(--azb-text-secondary, #cbd5e1) !important;
+}
+
+/* Summary boxes in dark mode */
+[data-theme="dark"] .pricing-summary-box {
+  background: rgba(51, 65, 85, 0.6) !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  color: var(--azb-text-primary, #f1f5f9) !important;
+}
