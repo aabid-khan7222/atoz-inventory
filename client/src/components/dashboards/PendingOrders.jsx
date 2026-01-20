@@ -36,11 +36,32 @@ const PendingOrders = () => {
     setLoading(true);
     setError('');
     try {
+      // Force fresh fetch from server
       const data = await api.getPendingOrders();
-      setOrders(Array.isArray(data) ? data : []);
+      // Filter out any invalid orders
+      const validOrders = Array.isArray(data) ? data.filter(order => order && (order.invoice_number || order.id)) : [];
+      setOrders(validOrders);
+      
+      // If selected order was cancelled/deleted, clear it
+      if (selectedOrder) {
+        const stillExists = validOrders.some(order => 
+          (order.invoice_number || order.id) === (selectedOrder.invoice_number || selectedOrder.id)
+        );
+        if (!stillExists) {
+          setSelectedOrder(null);
+          setSelectedSerials({});
+          setAdjustedAmounts({});
+          setDiscountInputs({});
+        }
+      }
     } catch (err) {
       setError(err.message || 'Failed to load pending orders');
       setOrders([]);
+      // Clear selected order on error
+      setSelectedOrder(null);
+      setSelectedSerials({});
+      setAdjustedAmounts({});
+      setDiscountInputs({});
     } finally {
       setLoading(false);
     }
@@ -184,8 +205,13 @@ const PendingOrders = () => {
           setDiscountInputs({});
         }
         
-        // Reload pending orders
-        loadPendingOrders();
+        // Remove cancelled order from local state immediately
+        setOrders(prevOrders => prevOrders.filter(order => 
+          (order.invoice_number || order.id) !== invoice
+        ));
+        
+        // Reload pending orders to ensure fresh data from server
+        await loadPendingOrders();
       } else {
         throw new Error(response.error || 'Failed to cancel order');
       }
