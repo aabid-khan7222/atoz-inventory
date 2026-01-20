@@ -222,6 +222,19 @@ router.post("/init", async (req, res) => {
           } catch (err) {
             console.warn("⚠️  Column verification skipped:", err.message);
           }
+          
+          // Run guarantee_warranty_tables migration (creates warranty_slabs and battery_replacements tables)
+          try {
+            const guaranteeWarrantyPath = path.join(__dirname, '../migrations/create_guarantee_warranty_tables.sql');
+            if (fs.existsSync(guaranteeWarrantyPath)) {
+              const guaranteeWarrantySQL = fs.readFileSync(guaranteeWarrantyPath, 'utf8');
+              console.log("📋 Creating guarantee & warranty tables...");
+              await client.query(guaranteeWarrantySQL);
+              console.log("✅ Guarantee & warranty tables created");
+            }
+          } catch (err) {
+            console.warn("⚠️  Guarantee & warranty migration skipped (may already exist):", err.message);
+          }
     
     // Create roles table (if not already created)
     await client.query(`
@@ -343,6 +356,49 @@ router.post("/init", async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Database initialization failed",
+      details: process.env.NODE_ENV === 'production' ? undefined : error.message,
+      stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// Endpoint to run guarantee & warranty migration
+router.post("/init/guarantee-warranty", async (req, res) => {
+  const client = await db.pool.connect();
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    console.log("🚀 Running guarantee & warranty migration...");
+    
+    const guaranteeWarrantyPath = path.join(__dirname, '../migrations/create_guarantee_warranty_tables.sql');
+    if (!fs.existsSync(guaranteeWarrantyPath)) {
+      return res.status(404).json({
+        success: false,
+        error: "Migration file not found"
+      });
+    }
+    
+    const guaranteeWarrantySQL = fs.readFileSync(guaranteeWarrantyPath, 'utf8');
+    console.log("📋 Creating guarantee & warranty tables...");
+    await client.query(guaranteeWarrantySQL);
+    console.log("✅ Guarantee & warranty tables created");
+    
+    res.json({
+      success: true,
+      message: "Guarantee & warranty tables migration completed successfully",
+      tablesCreated: [
+        "warranty_slabs",
+        "battery_replacements"
+      ]
+    });
+  } catch (error) {
+    console.error("❌ Guarantee & warranty migration failed:", error);
+    res.status(500).json({
+      success: false,
+      error: "Guarantee & warranty migration failed",
       details: process.env.NODE_ENV === 'production' ? undefined : error.message,
       stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
     });

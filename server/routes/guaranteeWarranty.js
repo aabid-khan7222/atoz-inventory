@@ -169,30 +169,6 @@ router.get('/battery-status/:serialNumber', requireAuth, async (req, res) => {
     const withinWarrantyPeriod = totalWarrantyMonths > 0 && 
       (monthsAfterGuarantee >= 0 && monthsAfterGuarantee <= warrantyMonths);
 
-    // Get warranty slab if applicable (only if within warranty period, not guarantee)
-    let warrantySlab = null;
-    if (!underGuarantee && withinWarrantyPeriod && monthsAfterGuarantee >= 0) {
-      const slabResult = await db.query(
-        `SELECT 
-          ws.id,
-          ws.slab_name,
-          ws.discount_percentage,
-          ws.min_months,
-          ws.max_months
-        FROM warranty_slabs ws
-        WHERE ws.is_active = true
-          AND $1 >= ws.min_months
-          AND (ws.max_months IS NULL OR $1 <= ws.max_months)
-        ORDER BY ws.discount_percentage DESC
-        LIMIT 1`,
-        [monthsAfterGuarantee]
-      );
-
-      if (slabResult.rows.length > 0) {
-        warrantySlab = slabResult.rows[0];
-      }
-    }
-
     res.json({
       serialNumber: saleItem.SERIAL_NUMBER,
       saleItemId: saleItem.id,
@@ -224,16 +200,12 @@ router.get('/battery-status/:serialNumber', requireAuth, async (req, res) => {
       status: {
         isReplaced,
         underGuarantee,
-        withinWarrantyPeriod,
         monthsAfterGuarantee,
-        // For guarantee: always eligible while under guarantee.
-        // For warranty: eligible for replacement for the whole warranty period,
-        // even if no automatic slab is matched (slab will be chosen manually in UI).
-        eligibleForReplacement: underGuarantee || withinWarrantyPeriod,
-        replacementType: underGuarantee ? 'guarantee' : (withinWarrantyPeriod ? 'warranty' : null),
-        outOfWarranty: !underGuarantee && !withinWarrantyPeriod
+        // Only guarantee replacements are supported
+        eligibleForReplacement: underGuarantee,
+        replacementType: underGuarantee ? 'guarantee' : null,
+        outOfGuarantee: !underGuarantee
       },
-      warrantySlab,
       latestReplacement: latestReplacement ? {
         type: latestReplacement.replacement_type,
         date: latestReplacement.replacement_date,
@@ -276,7 +248,6 @@ router.get('/history/:customerId', requireAuth, async (req, res) => {
         br.created_at,
         p.name as product_name,
         p.sku as product_sku,
-        ws.slab_name as warranty_slab_name,
         u_created.full_name as created_by_name,
         u_customer.full_name as customer_name,
         u_customer.phone as customer_phone,
@@ -293,7 +264,6 @@ router.get('/history/:customerId', requireAuth, async (req, res) => {
         cp.pincode
       FROM battery_replacements br
       LEFT JOIN products p ON br.product_id = p.id
-      LEFT JOIN warranty_slabs ws ON br.warranty_slab_id = ws.id
       LEFT JOIN users u_created ON br.created_by = u_created.id
       LEFT JOIN users u_customer ON br.customer_id = u_customer.id
       LEFT JOIN sales_item si ON br.original_sale_item_id = si.id
@@ -328,7 +298,6 @@ router.get('/history-all', requireAuth, requireSuperAdminOrAdmin, async (req, re
         br.created_at,
         p.name as product_name,
         p.sku as product_sku,
-        ws.slab_name as warranty_slab_name,
         u_customer.full_name as customer_name,
         u_customer.phone as customer_phone,
         u_customer.email as customer_email,
@@ -345,7 +314,6 @@ router.get('/history-all', requireAuth, requireSuperAdminOrAdmin, async (req, re
         cp.pincode
       FROM battery_replacements br
       LEFT JOIN products p ON br.product_id = p.id
-      LEFT JOIN warranty_slabs ws ON br.warranty_slab_id = ws.id
       LEFT JOIN users u_customer ON br.customer_id = u_customer.id
       LEFT JOIN users u_created ON br.created_by = u_created.id
       LEFT JOIN sales_item si ON br.original_sale_item_id = si.id
@@ -380,7 +348,6 @@ router.get('/history', requireAuth, async (req, res) => {
         br.created_at,
         p.name as product_name,
         p.sku as product_sku,
-        ws.slab_name as warranty_slab_name,
         u_created.full_name as created_by_name,
         u_customer.full_name as customer_name,
         u_customer.phone as customer_phone,
@@ -397,7 +364,6 @@ router.get('/history', requireAuth, async (req, res) => {
         cp.pincode
       FROM battery_replacements br
       LEFT JOIN products p ON br.product_id = p.id
-      LEFT JOIN warranty_slabs ws ON br.warranty_slab_id = ws.id
       LEFT JOIN users u_created ON br.created_by = u_created.id
       LEFT JOIN users u_customer ON br.customer_id = u_customer.id
       LEFT JOIN sales_item si ON br.original_sale_item_id = si.id
@@ -414,31 +380,7 @@ router.get('/history', requireAuth, async (req, res) => {
   }
 });
 
-// Get warranty slabs
-router.get('/warranty-slabs', requireAuth, async (req, res) => {
-  try {
-    const result = await db.query(
-      `SELECT 
-        id,
-        slab_name,
-        discount_percentage,
-        min_months,
-        max_months,
-        description,
-        is_active
-      FROM warranty_slabs
-      WHERE is_active = true
-      ORDER BY min_months ASC`
-    );
-
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Error fetching warranty slabs:', err);
-    res.status(500).json({ error: 'Failed to fetch warranty slabs' });
-  }
-});
-
-// Create replacement (guarantee or warranty)
+// Create replacement (guarantee only - warranty functionality removed)
 // Allow both Super Admin (role_id = 1) and Admin (role_id >= 2)
 router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   const client = await db.pool.connect();
@@ -451,8 +393,7 @@ router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
       saleItemId,
       newProductId,
       newSerialNumber,
-      replacementType, // 'guarantee' or 'warranty'
-      warrantySlabId,
+      replacementType, // 'guarantee' only
       notes
     } = req.body;
 
@@ -462,7 +403,6 @@ router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
       newProductId,
       newSerialNumber,
       replacementType,
-      warrantySlabId,
     });
 
     // Validation
@@ -481,9 +421,9 @@ router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
       return res.status(400).json({ error: 'Replacement type is required' });
     }
 
-    if (!['guarantee', 'warranty'].includes(replacementType)) {
+    if (replacementType !== 'guarantee') {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Invalid replacement type' });
+      return res.status(400).json({ error: 'Only guarantee replacements are supported' });
     }
 
     // Get original sale item (use saleItemId for reliable lookup)
@@ -533,38 +473,9 @@ router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
     // Verify replacement type matches status
     const underGuarantee = isUnderGuarantee(originalSale.purchase_date, guaranteeMonths);
     
-    if (replacementType === 'guarantee' && !underGuarantee) {
+    if (!underGuarantee) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Battery is not under guarantee period' });
-    }
-
-    if (replacementType === 'warranty' && underGuarantee) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Battery is still under guarantee, use guarantee replacement' });
-    }
-
-    // Get warranty slab for warranty replacements
-    let warrantySlab = null;
-    let discountPercentage = 0;
-
-    if (replacementType === 'warranty') {
-      if (!warrantySlabId) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ error: 'Warranty slab ID is required for warranty replacement' });
-      }
-
-      const slabResult = await client.query(
-        `SELECT id, discount_percentage FROM warranty_slabs WHERE id = $1 AND is_active = true`,
-        [warrantySlabId]
-      );
-
-      if (slabResult.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return res.status(404).json({ error: 'Warranty slab not found' });
-      }
-
-      warrantySlab = slabResult.rows[0];
-      discountPercentage = parseFloat(warrantySlab.discount_percentage);
     }
 
     // Get new product details
@@ -616,89 +527,19 @@ router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
     let newSaleItemId = null;
     let newInvoiceNumber = null;
 
-    // For warranty, create a new sale (treated as new purchase)
-    if (replacementType === 'warranty') {
-      // Generate invoice number
-      const invoiceResult = await client.query('SELECT generate_invoice_number() as invoice_number');
-      newInvoiceNumber = invoiceResult.rows[0].invoice_number;
+    // For guarantee, just get a new serial number from stock (free replacement)
+    // Remove from stock
+    await client.query(
+      `DELETE FROM stock 
+      WHERE product_id = $1 AND TRIM(serial_number) = $2 AND status = 'available'`,
+      [newProductId, requestedSerial]
+    );
 
-      // Calculate price with discount
-      const mrp = parseFloat(newProduct.mrp_price);
-      const discountedPrice = mrp * (1 - discountPercentage / 100);
-      const gstAmount = (discountedPrice * 0.18) / 1.18;
-      const finalAmount = discountedPrice;
-
-      // Get sales type from original sale
-      const salesTypeResult = await client.query(
-        `SELECT sales_type, sales_type_id FROM sales_item WHERE id = $1 LIMIT 1`,
-        [originalSale.id]
-      );
-      const salesType = salesTypeResult.rows.length > 0 ? salesTypeResult.rows[0].sales_type : 'retail';
-      const salesTypeId = salesTypeResult.rows.length > 0 ? salesTypeResult.rows[0].sales_type_id : 1;
-
-      // Create sales_item entry
-      const insertSaleResult = await client.query(
-        `INSERT INTO sales_item (
-          customer_id, invoice_number, customer_name, customer_mobile_number,
-          sales_type, sales_type_id, created_by, purchase_date,
-          SKU, CATEGORY, NAME, QUANTITY, WARRANTY, SERIAL_NUMBER,
-          MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
-        RETURNING id`,
-        [
-          originalSale.customer_id,
-          newInvoiceNumber,
-          originalSale.customer_name,
-          originalSale.customer_mobile_number,
-          salesType,
-          salesTypeId,
-          req.user.id,
-          new Date(),
-          newProduct.sku,
-          getCategoryFromTypeId(newProduct.product_type_id),
-          newProduct.name,
-          1,
-          newProduct.warranty,
-          requestedSerial,
-          mrp,
-          mrp - discountedPrice, // discount_amount
-          gstAmount,
-          finalAmount,
-          'cash',
-          'paid',
-          newProductId
-        ]
-      );
-
-      newSaleItemId = insertSaleResult.rows[0].id;
-
-      // Remove from stock
-      await client.query(
-        `DELETE FROM stock 
-        WHERE product_id = $1 AND TRIM(serial_number) = $2 AND status = 'available'`,
-        [newProductId, requestedSerial]
-      );
-
-      // Update product quantity
-      await client.query(
-        `UPDATE products SET qty = qty - 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-        [newProductId]
-      );
-    } else {
-      // For guarantee, just get a new serial number from stock (free replacement)
-      // Remove from stock
-      await client.query(
-        `DELETE FROM stock 
-        WHERE product_id = $1 AND TRIM(serial_number) = $2 AND status = 'available'`,
-        [newProductId, requestedSerial]
-      );
-
-      // Update product quantity
-      await client.query(
-        `UPDATE products SET qty = qty - 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-        [newProductId]
-      );
-    }
+    // Update product quantity
+    await client.query(
+      `UPDATE products SET qty = qty - 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [newProductId]
+    );
 
     // Create replacement record
     const replacementResult = await client.query(
@@ -713,12 +554,10 @@ router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
         new_serial_number,
         new_sale_item_id,
         new_invoice_number,
-        warranty_slab_id,
-        discount_percentage,
         product_id,
         notes,
         created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
         originalSale.customer_id,
@@ -731,8 +570,6 @@ router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
         requestedSerial,
         newSaleItemId,
         newInvoiceNumber,
-        warrantySlab ? warrantySlab.id : null,
-        discountPercentage,
         newProductId,
         notes || null,
         req.user.id
@@ -745,13 +582,11 @@ router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
     try {
       if (originalSale.customer_id) {
         const replacement = replacementResult.rows[0];
-        const message = replacementType === 'guarantee'
-          ? `Your battery (Serial: ${originalSerial}) has been replaced under guarantee (free of charge). New Serial: ${requestedSerial}`
-          : `Your battery (Serial: ${originalSerial}) has been replaced under warranty with ${discountPercentage}% discount. New Serial: ${requestedSerial}`;
+        const message = `Your battery (Serial: ${originalSerial}) has been replaced under guarantee (free of charge). New Serial: ${requestedSerial}`;
         
         await createNotification(
           originalSale.customer_id,
-          `Battery Replacement - ${replacementType === 'guarantee' ? 'Guarantee' : 'Warranty'}`,
+          'Battery Replacement - Guarantee',
           message,
           'success',
           null
@@ -765,9 +600,7 @@ router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
     res.status(201).json({
       success: true,
       replacement: replacementResult.rows[0],
-      message: replacementType === 'guarantee' 
-        ? 'Battery replaced under guarantee (free of charge)'
-        : `Battery replaced under warranty with ${discountPercentage}% discount`
+      message: 'Battery replaced under guarantee (free of charge)'
     });
   } catch (err) {
     await client.query('ROLLBACK');
