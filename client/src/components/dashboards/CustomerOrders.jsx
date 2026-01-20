@@ -291,16 +291,32 @@ const CustomerOrders = ({ title, description }) => {
     navigate(`/invoice/${invoiceNumber}`);
   };
 
-  // Check if order is confirmed (all items have serial numbers assigned)
+  // Check if order is confirmed (all items have serial numbers assigned, not PENDING)
   const isOrderConfirmed = (order) => {
     const items = Array.isArray(order.items) ? order.items : [];
     if (items.length === 0) return false;
     
     return items.every((item) => {
       const isWaterProduct = (item.CATEGORY || item.category || '').toLowerCase() === 'water';
-      const hasSerial = !!(item.SERIAL_NUMBER || item.serial_number);
-      // Water products don't need serial numbers, others do
-      return isWaterProduct || hasSerial;
+      const serialNum = item.SERIAL_NUMBER || item.serial_number;
+      // Water products don't need serial numbers
+      if (isWaterProduct) return true;
+      // For non-water products, must have serial number and it must not be PENDING
+      return !!(serialNum && serialNum !== 'PENDING' && serialNum !== 'N/A');
+    });
+  };
+  
+  // Check if order is pending (has items with PENDING serial numbers)
+  const isOrderPending = (order) => {
+    const items = Array.isArray(order.items) ? order.items : [];
+    if (items.length === 0) return false;
+    
+    return items.some((item) => {
+      const isWaterProduct = (item.CATEGORY || item.category || '').toLowerCase() === 'water';
+      if (isWaterProduct) return false; // Water products are always confirmed
+      const serialNum = item.SERIAL_NUMBER || item.serial_number;
+      // Check if serial number is PENDING or NULL
+      return !serialNum || serialNum === 'PENDING';
     });
   };
 
@@ -366,45 +382,13 @@ const CustomerOrders = ({ title, description }) => {
           confirmButtonColor: '#059669',
           confirmButtonText: 'OK'
         });
-        // Reload orders
-        const customerId = user?.id || user?._id || null;
-        const data = await api.getSales(1, 50, customerId);
-        const baseOrders = Array.isArray(data) ? data : [];
+        // Remove cancelled order from local state immediately
+        setOrders(prevOrders => prevOrders.filter(order => 
+          (order.invoice_number || order.id) !== invoiceNumber
+        ));
         
-        if (baseOrders.length > 0) {
-          const detailResults = await Promise.all(
-            baseOrders.map((order) =>
-              api
-                .getSaleById(order.id)
-                .then((detail) => detail)
-                .catch(() => null)
-            )
-          );
-          
-          const enrichedOrders = baseOrders.map((order, index) => {
-            const detail = detailResults[index];
-            if (detail && detail.id === order.id) {
-              return {
-                ...order,
-                ...detail,
-                items: Array.isArray(detail.items) ? detail.items : [],
-              };
-            }
-            return {
-              ...order,
-              items: [],
-            };
-          });
-          
-          const allOrders = enrichedOrders.filter((order) => {
-            const items = Array.isArray(order.items) ? order.items : [];
-            return items.length > 0;
-          });
-          
-          setOrders(allOrders);
-        } else {
-          setOrders([]);
-        }
+        // Reload orders from server
+        await fetchOrdersWithDetails(false);
       } else {
         throw new Error(response.error || 'Failed to cancel order');
       }
