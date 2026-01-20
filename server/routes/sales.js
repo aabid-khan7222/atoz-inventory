@@ -147,7 +147,12 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
   return newUser;
 }
 
-// Get oldest available serial numbers for a product (FIFO - First In First Out)
+// UNUSED FUNCTION - Commented out but kept for reference
+// This function is defined but never called in this file.
+// Customer orders use 'PENDING' placeholder for serial numbers (admin assigns later).
+// This function IS used in adminSales.js for admin sales.
+// If you need auto-assignment for customer orders in future, uncomment this function.
+/*
 async function getOldestSerialNumbers(productId, quantity, client) {
   const result = await client.query(
     `SELECT serial_number, created_at
@@ -164,6 +169,7 @@ async function getOldestSerialNumbers(productId, quantity, client) {
 
   return result.rows.map(row => row.serial_number);
 }
+*/
 
 // Calculate GST breakdown (18% GST is included in MRP)
 function calculateGSTBreakdown(mrp, quantity) {
