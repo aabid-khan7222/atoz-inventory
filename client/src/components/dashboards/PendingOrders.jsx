@@ -293,7 +293,7 @@ const PendingOrders = () => {
   return (
     <div className="dashboard-content">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h2>Pending Orders - Serial Number Assignment</h2>
+        <h2 style={{ color: 'var(--corp-text-primary, #0f172a)' }}>Pending Orders - Serial Number Assignment</h2>
         <button
           onClick={loadPendingOrders}
           style={{
@@ -329,7 +329,7 @@ const PendingOrders = () => {
         <div style={{ display: 'grid', gridTemplateColumns: selectedOrder ? '1fr 2fr' : '1fr', gap: '1.5rem' }}>
           {/* Orders List */}
           <div style={{ background: 'var(--corp-bg-card, #ffffff)', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: 'var(--corp-shadow, 0 1px 3px rgba(0,0,0,0.1))' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Pending Orders ({orders.length})</h3>
+            <h3 style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--corp-text-primary, #0f172a)' }}>Pending Orders ({orders.length})</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {orders.map((order) => (
                 <div
@@ -343,24 +343,25 @@ const PendingOrders = () => {
                     borderRadius: '0.375rem',
                     cursor: 'pointer',
                     backgroundColor: selectedOrder?.invoice_number === order.invoice_number
-                      ? '#eff6ff'
+                      ? 'var(--corp-bg-hover, #f8fafc)'
                       : 'transparent',
+                    color: 'var(--corp-text-primary, #0f172a)',
                     transition: 'all 0.2s',
                   }}
                 >
-                  <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
+                  <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                     Invoice: {order.invoice_number || order.id}
                   </div>
-                  <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)', marginBottom: '0.25rem' }}>
                     Customer: {order.customer_name || 'N/A'}
                   </div>
-                  <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)', marginBottom: '0.25rem' }}>
                     Phone: {order.customer_mobile_number || 'N/A'}
                   </div>
-                  <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)', marginBottom: '0.25rem' }}>
                     Items: {order.item_count || 0} ({order.pending_items_count || 0} pending)
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--corp-text-muted, #64748b)' }}>
                     {formatDateTime(order.created_at)}
                   </div>
                 </div>
@@ -371,18 +372,18 @@ const PendingOrders = () => {
           {/* Order Details & Assignment */}
           {selectedOrder && (
             <div style={{ background: 'var(--corp-bg-card, #ffffff)', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: 'var(--corp-shadow, 0 1px 3px rgba(0,0,0,0.1))' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                 Assign Serial Numbers - {selectedOrder.invoice_number}
               </h3>
 
-              <div style={{ marginBottom: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.375rem' }}>
+              <div style={{ marginBottom: '1rem', padding: '1rem', background: 'var(--corp-bg-secondary, #f8fafc)', borderRadius: '0.375rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                 <div><strong>Customer:</strong> {selectedOrder.customer_name}</div>
                 <div><strong>Phone:</strong> {selectedOrder.customer_mobile_number}</div>
                 <div><strong>Date:</strong> {formatDateTime(selectedOrder.created_at)}</div>
               </div>
 
               <div style={{ marginBottom: '1.5rem' }}>
-                <h4 style={{ marginBottom: '0.75rem' }}>Order Items</h4>
+                <h4 style={{ marginBottom: '0.75rem', color: 'var(--corp-text-primary, #0f172a)' }}>Order Items</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   {Array.isArray(selectedOrder.items) && selectedOrder.items.map((item) => {
                     const isWaterProduct = (item.CATEGORY || item.category || '').toLowerCase() === 'water';
@@ -396,18 +397,19 @@ const PendingOrders = () => {
                           key={item.id}
                           style={{
                             padding: '1rem',
-                            border: '1px solid #10b981',
+                            border: '1px solid var(--corp-accent, #10b981)',
                             borderRadius: '0.375rem',
-                            background: '#f0fdf4',
+                            background: 'var(--corp-bg-secondary, #f8fafc)',
+                            color: 'var(--corp-text-primary, #0f172a)',
                           }}
                         >
-                          <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
+                          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                             {item.NAME || item.name || 'Product'}
                           </div>
-                          <div style={{ fontSize: '0.875rem', color: '#059669', marginBottom: '0.25rem' }}>
+                          <div style={{ fontSize: '0.875rem', color: 'var(--corp-accent-dark, #059669)', marginBottom: '0.25rem' }}>
                             ✓ Serial Number: {item.SERIAL_NUMBER || item.serial_number}
                           </div>
-                          <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
+                          <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)' }}>
                             Amount: ₹{parseFloat(item.final_amount || item.FINAL_AMOUNT || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
                         </div>
@@ -420,15 +422,16 @@ const PendingOrders = () => {
                           key={item.id}
                           style={{
                             padding: '1rem',
-                            border: '1px solid #94a3b8',
+                            border: '1px solid var(--corp-border, #e2e8f0)',
                             borderRadius: '0.375rem',
-                            background: '#f8fafc',
+                            background: 'var(--corp-bg-secondary, #f8fafc)',
+                            color: 'var(--corp-text-primary, #0f172a)',
                           }}
                         >
-                          <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
+                          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                             {item.NAME || item.name || 'Product'}
                           </div>
-                          <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
+                          <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)' }}>
                             Water product - No serial number required
                           </div>
                         </div>
@@ -440,15 +443,16 @@ const PendingOrders = () => {
                         key={item.id}
                         style={{
                           padding: '1rem',
-                          border: '1px solid #fbbf24',
+                          border: '1px solid var(--corp-warning, #fbbf24)',
                           borderRadius: '0.375rem',
-                          background: '#fffbeb',
+                          background: 'var(--corp-bg-secondary, #f8fafc)',
+                          color: 'var(--corp-text-primary, #0f172a)',
                         }}
                       >
-                        <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
+                        <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                           {item.NAME || item.name || 'Product'}
                         </div>
-                        <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.75rem' }}>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)', marginBottom: '0.75rem' }}>
                           SKU: {item.SKU || item.sku || 'N/A'} | Category: {item.CATEGORY || item.category || 'N/A'}
                         </div>
                         {(() => {
@@ -474,22 +478,22 @@ const PendingOrders = () => {
                             <>
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
                                 <div>
-                                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', fontWeight: '500' }}>
+                                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', fontWeight: '500', color: 'var(--corp-text-primary, #0f172a)' }}>
                                     {mrp > 0 ? 'MRP / Base Price' : 'Current Amount'}
                                   </label>
                                   <div style={{
                                     padding: '0.5rem',
                                     border: '1px solid var(--corp-border, #e2e8f0)',
                                     borderRadius: '0.375rem',
-                                    background: '#f8fafc',
+                                    background: 'var(--corp-bg-tertiary, #f1f5f9)',
                                     fontSize: '0.875rem',
-                                    color: '#64748b'
+                                    color: 'var(--corp-text-secondary, #475569)'
                                   }}>
                                     ₹{basePrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </div>
                                 </div>
                                 <div>
-                                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', fontWeight: '500' }}>
+                                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', fontWeight: '500', color: 'var(--corp-text-primary, #0f172a)' }}>
                                     Final Amount
                                   </label>
                                   <input
@@ -505,6 +509,8 @@ const PendingOrders = () => {
                                       border: '1px solid var(--corp-border, #e2e8f0)',
                                       borderRadius: '0.375rem',
                                       fontSize: '0.875rem',
+                                      background: 'var(--corp-bg-card, #ffffff)',
+                                      color: 'var(--corp-text-primary, #0f172a)',
                                     }}
                                   />
                                 </div>
@@ -514,16 +520,17 @@ const PendingOrders = () => {
                               <div style={{ 
                                 marginBottom: '0.75rem', 
                                 padding: '0.75rem', 
-                                background: '#f0f9ff', 
-                                border: '1px solid #0ea5e9', 
-                                borderRadius: '0.375rem' 
+                                background: 'var(--corp-bg-tertiary, #f1f5f9)', 
+                                border: '1px solid var(--corp-info, #3b82f6)', 
+                                borderRadius: '0.375rem',
+                                color: 'var(--corp-text-primary, #0f172a)'
                               }}>
-                                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', fontWeight: '600', color: '#0369a1' }}>
+                                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', fontWeight: '600', color: 'var(--corp-info, #3b82f6)' }}>
                                   Adjust Discount (Increase/Decrease)
                                 </label>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                                   <div>
-                                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: '#64748b' }}>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--corp-text-secondary, #475569)' }}>
                                       Discount Percentage (%)
                                     </label>
                                     <input
@@ -540,11 +547,13 @@ const PendingOrders = () => {
                                         border: '1px solid var(--corp-border, #e2e8f0)',
                                         borderRadius: '0.375rem',
                                         fontSize: '0.875rem',
+                                        background: 'var(--corp-bg-card, #ffffff)',
+                                        color: 'var(--corp-text-primary, #0f172a)',
                                       }}
                                     />
                                   </div>
                                   <div>
-                                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: '#64748b' }}>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--corp-text-secondary, #475569)' }}>
                                       Discount Amount (₹)
                                     </label>
                                     <input
@@ -561,6 +570,8 @@ const PendingOrders = () => {
                                         border: '1px solid var(--corp-border, #e2e8f0)',
                                         borderRadius: '0.375rem',
                                         fontSize: '0.875rem',
+                                        background: 'var(--corp-bg-card, #ffffff)',
+                                        color: 'var(--corp-text-primary, #0f172a)',
                                       }}
                                     />
                                   </div>
@@ -586,7 +597,7 @@ const PendingOrders = () => {
                                     <span style={{ fontWeight: '700' }}>
                                       ₹{Math.abs(currentDiscount - existingDiscount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
-                                    <span style={{ color: '#64748b' }}>
+                                    <span style={{ color: 'var(--corp-text-secondary, #475569)' }}>
                                       (Total: ₹{currentDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {currentDiscountPercent}%)
                                     </span>
                                   </div>
@@ -596,7 +607,7 @@ const PendingOrders = () => {
                           );
                         })()}
                         <div style={{ position: 'relative' }}>
-                          <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', fontWeight: '500' }}>
+                          <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', fontWeight: '500', color: 'var(--corp-text-primary, #0f172a)' }}>
                             Serial Number *
                           </label>
                           {serials.length > 0 ? (
@@ -625,11 +636,13 @@ const PendingOrders = () => {
                                 border: '1px solid var(--corp-border, #e2e8f0)',
                                 borderRadius: '0.375rem',
                                 fontSize: '0.875rem',
+                                background: 'var(--corp-bg-card, #ffffff)',
+                                color: 'var(--corp-text-primary, #0f172a)',
                               }}
                             />
                           )}
                           {serials.length > 0 && (
-                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem' }}>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--corp-text-secondary, #475569)', marginTop: '0.5rem' }}>
                               {serials.length} serial number{serials.length !== 1 ? 's' : ''} available
                             </div>
                           )}
@@ -644,9 +657,10 @@ const PendingOrders = () => {
                   <div style={{
                     marginTop: '1.5rem',
                     padding: '1rem',
-                    background: '#f0f9ff',
-                    border: '1px solid #0ea5e9',
-                    borderRadius: '0.375rem'
+                    background: 'var(--corp-bg-tertiary, #f1f5f9)',
+                    border: '1px solid var(--corp-info, #3b82f6)',
+                    borderRadius: '0.375rem',
+                    color: 'var(--corp-text-primary, #0f172a)'
                   }}>
                     {(() => {
                       // Calculate totals
@@ -678,46 +692,46 @@ const PendingOrders = () => {
                       return (
                         <>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                            <span style={{ fontWeight: '600', fontSize: '0.875rem' }}>Base Total (MRP):</span>
-                            <span style={{ fontWeight: '600', fontSize: '0.875rem' }}>
+                            <span style={{ fontWeight: '600', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>Base Total (MRP):</span>
+                            <span style={{ fontWeight: '600', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                               ₹{baseTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                           </div>
                           {existingDiscountTotal > 0.01 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontWeight: '500', fontSize: '0.875rem', color: '#64748b' }}>Existing Discount:</span>
-                              <span style={{ fontWeight: '600', fontSize: '0.875rem', color: '#059669' }}>
+                              <span style={{ fontWeight: '500', fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)' }}>Existing Discount:</span>
+                              <span style={{ fontWeight: '600', fontSize: '0.875rem', color: 'var(--corp-accent-dark, #059669)' }}>
                                 -₹{existingDiscountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </div>
                           )}
                           {totalDiscount > existingDiscountTotal + 0.01 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontWeight: '500', fontSize: '0.875rem', color: '#64748b' }}>Additional Discount:</span>
-                              <span style={{ fontWeight: '600', fontSize: '0.875rem', color: '#059669' }}>
+                              <span style={{ fontWeight: '500', fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)' }}>Additional Discount:</span>
+                              <span style={{ fontWeight: '600', fontSize: '0.875rem', color: 'var(--corp-accent-dark, #059669)' }}>
                                 -₹{(totalDiscount - existingDiscountTotal).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </div>
                           )}
                           {totalDiscount < existingDiscountTotal - 0.01 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontWeight: '500', fontSize: '0.875rem', color: '#64748b' }}>Discount Reduced:</span>
-                              <span style={{ fontWeight: '600', fontSize: '0.875rem', color: '#dc2626' }}>
+                              <span style={{ fontWeight: '500', fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)' }}>Discount Reduced:</span>
+                              <span style={{ fontWeight: '600', fontSize: '0.875rem', color: 'var(--corp-danger, #dc2626)' }}>
                                 +₹{(existingDiscountTotal - totalDiscount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </div>
                           )}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #e2e8f0' }}>
-                            <span style={{ fontWeight: '600', fontSize: '1rem' }}>Final Total:</span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--corp-border, #e2e8f0)' }}>
+                            <span style={{ fontWeight: '600', fontSize: '1rem', color: 'var(--corp-text-primary, #0f172a)' }}>Final Total:</span>
                             <span style={{ fontWeight: '700', fontSize: '1.125rem', color: '#059669' }}>
                               ₹{finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                           </div>
                           {totalDiscount > 0.01 && (
-                            <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#059669', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-accent-dark, #059669)', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                               <span style={{ fontWeight: '600' }}>Total Discount:</span>
                               <span style={{ fontWeight: '700' }}>₹{totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                              <span style={{ color: '#64748b' }}>({totalDiscountPercent}%)</span>
+                              <span style={{ color: 'var(--corp-text-secondary, #475569)' }}>({totalDiscountPercent}%)</span>
                             </div>
                           )}
                         </>

@@ -64,8 +64,10 @@ const CustomerOrders = ({ title, description }) => {
     saveFormState(STORAGE_KEY, stateToSave);
   }, [searchTerm, statusFilter, sortConfig, isInitialMount]);
 
-  const fetchOrdersWithDetails = async () => {
-    setLoading(true);
+  const fetchOrdersWithDetails = async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+    }
     setError('');
     try {
       // 1. Get list of sales for the current customer
@@ -75,7 +77,9 @@ const CustomerOrders = ({ title, description }) => {
 
       if (baseOrders.length === 0) {
         setOrders([]);
-        setLoading(false);
+        if (showLoading) {
+          setLoading(false);
+        }
         return;
       }
 
@@ -117,7 +121,9 @@ const CustomerOrders = ({ title, description }) => {
       setError(err.message || t('dashboard.orders.failedToLoad'));
       setOrders([]);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -127,7 +133,7 @@ const CustomerOrders = ({ title, description }) => {
 
     const loadOrders = async () => {
       if (isMounted) {
-        await fetchOrdersWithDetails();
+        await fetchOrdersWithDetails(true); // Show loading on initial load
       }
     };
 
@@ -137,14 +143,14 @@ const CustomerOrders = ({ title, description }) => {
     // Auto-refresh every 10 seconds to get latest updates (amount changes, serial number assignments)
     refreshInterval = setInterval(() => {
       if (isMounted) {
-        fetchOrdersWithDetails();
+        fetchOrdersWithDetails(false); // Don't show loading on refresh
       }
     }, 10000); // Refresh every 10 seconds for faster updates
 
     // Listen for storage events (when order is updated from another tab/window)
     const handleStorageChange = (e) => {
       if (e.key === 'orderUpdated' && isMounted) {
-        fetchOrdersWithDetails();
+        fetchOrdersWithDetails(false); // Don't show loading on storage update
       }
     };
     window.addEventListener('storage', handleStorageChange);
@@ -152,7 +158,7 @@ const CustomerOrders = ({ title, description }) => {
     // Listen for custom event for order updates
     const handleOrderUpdate = () => {
       if (isMounted) {
-        fetchOrdersWithDetails();
+        fetchOrdersWithDetails(false); // Don't show loading on custom event update
       }
     };
     window.addEventListener('orderUpdated', handleOrderUpdate);
