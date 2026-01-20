@@ -712,8 +712,9 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
       // Get serial numbers - Skip for water products (they don't have serial numbers)
       let serialNumbers = [];
       if (isWaterProduct) {
-        // Water products don't have serial numbers - use placeholder or null
-        serialNumbers = Array(quantity).fill(null);
+        // Water products don't have serial numbers - use placeholder 'N/A' instead of null
+        // This prevents NOT NULL constraint violation in sales_item table
+        serialNumbers = Array(quantity).fill('N/A');
       } else {
         // For non-water products, get serial numbers as usual
         if (serialNumber !== undefined && serialNumber !== null) {
