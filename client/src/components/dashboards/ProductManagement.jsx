@@ -1316,7 +1316,7 @@ await fetchProducts();
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--azb-text-primary, #1e293b)', margin: 0 }}>Add New Product</h3>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--azb-text-main)', margin: 0 }}>Add New Product</h3>
               <button
                 onClick={() => {
                   setShowAddProductModal(false);
@@ -1365,7 +1365,7 @@ await fetchProducts();
                       borderRadius: '0.375rem',
                       fontSize: '0.875rem',
                       background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
-                      color: 'var(--azb-text-primary, #0f172a)'
+                      color: 'var(--azb-text-main)'
                     }}
                     placeholder="Enter SKU"
                   />
@@ -1387,7 +1387,7 @@ await fetchProducts();
                       borderRadius: '0.375rem',
                       fontSize: '0.875rem',
                       background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
-                      color: 'var(--azb-text-primary, #0f172a)'
+                      color: 'var(--azb-text-main)'
                     }}
                     placeholder="Enter product name"
                   />
@@ -1408,7 +1408,7 @@ await fetchProducts();
                       borderRadius: '0.375rem',
                       fontSize: '0.875rem',
                       background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
-                      color: 'var(--azb-text-primary, #0f172a)'
+                      color: 'var(--azb-text-main)'
                     }}
                     placeholder="Enter series (optional)"
                   />
@@ -1447,7 +1447,7 @@ await fetchProducts();
                       borderRadius: '0.375rem',
                       fontSize: '0.875rem',
                       background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
-                      color: 'var(--azb-text-primary, #0f172a)'
+                      color: 'var(--azb-text-main)'
                     }}
                     placeholder="Enter DP (Dealer Price)"
                   />
@@ -1492,7 +1492,7 @@ await fetchProducts();
                       borderRadius: '0.375rem',
                       fontSize: '0.875rem',
                       background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
-                      color: 'var(--azb-text-primary, #0f172a)'
+                      color: 'var(--azb-text-main)'
                     }}
                     placeholder="Enter MRP"
                   />
@@ -1512,7 +1512,7 @@ await fetchProducts();
                     margin: '0 0 1rem 0', 
                     fontSize: '1rem', 
                     fontWeight: 600, 
-                    color: 'var(--azb-text-primary, #1e293b)' 
+                    color: 'var(--azb-text-main)' 
                   }}>
                     B2C Pricing (Regular Customers)
                   </h4>
@@ -1547,7 +1547,7 @@ await fetchProducts();
                         borderRadius: '0.375rem',
                         fontSize: '0.875rem',
                         background: 'var(--azb-bg-card, #ffffff)',
-                        color: 'var(--azb-text-primary, #0f172a)'
+                        color: 'var(--azb-text-main)'
                       }}
                       placeholder="Enter B2C selling price"
                     />
@@ -1586,7 +1586,7 @@ await fetchProducts();
                           borderRadius: '0.375rem',
                           fontSize: '0.875rem',
                           background: 'var(--azb-bg-card, #ffffff)',
-                          color: 'var(--azb-text-primary, #0f172a)'
+                          color: 'var(--azb-text-main)'
                         }}
                         placeholder="Enter B2C discount %"
                       />
@@ -1621,7 +1621,7 @@ await fetchProducts();
                           borderRadius: '0.375rem',
                           fontSize: '0.875rem',
                           background: 'var(--azb-bg-card, #ffffff)',
-                          color: 'var(--azb-text-primary, #0f172a)'
+                          color: 'var(--azb-text-main)'
                         }}
                         placeholder="Enter B2C discount amount"
                       />
@@ -1634,7 +1634,7 @@ await fetchProducts();
                       background: 'var(--azb-bg-hover, #ecfdf5)', 
                       borderRadius: '0.25rem',
                       fontSize: '0.875rem',
-                      color: 'var(--azb-text-primary, #065f46)',
+                      color: 'var(--azb-text-main)',
                       border: '1px solid var(--azb-border-subtle, rgba(6, 95, 70, 0.2))'
                     }}>
                       <strong>B2C Selling Price:</strong> ₹{(
@@ -1655,7 +1655,7 @@ await fetchProducts();
                     margin: '0 0 1rem 0', 
                     fontSize: '1rem', 
                     fontWeight: 600, 
-                    color: 'var(--azb-text-primary, #1e293b)' 
+                    color: 'var(--azb-text-main)' 
                   }}>
                     B2B Pricing (Wholesale Customers)
                   </h4>
@@ -1690,7 +1690,7 @@ await fetchProducts();
                         borderRadius: '0.375rem',
                         fontSize: '0.875rem',
                         background: 'var(--azb-bg-card, #ffffff)',
-                        color: 'var(--azb-text-primary, #0f172a)'
+                        color: 'var(--azb-text-main)'
                       }}
                       placeholder="Enter B2B selling price"
                     />
@@ -1729,7 +1729,7 @@ await fetchProducts();
                           borderRadius: '0.375rem',
                           fontSize: '0.875rem',
                           background: 'var(--azb-bg-card, #ffffff)',
-                          color: 'var(--azb-text-primary, #0f172a)'
+                          color: 'var(--azb-text-main)'
                         }}
                         placeholder="Enter B2B discount %"
                       />
@@ -1764,7 +1764,7 @@ await fetchProducts();
                           borderRadius: '0.375rem',
                           fontSize: '0.875rem',
                           background: 'var(--azb-bg-card, #ffffff)',
-                          color: 'var(--azb-text-primary, #0f172a)'
+                          color: 'var(--azb-text-main)'
                         }}
                         placeholder="Enter B2B discount amount"
                       />
@@ -1777,7 +1777,7 @@ await fetchProducts();
                       background: 'var(--azb-bg-hover, #ecfdf5)', 
                       borderRadius: '0.25rem',
                       fontSize: '0.875rem',
-                      color: 'var(--azb-text-primary, #065f46)',
+                      color: 'var(--azb-text-main)',
                       border: '1px solid var(--azb-border-subtle, rgba(6, 95, 70, 0.2))'
                     }}>
                       <strong>B2B Selling Price:</strong> ₹{(
@@ -1803,7 +1803,7 @@ await fetchProducts();
                         borderRadius: '0.375rem',
                         fontSize: '0.875rem',
                         background: 'var(--azb-bg-card, #ffffff)',
-                        color: 'var(--azb-text-primary, #0f172a)'
+                        color: 'var(--azb-text-main)'
                       }}
                       placeholder="e.g., 2.5Ah"
                     />
@@ -1824,7 +1824,7 @@ await fetchProducts();
                         borderRadius: '0.375rem',
                         fontSize: '0.875rem',
                         background: 'var(--azb-bg-card, #ffffff)',
-                        color: 'var(--azb-text-primary, #0f172a)'
+                        color: 'var(--azb-text-main)'
                       }}
                       placeholder="e.g., 24F+24P"
                     />
@@ -1859,7 +1859,7 @@ await fetchProducts();
                         borderRadius: '0.375rem',
                         fontSize: '0.875rem',
                         background: 'var(--azb-bg-card, #ffffff)',
-                        color: 'var(--azb-text-primary, #0f172a)'
+                        color: 'var(--azb-text-main)'
                       }}
                       placeholder="Enter initial quantity (0 if none)"
                     />
@@ -1885,7 +1885,7 @@ await fetchProducts();
                         fontSize: '0.875rem',
                         opacity: parseInt(newProduct.qty) <= 0 ? 0.5 : 1,
                         background: 'var(--azb-bg-card, #ffffff)',
-                        color: 'var(--azb-text-primary, #0f172a)'
+                        color: 'var(--azb-text-main)'
                       }}
                     />
                   </div>
@@ -1908,7 +1908,7 @@ await fetchProducts();
                           borderRadius: '0.375rem',
                           fontSize: '0.875rem',
                           background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
-                          color: 'var(--azb-text-primary, #0f172a)'
+                          color: 'var(--azb-text-main)'
                         }}
                         placeholder="Enter supplier or vendor name (optional)"
                       />
@@ -1937,7 +1937,7 @@ await fetchProducts();
                                 borderRadius: '0.25rem',
                                 fontSize: '0.875rem',
                                 background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
-                                color: 'var(--azb-text-primary, #0f172a)'
+                                color: 'var(--azb-text-main)'
                               }}
                               placeholder={`Serial Number ${index + 1}${parseInt(newProduct.qty) > 0 ? ' *' : ''}`}
                             />
@@ -1969,7 +1969,7 @@ await fetchProducts();
                   color: 'var(--azb-text-secondary, #475569)',
                   border: '1px solid var(--azb-border-subtle, rgba(148, 163, 184, 0.2))'
                 }}>
-                  <strong style={{ color: 'var(--azb-text-primary, #1e293b)' }}>Category:</strong> <span style={{ color: 'var(--azb-text-secondary, #64748b)' }}>{categories.find(c => c.id === selectedCategory)?.name || selectedCategory}</span>
+                  <strong style={{ color: 'var(--azb-text-main)' }}>Category:</strong> <span style={{ color: 'var(--azb-text-secondary)' }}>{categories.find(c => c.id === selectedCategory)?.name || selectedCategory}</span>
                   <br />
                   <small style={{ color: 'var(--azb-text-muted, #64748b)' }}>Product will be added to the currently selected category</small>
                 </div>
