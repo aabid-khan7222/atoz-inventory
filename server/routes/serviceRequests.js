@@ -477,5 +477,198 @@ router.patch('/:id/status', requireAuth, requireSuperAdminOrAdmin, async (req, r
   }
 });
 
+// Admin/Super Admin: Create service request for customer (with optional new customer creation)
+router.post('/admin', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+  try {
+    const {
+      customerId,
+      isNewCustomer,
+      customerName,
+      customerPhone,
+      customerEmail,
+      customerPassword,
+      serviceType,
+      vehicleName,
+      fuelType,
+      vehicleNumber,
+      inverterVa,
+      inverterVoltage,
+      batteryAmpereRating,
+      notes
+    } = req.body;
+
+    if (!SERVICE_TYPES[serviceType]) {
+      return res.status(400).json({ error: 'Invalid service type' });
+    }
+
+    // Per-service validation
+    if (['battery_testing', 'jump_start'].includes(serviceType)) {
+      if (!vehicleName || !fuelType || !vehicleNumber) {
+        return res.status(400).json({ error: 'Vehicle name, fuel type and vehicle number are required' });
+      }
+      if (!FUEL_TYPES.includes((fuelType || '').toLowerCase())) {
+        return res.status(400).json({ error: 'Invalid fuel type' });
+      }
+    }
+
+    if (serviceType === 'inverter_repair') {
+      if (!inverterVa || !inverterVoltage) {
+        return res.status(400).json({ error: 'Inverter VA and voltage are required' });
+      }
+    }
+
+    if (serviceType === 'inverter_battery') {
+      if (!batteryAmpereRating) {
+        return res.status(400).json({ error: 'Battery ampere rating is required' });
+      }
+    }
+
+    let userId = customerId;
+    let customerNameFinal = customerName;
+    let customerPhoneFinal = customerPhone;
+    let customerEmailFinal = customerEmail;
+
+    // If new customer, create user and customer profile
+    if (isNewCustomer) {
+      if (!customerName || !customerPhone || !customerEmail || !customerPassword) {
+        return res.status(400).json({ error: 'Customer name, phone, email and password are required for new customer' });
+      }
+
+      // Check if customer already exists
+      const existingUser = await db.query(
+        `SELECT id FROM users WHERE email = $1 OR phone = $2 LIMIT 1`,
+        [customerEmail.toLowerCase(), customerPhone]
+      );
+
+      if (existingUser.rows.length > 0) {
+        return res.status(400).json({ error: 'Customer with this email or phone already exists' });
+      }
+
+      // Get customer role_id
+      const roleResult = await db.query(
+        `SELECT id FROM roles WHERE LOWER(role_name) = 'customer' LIMIT 1`
+      );
+
+      if (!roleResult.rows.length) {
+        return res.status(500).json({ error: 'Customer role not found' });
+      }
+
+      const customerRoleId = roleResult.rows[0].id;
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(customerPassword, 10);
+
+      // Create user
+      const userResult = await db.query(
+        `INSERT INTO users (
+          full_name, email, phone, password, role_id, is_active
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, email, phone`,
+        [customerName.trim(), customerEmail.toLowerCase(), customerPhone, hashedPassword, customerRoleId, true]
+      );
+
+      userId = userResult.rows[0].id;
+      customerNameFinal = customerName;
+      customerPhoneFinal = customerPhone;
+      customerEmailFinal = customerEmail.toLowerCase();
+
+      // Create customer profile
+      await db.query(
+        `INSERT INTO customer_profiles (
+          user_id, full_name, email, phone, is_business_customer
+        ) VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (user_id) DO UPDATE SET
+          full_name = EXCLUDED.full_name,
+          email = EXCLUDED.email,
+          phone = EXCLUDED.phone`,
+        [userId, customerNameFinal, customerEmailFinal, customerPhoneFinal, false]
+      );
+    } else {
+      // Existing customer - verify and get details
+      if (!customerId) {
+        return res.status(400).json({ error: 'Customer ID is required for existing customer' });
+      }
+
+      const customerResult = await db.query(
+        `SELECT u.id, u.full_name, u.phone, u.email, cp.full_name as profile_name, cp.phone as profile_phone, cp.email as profile_email
+         FROM users u
+         LEFT JOIN customer_profiles cp ON u.id = cp.user_id
+         WHERE u.id = $1 AND u.role_id >= 3
+         LIMIT 1`,
+        [customerId]
+      );
+
+      if (!customerResult.rows.length) {
+        return res.status(404).json({ error: 'Customer not found' });
+      }
+
+      const customer = customerResult.rows[0];
+      userId = customer.id;
+      customerNameFinal = customer.profile_name || customer.full_name;
+      customerPhoneFinal = customer.profile_phone || customer.phone;
+      customerEmailFinal = customer.profile_email || customer.email;
+    }
+
+    // Create service request
+    const insertResult = await db.query(
+      `INSERT INTO service_requests (
+        user_id,
+        customer_name,
+        customer_phone,
+        customer_email,
+        service_type,
+        vehicle_name,
+        fuel_type,
+        vehicle_number,
+        inverter_va,
+        inverter_voltage,
+        battery_ampere_rating,
+        notes,
+        status,
+        created_at,
+        updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'requested', NOW(), NOW()
+      ) RETURNING *`,
+      [
+        userId,
+        customerNameFinal,
+        customerPhoneFinal,
+        customerEmailFinal,
+        serviceType,
+        vehicleName || null,
+        fuelType ? fuelType.toLowerCase() : null,
+        vehicleNumber || null,
+        inverterVa || null,
+        inverterVoltage || null,
+        batteryAmpereRating || null,
+        notes || null
+      ]
+    );
+
+    const service = insertResult.rows[0];
+
+    // Notify customer
+    try {
+      if (userId) {
+        await createNotification(
+          userId,
+          'New Service Request',
+          `A service request has been created for you: ${SERVICE_TYPES[serviceType]}. Our team will contact you soon.`,
+          'info',
+          null
+        );
+      }
+    } catch (notifErr) {
+      console.warn('Failed to notify customer about service request:', notifErr);
+    }
+
+    res.status(201).json({ success: true, service });
+  } catch (err) {
+    console.error('Error creating service request by admin:', err);
+    res.status(500).json({ error: 'Failed to create service request' });
+  }
+});
+
 module.exports = router;
 
