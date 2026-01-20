@@ -358,9 +358,38 @@ const CustomerOrders = ({ title, description }) => {
     if (!result.isConfirmed) return;
 
     try {
-      // Check if order is already confirmed (has serial numbers)
-      if (isOrderConfirmed(order)) {
-        await Swal.fire('Error', 'Cannot cancel order. Order has already been confirmed and serial numbers have been assigned.', 'error');
+      // Check if order is already confirmed (has serial numbers assigned, not PENDING)
+      // Use isOrderPending to check - if order is NOT pending, it means it's confirmed
+      const items = Array.isArray(order.items) ? order.items : [];
+      if (items.length === 0) {
+        await Swal.fire('Error', 'Order details not available. Please refresh and try again.', 'error');
+        return;
+      }
+      
+      // Check if order has any pending items - if not, it's confirmed and can't be cancelled
+      const hasPendingItems = items.some((item) => {
+        const isWaterProduct = (item.CATEGORY || item.category || '').toLowerCase() === 'water';
+        if (isWaterProduct) return false; // Water products don't need serial numbers
+        const serialNum = item.SERIAL_NUMBER || item.serial_number;
+        // Check if serial number is PENDING or NULL
+        return !serialNum || serialNum === 'PENDING' || serialNum === 'N/A';
+      });
+      
+      if (!hasPendingItems) {
+        await Swal.fire({
+          title: 'Error',
+          html: `
+            <div style="text-align: center; padding: 1rem 0;">
+              <div style="font-size: 3rem; color: #dc2626; margin-bottom: 1rem;">✕</div>
+              <p style="font-size: 1rem; color: #0f172a; margin: 0;">
+                Cannot cancel order. Order has already been confirmed and serial numbers have been assigned.
+              </p>
+            </div>
+          `,
+          icon: 'error',
+          confirmButtonColor: '#dc2626',
+          confirmButtonText: 'OK'
+        });
         return;
       }
 
@@ -583,8 +612,8 @@ const CustomerOrders = ({ title, description }) => {
                   const productCategory = item.CATEGORY || item.category || item.product_category || null;
                   const quantity = item.QUANTITY || item.quantity || 1;
                   
-                  // Check if item is confirmed (has serial number assigned)
-                  const isItemConfirmed = serial !== null && serial.trim() !== '';
+                  // Check if item is confirmed (has serial number assigned, not PENDING)
+                  const isItemConfirmed = serial !== null && serial.trim() !== '' && serial.trim() !== 'PENDING' && serial.trim() !== 'N/A';
                   
                   const mrp = parseFloat(item.MRP || item.mrp || 0);
                   const finalAmount = parseFloat(item.final_amount || item.FINAL_AMOUNT || item.finalAmount || 0);

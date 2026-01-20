@@ -1373,7 +1373,7 @@ router.delete('/cancel/:invoiceNumber', requireAuth, async (req, res) => {
         invoice_number,
         customer_id,
         COUNT(*) as item_count,
-        COUNT(CASE WHEN SERIAL_NUMBER IS NOT NULL THEN 1 END) as confirmed_items_count
+        COUNT(CASE WHEN SERIAL_NUMBER IS NOT NULL AND SERIAL_NUMBER != 'PENDING' AND SERIAL_NUMBER != 'N/A' THEN 1 END) as confirmed_items_count
       FROM sales_item 
       WHERE invoice_number = $1 AND customer_id = $2
       GROUP BY invoice_number, customer_id`,
