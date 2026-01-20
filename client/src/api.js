@@ -1549,6 +1549,7 @@ const api = {
   assignSerialNumbers,
   getAvailableSerialsForProduct,
   cancelOrder,
+  cancelOrderByAdmin,
   addStockWithSerials,
   getAvailableSerials,
   sellStock,
