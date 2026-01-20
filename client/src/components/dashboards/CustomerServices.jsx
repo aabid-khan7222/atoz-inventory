@@ -436,6 +436,8 @@ export default function CustomerServices() {
                         >
                           Cancel
                         </button>
+                      ) : item.status === 'completed' ? (
+                        <span style={{ color: '#059669', fontSize: '0.875rem', fontWeight: '500' }}>✓ Completed</span>
                       ) : (
                         <span style={{ color: '#64748b', fontSize: '0.875rem' }}>-</span>
                       )}

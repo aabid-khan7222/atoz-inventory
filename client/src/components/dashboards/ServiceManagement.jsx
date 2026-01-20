@@ -655,7 +655,8 @@ const ServiceManagement = () => {
                               color: '#ffffff',
                               fontSize: '0.875rem',
                               cursor: 'pointer',
-                              fontWeight: '500'
+                              fontWeight: '500',
+                              minWidth: '100px'
                             }}
                           >
                             Confirm
@@ -670,7 +671,8 @@ const ServiceManagement = () => {
                               color: '#ffffff',
                               fontSize: '0.875rem',
                               cursor: 'pointer',
-                              fontWeight: '500'
+                              fontWeight: '500',
+                              minWidth: '100px'
                             }}
                           >
                             Cancel
@@ -687,10 +689,11 @@ const ServiceManagement = () => {
                             background: 'var(--corp-bg-card, #ffffff)',
                             color: 'var(--corp-text-primary, #0f172a)',
                             fontSize: '0.875rem',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            minWidth: '150px'
                           }}
                         >
-                          {STATUS_VALUES.map(status => (
+                          {STATUS_VALUES.filter(s => s !== 'requested').map(status => (
                             <option key={status} value={status}>
                               {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
                             </option>
