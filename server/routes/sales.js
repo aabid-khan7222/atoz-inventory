@@ -869,9 +869,9 @@ router.get('/pending/orders', requireAuth, requireAdmin, async (req, res) => {
         MIN(created_at) as created_at,
         MAX(updated_at) as updated_at,
         COUNT(*) as item_count,
-        COUNT(CASE WHEN SERIAL_NUMBER IS NULL THEN 1 END) as pending_items_count
+        COUNT(CASE WHEN SERIAL_NUMBER IS NULL OR SERIAL_NUMBER = 'PENDING' THEN 1 END) as pending_items_count
       FROM sales_item
-      WHERE SERIAL_NUMBER IS NULL
+      WHERE SERIAL_NUMBER IS NULL OR SERIAL_NUMBER = 'PENDING'
       GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number,
                customer_vehicle_number, sales_type, sales_type_id`;
     
@@ -884,7 +884,7 @@ router.get('/pending/orders', requireAuth, requireAdmin, async (req, res) => {
     }
     
     query += `
-      HAVING COUNT(CASE WHEN SERIAL_NUMBER IS NULL THEN 1 END) > 0
+      HAVING COUNT(CASE WHEN SERIAL_NUMBER IS NULL OR SERIAL_NUMBER = 'PENDING' THEN 1 END) > 0
       ORDER BY MIN(created_at) DESC`;
     
     const result = await db.query(query);
@@ -1004,10 +1004,11 @@ router.put('/pending/orders/:invoiceNumber/assign-serial', requireAuth, requireA
     }
 
     // Validate that the order exists and has pending items
+    // Check for both NULL and 'PENDING' placeholder values
     const orderCheck = await client.query(
       `SELECT id, invoice_number, product_id, SERIAL_NUMBER, NAME, SKU
        FROM sales_item 
-       WHERE invoice_number = $1 AND SERIAL_NUMBER IS NULL`,
+       WHERE invoice_number = $1 AND (SERIAL_NUMBER IS NULL OR SERIAL_NUMBER = 'PENDING')`,
       [invoiceNumber]
     );
 
@@ -1026,10 +1027,11 @@ router.put('/pending/orders/:invoiceNumber/assign-serial', requireAuth, requireA
       }
 
       // Verify the sales_item belongs to this invoice and doesn't have a serial number yet
+      // Check for both NULL and 'PENDING' placeholder values
       const itemCheck = await client.query(
         `SELECT id, product_id, SERIAL_NUMBER, invoice_number, final_amount, mrp as MRP
          FROM sales_item 
-         WHERE id = $1 AND invoice_number = $2 AND SERIAL_NUMBER IS NULL`,
+         WHERE id = $1 AND invoice_number = $2 AND (SERIAL_NUMBER IS NULL OR SERIAL_NUMBER = 'PENDING')`,
         [sales_item_id, invoiceNumber]
       );
 
@@ -1180,7 +1182,7 @@ router.put('/pending/orders/:invoiceNumber/assign-serial', requireAuth, requireA
     const remainingPending = await db.query(
       `SELECT COUNT(*) as count
        FROM sales_item
-       WHERE invoice_number = $1 AND SERIAL_NUMBER IS NULL`,
+       WHERE invoice_number = $1 AND (SERIAL_NUMBER IS NULL OR SERIAL_NUMBER = 'PENDING')`,
       [invoiceNumber]
     );
 
