@@ -1357,13 +1357,20 @@ const ServiceManagement = () => {
                   }}
                   style={{
                     padding: '0.75rem 1.5rem',
-                    border: '1px solid #cbd5e1',
+                    border: '1px solid var(--corp-border, #cbd5e1)',
                     borderRadius: '6px',
-                    background: '#ffffff',
-                    color: '#64748b',
+                    background: 'var(--corp-bg-card, #ffffff)',
+                    color: 'var(--corp-text-secondary, #64748b)',
                     cursor: 'pointer',
                     fontSize: '0.875rem',
-                    fontWeight: '500'
+                    fontWeight: '500',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = 'var(--corp-bg-hover, #f8fafc)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = 'var(--corp-bg-card, #ffffff)';
                   }}
                 >
                   Cancel
@@ -1375,11 +1382,22 @@ const ServiceManagement = () => {
                     padding: '0.75rem 1.5rem',
                     border: 'none',
                     borderRadius: '6px',
-                    background: submittingService ? '#94a3b8' : '#059669',
+                    background: submittingService ? 'var(--corp-text-muted, #94a3b8)' : '#059669',
                     color: '#ffffff',
                     cursor: submittingService ? 'not-allowed' : 'pointer',
                     fontSize: '0.875rem',
-                    fontWeight: '600'
+                    fontWeight: '600',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!submittingService && !e.target.disabled) {
+                      e.target.style.background = '#047857';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!submittingService && !e.target.disabled) {
+                      e.target.style.background = '#059669';
+                    }
                   }}
                 >
                   {submittingService ? 'Creating...' : 'Create Service'}
