@@ -1907,7 +1907,7 @@ await fetchProducts();
                           border: '1px solid var(--azb-border-subtle, #cbd5e1)',
                           borderRadius: '0.375rem',
                           fontSize: '0.875rem',
-                          background: 'var(--azb-bg-card, #ffffff)',
+                          background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
                           color: 'var(--azb-text-primary, #0f172a)'
                         }}
                         placeholder="Enter supplier or vendor name (optional)"
@@ -1919,7 +1919,7 @@ await fetchProducts();
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--azb-text-secondary, #475569)' }}>
                           Serial Numbers ({newProduct.serial_numbers?.filter(sn => sn.trim() !== '').length || 0} of {newProduct.qty})
                         </label>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto', padding: '0.5rem', border: '1px solid var(--azb-border-subtle, #cbd5e1)', borderRadius: '0.375rem', background: 'var(--azb-bg-card, #ffffff)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto', padding: '0.5rem', border: '1px solid var(--azb-border-subtle, #cbd5e1)', borderRadius: '0.375rem', background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))' }}>
                           {(newProduct.serial_numbers || []).map((serial, index) => (
                             <input
                               key={index}
@@ -1936,7 +1936,7 @@ await fetchProducts();
                                 border: '1px solid var(--azb-border-subtle, #cbd5e1)',
                                 borderRadius: '0.25rem',
                                 fontSize: '0.875rem',
-                                background: 'var(--azb-bg-card, #ffffff)',
+                                background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
                                 color: 'var(--azb-text-primary, #0f172a)'
                               }}
                               placeholder={`Serial Number ${index + 1}${parseInt(newProduct.qty) > 0 ? ' *' : ''}`}
@@ -1963,14 +1963,15 @@ await fetchProducts();
 
                 <div style={{ 
                   padding: '0.75rem', 
-                  background: 'var(--azb-bg-tertiary, #f1f5f9)', 
+                  background: 'var(--azb-bg-hover, #f1f5f9)', 
                   borderRadius: '0.375rem',
                   fontSize: '0.875rem',
-                  color: 'var(--azb-text-secondary, #475569)'
+                  color: 'var(--azb-text-secondary, #475569)',
+                  border: '1px solid var(--azb-border-subtle, rgba(148, 163, 184, 0.2))'
                 }}>
-                  <strong>Category:</strong> {categories.find(c => c.id === selectedCategory)?.name || selectedCategory}
+                  <strong style={{ color: 'var(--azb-text-primary, #1e293b)' }}>Category:</strong> <span style={{ color: 'var(--azb-text-secondary, #64748b)' }}>{categories.find(c => c.id === selectedCategory)?.name || selectedCategory}</span>
                   <br />
-                  <small>Product will be added to the currently selected category</small>
+                  <small style={{ color: 'var(--azb-text-muted, #64748b)' }}>Product will be added to the currently selected category</small>
                 </div>
 
               </div>
@@ -1995,7 +1996,7 @@ await fetchProducts();
                 style={{
                   flex: 1,
                   padding: '0.75rem',
-                  background: 'var(--azb-bg-tertiary, #f1f5f9)',
+                  background: 'var(--azb-bg-hover, #f1f5f9)',
                   color: 'var(--azb-text-secondary, #475569)',
                   border: '1px solid var(--azb-border-subtle, #e2e8f0)',
                   borderRadius: '0.375rem',
