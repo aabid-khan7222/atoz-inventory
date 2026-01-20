@@ -1179,6 +1179,8 @@ router.get('/sales-items', requireAuth, requireSuperAdminOrAdmin, async (req, re
     }
     
     query += ` WHERE 1=1`;
+    // Only show confirmed sales items (exclude pending orders - those are in pending orders section)
+    query += ` AND (si.SERIAL_NUMBER IS NOT NULL AND si.SERIAL_NUMBER != 'PENDING')`;
     const params = [];
     let paramCount = 1;
 

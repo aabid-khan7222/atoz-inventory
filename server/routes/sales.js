@@ -592,6 +592,7 @@ router.post('/', requireAuth, async (req, res) => {
       }
 
       // Create notification for customer if they are logged in
+      // Note: Order is NOT confirmed yet - it's pending admin approval
       if (finalCustomerId && sale) {
         const totalItems = itemsResult.rows.length;
         const itemNames = itemsResult.rows.slice(0, 2).map(item => item.NAME || 'Product').join(', ');
@@ -600,9 +601,9 @@ router.post('/', requireAuth, async (req, res) => {
         
         await createNotification(
           finalCustomerId,
-          'Order Confirmed',
-          `Your order has been confirmed! Invoice: ${sale.invoice_number}. Items: ${itemNames}${moreItems}. Total: ₹${totalAmount.toLocaleString('en-IN')}`,
-          'success',
+          'Order Received - Pending Confirmation',
+          `Your order has been received! Invoice: ${sale.invoice_number}. Items: ${itemNames}${moreItems}. Total: ₹${totalAmount.toLocaleString('en-IN')}. Your order is pending admin confirmation and serial number assignment. You will be notified once it's confirmed.`,
+          'info',
           null
         );
       }
@@ -691,11 +692,14 @@ router.get('/', requireAuth, async (req, res) => {
     const params = [];
     let paramCount = 1;
 
-    // If customer role, only show their sales
+    // If customer role, only show their sales AND only show confirmed orders (no pending serial numbers)
     if (req.user.role_id >= 3) {
       query += ` AND customer_id = $${paramCount}`;
       params.push(req.user.id);
       paramCount++;
+      // For customers: Only show orders where ALL items have been assigned serial numbers
+      // Exclude orders with SERIAL_NUMBER = 'PENDING' or NULL (water products with 'N/A' are allowed)
+      query += ` AND (SERIAL_NUMBER IS NOT NULL AND SERIAL_NUMBER != 'PENDING')`;
     } else if (customer_id) {
       // Admin/Super Admin can filter by customer
       query += ` AND customer_id = $${paramCount}`;
@@ -713,6 +717,12 @@ router.get('/', requireAuth, async (req, res) => {
     
     if (hasBusinessFields) {
       query += `, customer_business_name, customer_gst_number, customer_business_address`;
+    }
+    
+    // For customers: Only show invoices where ALL items are confirmed (no pending items)
+    if (req.user.role_id >= 3) {
+      query += `
+      HAVING COUNT(CASE WHEN SERIAL_NUMBER IS NULL OR SERIAL_NUMBER = 'PENDING' THEN 1 END) = 0`;
     }
     
     query += `
@@ -799,6 +809,21 @@ router.get('/:id', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     
+    // For customers: Check if order has any pending items - if so, don't show it
+    if (req.user.role_id >= 3) {
+      const pendingCheck = await db.query(
+        `SELECT COUNT(*) as pending_count
+         FROM sales_item 
+         WHERE invoice_number = $1 AND (SERIAL_NUMBER IS NULL OR SERIAL_NUMBER = 'PENDING')`,
+        [invoiceNumber]
+      );
+      
+      if (parseInt(pendingCheck.rows[0].pending_count) > 0) {
+        // Order is still pending - customer shouldn't see it
+        return res.status(404).json({ error: 'Order not found or not yet confirmed' });
+      }
+    }
+    
     // Build SELECT query dynamically for items
     let selectCols = `id, customer_id, invoice_number, customer_name, customer_mobile_number,
         customer_vehicle_number, sales_type, sales_type_id, purchase_date,
@@ -814,10 +839,17 @@ router.get('/:id', requireAuth, async (req, res) => {
       selectCols += `, customer_business_name, customer_gst_number, customer_business_address`;
     }
     
+    // For customers: Only show confirmed items (exclude pending)
+    // For admin: Show all items
+    let itemsWhereClause = `invoice_number = $1`;
+    if (req.user.role_id >= 3) {
+      itemsWhereClause += ` AND (SERIAL_NUMBER IS NOT NULL AND SERIAL_NUMBER != 'PENDING')`;
+    }
+    
     // Exclude commission data from customer-facing response
     const itemsResult = await db.query(
       `SELECT ${selectCols}
-      FROM sales_item WHERE invoice_number = $1 ORDER BY id`,
+      FROM sales_item WHERE ${itemsWhereClause} ORDER BY id`,
       [invoiceNumber]
     );
 
