@@ -890,30 +890,38 @@ const ServiceManagement = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
+          background: 'rgba(0, 0, 0, 0.6)',
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'center',
-          zIndex: 1000,
-          padding: '2rem'
+          zIndex: 10000,
+          padding: '2rem',
+          paddingTop: '4rem',
+          overflowY: 'auto'
         }}>
           <div style={{
-            background: '#ffffff',
+            background: 'var(--corp-bg-card, #ffffff)',
             borderRadius: '12px',
             width: '100%',
             maxWidth: '800px',
-            maxHeight: '90vh',
+            maxHeight: 'calc(100vh - 8rem)',
             overflow: 'auto',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            marginTop: '2rem',
+            marginBottom: '2rem'
           }}>
             <div style={{
               padding: '1.5rem',
-              borderBottom: '1px solid #e2e8f0',
+              borderBottom: '1px solid var(--corp-border, #e2e8f0)',
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              position: 'sticky',
+              top: 0,
+              background: 'var(--corp-bg-card, #ffffff)',
+              zIndex: 1
             }}>
-              <h3 style={{ margin: 0 }}>Create New Service</h3>
+              <h3 style={{ margin: 0, color: 'var(--corp-text-primary, #0f172a)' }}>Create New Service</h3>
               <button
                 onClick={() => {
                   setShowNewServiceModal(false);
@@ -926,7 +934,20 @@ const ServiceManagement = () => {
                   border: 'none',
                   fontSize: '1.5rem',
                   cursor: 'pointer',
-                  color: '#64748b'
+                  color: 'var(--corp-text-secondary, #64748b)',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = 'var(--corp-bg-hover, #f8fafc)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'transparent';
                 }}
               >
                 ×
@@ -936,7 +957,7 @@ const ServiceManagement = () => {
             <form onSubmit={handleNewServiceSubmit} style={{ padding: '1.5rem' }}>
               {/* Customer Selection */}
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: 'var(--corp-text-primary, #0f172a)' }}>
                   Customer
                 </label>
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
@@ -955,12 +976,13 @@ const ServiceManagement = () => {
                     }}
                     style={{
                       padding: '0.5rem 1rem',
-                      border: `1px solid ${!isNewCustomer ? '#059669' : '#cbd5e1'}`,
+                      border: `1px solid ${!isNewCustomer ? '#059669' : 'var(--corp-border, #cbd5e1)'}`,
                       borderRadius: '6px',
-                      background: !isNewCustomer ? '#059669' : '#ffffff',
-                      color: !isNewCustomer ? '#ffffff' : '#64748b',
+                      background: !isNewCustomer ? '#059669' : 'var(--corp-bg-card, #ffffff)',
+                      color: !isNewCustomer ? '#ffffff' : 'var(--corp-text-secondary, #64748b)',
                       cursor: 'pointer',
-                      fontSize: '0.875rem'
+                      fontSize: '0.875rem',
+                      transition: 'all 0.2s'
                     }}
                   >
                     Existing Customer
@@ -974,12 +996,13 @@ const ServiceManagement = () => {
                     }}
                     style={{
                       padding: '0.5rem 1rem',
-                      border: `1px solid ${isNewCustomer ? '#059669' : '#cbd5e1'}`,
+                      border: `1px solid ${isNewCustomer ? '#059669' : 'var(--corp-border, #cbd5e1)'}`,
                       borderRadius: '6px',
-                      background: isNewCustomer ? '#059669' : '#ffffff',
-                      color: isNewCustomer ? '#ffffff' : '#64748b',
+                      background: isNewCustomer ? '#059669' : 'var(--corp-bg-card, #ffffff)',
+                      color: isNewCustomer ? '#ffffff' : 'var(--corp-text-secondary, #64748b)',
                       cursor: 'pointer',
-                      fontSize: '0.875rem'
+                      fontSize: '0.875rem',
+                      transition: 'all 0.2s'
                     }}
                   >
                     New Customer
@@ -996,18 +1019,21 @@ const ServiceManagement = () => {
                       style={{
                         width: '100%',
                         padding: '0.625rem 0.75rem',
-                        border: '1px solid #cbd5e1',
+                        border: '1px solid var(--corp-border, #cbd5e1)',
                         borderRadius: '6px',
                         fontSize: '0.875rem',
-                        marginBottom: '0.5rem'
+                        marginBottom: '0.5rem',
+                        background: 'var(--corp-bg-card, #ffffff)',
+                        color: 'var(--corp-text-primary, #0f172a)'
                       }}
                     />
                     {customers.length > 0 && (
                       <div style={{
                         maxHeight: '200px',
                         overflowY: 'auto',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '6px'
+                        border: '1px solid var(--corp-border, #e2e8f0)',
+                        borderRadius: '6px',
+                        background: 'var(--corp-bg-card, #ffffff)'
                       }}>
                         {customers.map((customer) => (
                           <div
@@ -1016,23 +1042,24 @@ const ServiceManagement = () => {
                             style={{
                               padding: '0.75rem',
                               cursor: 'pointer',
-                              borderBottom: '1px solid #f1f5f9',
-                              background: selectedCustomer?.id === customer.id ? '#f0fdf4' : '#ffffff',
-                              transition: 'background 0.2s'
+                              borderBottom: '1px solid var(--corp-border-light, #f1f5f9)',
+                              background: selectedCustomer?.id === customer.id ? 'var(--corp-accent, #10b981)' : 'var(--corp-bg-card, #ffffff)',
+                              transition: 'background 0.2s',
+                              color: selectedCustomer?.id === customer.id ? '#ffffff' : 'var(--corp-text-primary, #0f172a)'
                             }}
                             onMouseEnter={(e) => {
                               if (selectedCustomer?.id !== customer.id) {
-                                e.currentTarget.style.background = '#f8fafc';
+                                e.currentTarget.style.background = 'var(--corp-bg-hover, #f8fafc)';
                               }
                             }}
                             onMouseLeave={(e) => {
                               if (selectedCustomer?.id !== customer.id) {
-                                e.currentTarget.style.background = '#ffffff';
+                                e.currentTarget.style.background = 'var(--corp-bg-card, #ffffff)';
                               }
                             }}
                           >
                             <div style={{ fontWeight: '600' }}>{customer.name}</div>
-                            <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
+                            <div style={{ fontSize: '0.875rem', color: selectedCustomer?.id === customer.id ? 'rgba(255,255,255,0.9)' : 'var(--corp-text-secondary, #64748b)' }}>
                               {customer.phone} {customer.email ? `• ${customer.email}` : ''}
                             </div>
                           </div>
@@ -1043,7 +1070,7 @@ const ServiceManagement = () => {
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                         Customer Name *
                       </label>
                       <input
@@ -1054,14 +1081,16 @@ const ServiceManagement = () => {
                         style={{
                           width: '100%',
                           padding: '0.625rem 0.75rem',
-                          border: '1px solid #cbd5e1',
+                          border: '1px solid var(--corp-border, #cbd5e1)',
                           borderRadius: '6px',
-                          fontSize: '0.875rem'
+                          fontSize: '0.875rem',
+                          background: 'var(--corp-bg-card, #ffffff)',
+                          color: 'var(--corp-text-primary, #0f172a)'
                         }}
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                         Mobile Number *
                       </label>
                       <input
@@ -1072,14 +1101,16 @@ const ServiceManagement = () => {
                         style={{
                           width: '100%',
                           padding: '0.625rem 0.75rem',
-                          border: '1px solid #cbd5e1',
+                          border: '1px solid var(--corp-border, #cbd5e1)',
                           borderRadius: '6px',
-                          fontSize: '0.875rem'
+                          fontSize: '0.875rem',
+                          background: 'var(--corp-bg-card, #ffffff)',
+                          color: 'var(--corp-text-primary, #0f172a)'
                         }}
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                         Email ID *
                       </label>
                       <input
@@ -1090,14 +1121,16 @@ const ServiceManagement = () => {
                         style={{
                           width: '100%',
                           padding: '0.625rem 0.75rem',
-                          border: '1px solid #cbd5e1',
+                          border: '1px solid var(--corp-border, #cbd5e1)',
                           borderRadius: '6px',
-                          fontSize: '0.875rem'
+                          fontSize: '0.875rem',
+                          background: 'var(--corp-bg-card, #ffffff)',
+                          color: 'var(--corp-text-primary, #0f172a)'
                         }}
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                         Password *
                       </label>
                       <input
@@ -1108,9 +1141,11 @@ const ServiceManagement = () => {
                         style={{
                           width: '100%',
                           padding: '0.625rem 0.75rem',
-                          border: '1px solid #cbd5e1',
+                          border: '1px solid var(--corp-border, #cbd5e1)',
                           borderRadius: '6px',
-                          fontSize: '0.875rem'
+                          fontSize: '0.875rem',
+                          background: 'var(--corp-bg-card, #ffffff)',
+                          color: 'var(--corp-text-primary, #0f172a)'
                         }}
                       />
                     </div>
@@ -1120,10 +1155,10 @@ const ServiceManagement = () => {
 
               {/* Service Details */}
               <div style={{ marginBottom: '1.5rem' }}>
-                <h4 style={{ marginBottom: '1rem' }}>Service Details</h4>
+                <h4 style={{ marginBottom: '1rem', color: 'var(--corp-text-primary, #0f172a)' }}>Service Details</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                       Service Type *
                     </label>
                     <select
@@ -1133,9 +1168,11 @@ const ServiceManagement = () => {
                       style={{
                         width: '100%',
                         padding: '0.625rem 0.75rem',
-                        border: '1px solid #cbd5e1',
+                        border: '1px solid var(--corp-border, #cbd5e1)',
                         borderRadius: '6px',
-                        fontSize: '0.875rem'
+                        fontSize: '0.875rem',
+                        background: 'var(--corp-bg-card, #ffffff)',
+                        color: 'var(--corp-text-primary, #0f172a)'
                       }}
                     >
                       {SERVICE_TYPES_ARRAY.map(s => (
@@ -1148,7 +1185,7 @@ const ServiceManagement = () => {
                 {['battery_testing', 'jump_start'].includes(newServiceForm.serviceType) && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                         Vehicle Name *
                       </label>
                       <input
@@ -1160,14 +1197,16 @@ const ServiceManagement = () => {
                         style={{
                           width: '100%',
                           padding: '0.625rem 0.75rem',
-                          border: '1px solid #cbd5e1',
+                          border: '1px solid var(--corp-border, #cbd5e1)',
                           borderRadius: '6px',
-                          fontSize: '0.875rem'
+                          fontSize: '0.875rem',
+                          background: 'var(--corp-bg-card, #ffffff)',
+                          color: 'var(--corp-text-primary, #0f172a)'
                         }}
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                         Fuel Type *
                       </label>
                       <select
@@ -1177,9 +1216,11 @@ const ServiceManagement = () => {
                         style={{
                           width: '100%',
                           padding: '0.625rem 0.75rem',
-                          border: '1px solid #cbd5e1',
+                          border: '1px solid var(--corp-border, #cbd5e1)',
                           borderRadius: '6px',
-                          fontSize: '0.875rem'
+                          fontSize: '0.875rem',
+                          background: 'var(--corp-bg-card, #ffffff)',
+                          color: 'var(--corp-text-primary, #0f172a)'
                         }}
                       >
                         {FUEL_TYPES.map(f => (
@@ -1188,7 +1229,7 @@ const ServiceManagement = () => {
                       </select>
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                         Vehicle Number *
                       </label>
                       <input
@@ -1200,9 +1241,11 @@ const ServiceManagement = () => {
                         style={{
                           width: '100%',
                           padding: '0.625rem 0.75rem',
-                          border: '1px solid #cbd5e1',
+                          border: '1px solid var(--corp-border, #cbd5e1)',
                           borderRadius: '6px',
-                          fontSize: '0.875rem'
+                          fontSize: '0.875rem',
+                          background: 'var(--corp-bg-card, #ffffff)',
+                          color: 'var(--corp-text-primary, #0f172a)'
                         }}
                       />
                     </div>
@@ -1212,7 +1255,7 @@ const ServiceManagement = () => {
                 {newServiceForm.serviceType === 'inverter_repair' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                         Inverter VA *
                       </label>
                       <input
@@ -1224,14 +1267,16 @@ const ServiceManagement = () => {
                         style={{
                           width: '100%',
                           padding: '0.625rem 0.75rem',
-                          border: '1px solid #cbd5e1',
+                          border: '1px solid var(--corp-border, #cbd5e1)',
                           borderRadius: '6px',
-                          fontSize: '0.875rem'
+                          fontSize: '0.875rem',
+                          background: 'var(--corp-bg-card, #ffffff)',
+                          color: 'var(--corp-text-primary, #0f172a)'
                         }}
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                         Inverter Voltage *
                       </label>
                       <input
@@ -1243,9 +1288,11 @@ const ServiceManagement = () => {
                         style={{
                           width: '100%',
                           padding: '0.625rem 0.75rem',
-                          border: '1px solid #cbd5e1',
+                          border: '1px solid var(--corp-border, #cbd5e1)',
                           borderRadius: '6px',
-                          fontSize: '0.875rem'
+                          fontSize: '0.875rem',
+                          background: 'var(--corp-bg-card, #ffffff)',
+                          color: 'var(--corp-text-primary, #0f172a)'
                         }}
                       />
                     </div>
@@ -1254,7 +1301,7 @@ const ServiceManagement = () => {
 
                 {newServiceForm.serviceType === 'inverter_battery' && (
                   <div style={{ marginTop: '1rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                       Battery Ampere Rating *
                     </label>
                     <input
@@ -1266,16 +1313,18 @@ const ServiceManagement = () => {
                       style={{
                         width: '100%',
                         padding: '0.625rem 0.75rem',
-                        border: '1px solid #cbd5e1',
+                        border: '1px solid var(--corp-border, #cbd5e1)',
                         borderRadius: '6px',
-                        fontSize: '0.875rem'
+                        fontSize: '0.875rem',
+                        background: 'var(--corp-bg-card, #ffffff)',
+                        color: 'var(--corp-text-primary, #0f172a)'
                       }}
                     />
                   </div>
                 )}
 
                 <div style={{ marginTop: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                     Additional Notes (Optional)
                   </label>
                   <textarea
@@ -1286,10 +1335,12 @@ const ServiceManagement = () => {
                     style={{
                       width: '100%',
                       padding: '0.625rem 0.75rem',
-                      border: '1px solid #cbd5e1',
+                      border: '1px solid var(--corp-border, #cbd5e1)',
                       borderRadius: '6px',
                       fontSize: '0.875rem',
-                      resize: 'vertical'
+                      resize: 'vertical',
+                      background: 'var(--corp-bg-card, #ffffff)',
+                      color: 'var(--corp-text-primary, #0f172a)'
                     }}
                   />
                 </div>
