@@ -81,10 +81,10 @@ const ServiceManagement = () => {
       let filteredServices = response.items || [];
 
       // Filter out cancelled requests from display (they should not show in Services section)
-      filteredServices = filteredServices.filter(service => 
-        service.status !== 'cancelled' && 
-        !(service.request_type === 'pending' && service.status === 'requested' && statusFilter === 'cancelled')
-      );
+      // Only show cancelled if explicitly filtered
+      if (statusFilter !== 'cancelled') {
+        filteredServices = filteredServices.filter(service => service.status !== 'cancelled');
+      }
 
       // Client-side search filtering
       if (searchTerm.trim()) {
@@ -625,8 +625,8 @@ const ServiceManagement = () => {
                       )}
                     </td>
                     <td style={{ padding: '1rem' }}>
-                      <span className={`status-badge ${getStatusBadgeClass(service.request_type === 'pending' && service.status === 'requested' ? 'pending' : service.status)}`}>
-                        {service.request_type === 'pending' && service.status === 'requested' 
+                      <span className={`status-badge ${getStatusBadgeClass(service.status === 'requested' ? 'pending' : service.status)}`}>
+                        {service.status === 'requested' 
                           ? 'Pending' 
                           : service.status 
                             ? service.status.charAt(0).toUpperCase() + service.status.slice(1).replace('_', ' ') 
@@ -643,7 +643,7 @@ const ServiceManagement = () => {
                       )}
                     </td>
                     <td style={{ padding: '1rem' }}>
-                      {service.request_type === 'pending' && service.status === 'requested' ? (
+                      {service.status === 'requested' ? (
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <button
                             onClick={() => handleConfirmRequest(service.id, service)}

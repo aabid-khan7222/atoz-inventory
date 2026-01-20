@@ -144,7 +144,7 @@ export default function CustomerServices() {
   const handleCancelRequest = async (serviceId, service) => {
     try {
       // Check if this is a pending request (can be cancelled)
-      const isPending = service.request_type === 'pending' && service.status === 'requested';
+      const isPending = service.status === 'requested';
       
       if (!isPending) {
         await Swal.fire('Error!', 'Only pending service requests can be cancelled.', 'error');
@@ -393,8 +393,8 @@ export default function CustomerServices() {
                       )}
                     </td>
                     <td>
-                      <span className={`status-badge ${statusBadge[item.request_type === 'pending' && item.status === 'requested' ? 'pending' : item.status] || 'status-pending'}`}>
-                        {item.request_type === 'pending' && item.status === 'requested' 
+                      <span className={`status-badge ${statusBadge[item.status === 'requested' ? 'pending' : item.status] || 'status-pending'}`}>
+                        {item.status === 'requested' 
                           ? 'Pending' 
                           : statusLabels[item.status] || item.status}
                       </span>
@@ -410,7 +410,7 @@ export default function CustomerServices() {
                     </td>
                     <td>{item.notes || '-'}</td>
                     <td>
-                      {item.request_type === 'pending' && item.status === 'requested' ? (
+                      {item.status === 'requested' ? (
                         <button
                           onClick={() => handleCancelRequest(item.id, item)}
                           style={{

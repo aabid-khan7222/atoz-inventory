@@ -13,7 +13,7 @@ const SERVICE_TYPES = {
 };
 
 const FUEL_TYPES = ['petrol', 'diesel', 'gas', 'electric'];
-const STATUS_VALUES = ['pending', 'in_progress', 'completed', 'cancelled'];
+const STATUS_VALUES = ['requested', 'pending', 'in_progress', 'completed', 'cancelled'];
 
 async function getCustomerContact(userId) {
   const result = await db.query(
@@ -26,7 +26,7 @@ async function getCustomerContact(userId) {
   return result.rows[0] || null;
 }
 
-// Customer: create a new service request (stored in pending_service_requests, not in DB yet)
+// Customer: create a new service request (stored in service_requests with status='requested')
 router.post('/', requireAuth, async (req, res) => {
   try {
     const {
@@ -72,9 +72,9 @@ router.post('/', requireAuth, async (req, res) => {
     const customerPhone = customer?.phone || req.user.phone || null;
     const customerEmail = (customer?.email || req.user.email || '').toLowerCase() || null;
 
-    // Store in pending_service_requests (temporary, can be deleted if cancelled)
+    // Store in service_requests with status='requested' (not confirmed yet, can be deleted if cancelled)
     const insertResult = await db.query(
-      `INSERT INTO pending_service_requests (
+      `INSERT INTO service_requests (
         user_id,
         customer_name,
         customer_phone,
@@ -163,70 +163,39 @@ router.get('/my', requireAuth, async (req, res) => {
       limit = 10
     } = req.query;
 
-    // Get pending requests (from pending_service_requests)
-    let pendingQuery = `SELECT *, 'pending' as request_type FROM pending_service_requests WHERE user_id = $1`;
-    const allParams = [req.user.id];
-    let paramIndex = allParams.length;
+    const filters = ['user_id = $1'];
+    const params = [req.user.id];
+    let paramIndex = params.length;
 
     if (status && status !== 'all') {
-      // For pending requests, 'requested' status maps to 'pending' filter
-      if (status === 'pending') {
-        paramIndex += 1;
-        pendingQuery += ` AND status = $${paramIndex}`;
-        allParams.push('requested');
-      } else {
-        // If status is not 'pending', don't include pending requests
-        pendingQuery += ` AND 1=0`; // Always false
-      }
-    } else {
-      // If status is 'all', only show 'requested' status from pending table
       paramIndex += 1;
-      pendingQuery += ` AND status = $${paramIndex}`;
-      allParams.push('requested');
+      filters.push(`status = $${paramIndex}`);
+      params.push(status);
     }
 
     if (serviceType && SERVICE_TYPES[serviceType]) {
       paramIndex += 1;
-      pendingQuery += ` AND service_type = $${paramIndex}`;
-      allParams.push(serviceType);
-    }
-    
-    // Get confirmed requests (from service_requests)
-    let confirmedQuery = `SELECT *, 'confirmed' as request_type FROM service_requests WHERE user_id = $${paramIndex + 1}`;
-    allParams.push(req.user.id);
-    paramIndex = allParams.length;
-
-    if (status && status !== 'all') {
-      paramIndex += 1;
-      confirmedQuery += ` AND status = $${paramIndex}`;
-      allParams.push(status);
+      filters.push(`service_type = $${paramIndex}`);
+      params.push(serviceType);
     }
 
-    if (serviceType && SERVICE_TYPES[serviceType]) {
-      paramIndex += 1;
-      confirmedQuery += ` AND service_type = $${paramIndex}`;
-      allParams.push(serviceType);
-    }
-
-    // Combine both queries
-    const unionQuery = `
-      ${pendingQuery}
-      UNION ALL
-      ${confirmedQuery}
-      ORDER BY created_at DESC
-    `;
+    const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
     const countResult = await db.query(
-      `SELECT COUNT(*) AS count FROM (${unionQuery}) AS combined`,
-      allParams
+      `SELECT COUNT(*) AS count FROM service_requests ${whereClause}`,
+      params
     );
     const totalItems = parseInt(countResult.rows[0].count, 10) || 0;
 
     const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
-    paramIndex = allParams.length;
     const dataResult = await db.query(
-      `${unionQuery} LIMIT $${paramIndex + 1} OFFSET $${paramIndex + 2}`,
-      [...allParams, parseInt(limit, 10), offset]
+      `SELECT *, 
+        CASE WHEN status = 'requested' THEN 'pending' ELSE 'confirmed' END as request_type
+       FROM service_requests 
+       ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, parseInt(limit, 10), offset]
     );
 
     res.json({
@@ -254,69 +223,39 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
       limit = 20
     } = req.query;
 
-    // Get pending requests (from pending_service_requests)
-    let pendingQuery = `SELECT *, 'pending' as request_type FROM pending_service_requests WHERE 1=1`;
-    const allParams = [];
+    const filters = ['1=1'];
+    const params = [];
     let paramIndex = 0;
 
     if (status && status !== 'all') {
-      // For pending requests, 'requested' status maps to 'pending' filter
-      if (status === 'pending') {
-        paramIndex += 1;
-        pendingQuery += ` AND status = $${paramIndex}`;
-        allParams.push('requested');
-      } else {
-        // If status is not 'pending', don't include pending requests
-        pendingQuery += ` AND 1=0`; // Always false
-      }
-    } else {
-      // If status is 'all', only show 'requested' status from pending table
       paramIndex += 1;
-      pendingQuery += ` AND status = $${paramIndex}`;
-      allParams.push('requested');
+      filters.push(`status = $${paramIndex}`);
+      params.push(status);
     }
 
     if (serviceType && SERVICE_TYPES[serviceType]) {
       paramIndex += 1;
-      pendingQuery += ` AND service_type = $${paramIndex}`;
-      allParams.push(serviceType);
-    }
-    
-    // Get confirmed requests (from service_requests)
-    let confirmedQuery = `SELECT *, 'confirmed' as request_type FROM service_requests WHERE 1=1`;
-    let confirmedParamIndex = allParams.length;
-
-    if (status && status !== 'all') {
-      confirmedParamIndex += 1;
-      confirmedQuery += ` AND status = $${confirmedParamIndex}`;
-      allParams.push(status);
+      filters.push(`service_type = $${paramIndex}`);
+      params.push(serviceType);
     }
 
-    if (serviceType && SERVICE_TYPES[serviceType]) {
-      confirmedParamIndex += 1;
-      confirmedQuery += ` AND service_type = $${confirmedParamIndex}`;
-      allParams.push(serviceType);
-    }
-
-    // Combine both queries
-    const unionQuery = `
-      ${pendingQuery}
-      UNION ALL
-      ${confirmedQuery}
-      ORDER BY created_at DESC
-    `;
+    const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
     const countResult = await db.query(
-      `SELECT COUNT(*) AS count FROM (${unionQuery}) AS combined`,
-      allParams
+      `SELECT COUNT(*) AS count FROM service_requests ${whereClause}`,
+      params
     );
     const totalItems = parseInt(countResult.rows[0].count, 10) || 0;
 
     const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
-    paramIndex = allParams.length;
     const dataResult = await db.query(
-      `${unionQuery} LIMIT $${paramIndex + 1} OFFSET $${paramIndex + 2}`,
-      [...allParams, parseInt(limit, 10), offset]
+      `SELECT *, 
+        CASE WHEN status = 'requested' THEN 'pending' ELSE 'confirmed' END as request_type
+       FROM service_requests 
+       ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, parseInt(limit, 10), offset]
     );
 
     res.json({
@@ -334,14 +273,14 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   }
 });
 
-// Admin/Super Admin: confirm pending service request (move from pending_service_requests to service_requests)
+// Admin/Super Admin: confirm pending service request (change status from 'requested' to 'pending')
 router.post('/pending/:id/confirm', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
     // Get the pending request
     const pendingResult = await db.query(
-      `SELECT * FROM pending_service_requests WHERE id = $1`,
+      `SELECT * FROM service_requests WHERE id = $1 AND status = 'requested'`,
       [id]
     );
 
@@ -351,51 +290,16 @@ router.post('/pending/:id/confirm', requireAuth, requireSuperAdminOrAdmin, async
 
     const pendingRequest = pendingResult.rows[0];
 
-    // Move to service_requests table with status 'pending'
-    const insertResult = await db.query(
-      `INSERT INTO service_requests (
-        user_id,
-        customer_name,
-        customer_phone,
-        customer_email,
-        service_type,
-        vehicle_name,
-        fuel_type,
-        vehicle_number,
-        inverter_va,
-        inverter_voltage,
-        battery_ampere_rating,
-        notes,
-        status,
-        created_at,
-        updated_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', $13, NOW()
-      ) RETURNING *`,
-      [
-        pendingRequest.user_id,
-        pendingRequest.customer_name,
-        pendingRequest.customer_phone,
-        pendingRequest.customer_email,
-        pendingRequest.service_type,
-        pendingRequest.vehicle_name,
-        pendingRequest.fuel_type,
-        pendingRequest.vehicle_number,
-        pendingRequest.inverter_va,
-        pendingRequest.inverter_voltage,
-        pendingRequest.battery_ampere_rating,
-        pendingRequest.notes,
-        pendingRequest.created_at
-      ]
-    );
-
-    const confirmedService = insertResult.rows[0];
-
-    // Delete from pending_service_requests
-    await db.query(
-      `DELETE FROM pending_service_requests WHERE id = $1`,
+    // Update status from 'requested' to 'pending' (confirmed)
+    const updateResult = await db.query(
+      `UPDATE service_requests
+       SET status = 'pending', updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
       [id]
     );
+
+    const confirmedService = updateResult.rows[0];
 
     // Notify customer
     try {
@@ -419,26 +323,26 @@ router.post('/pending/:id/confirm', requireAuth, requireSuperAdminOrAdmin, async
   }
 });
 
-// Admin/Super Admin: cancel pending service request (delete from pending_service_requests)
+// Admin/Super Admin: cancel pending service request (delete from service_requests if status='requested')
 router.delete('/pending/:id/cancel', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Get the pending request before deleting
+    // Get the pending request before deleting (only if status is 'requested')
     const pendingResult = await db.query(
-      `SELECT * FROM pending_service_requests WHERE id = $1`,
+      `SELECT * FROM service_requests WHERE id = $1 AND status = 'requested'`,
       [id]
     );
 
     if (!pendingResult.rows.length) {
-      return res.status(404).json({ error: 'Pending service request not found' });
+      return res.status(404).json({ error: 'Pending service request not found or already confirmed' });
     }
 
     const pendingRequest = pendingResult.rows[0];
 
-    // Delete from pending_service_requests
+    // Delete from service_requests (only if status is 'requested', not confirmed yet)
     await db.query(
-      `DELETE FROM pending_service_requests WHERE id = $1`,
+      `DELETE FROM service_requests WHERE id = $1 AND status = 'requested'`,
       [id]
     );
 
@@ -464,24 +368,24 @@ router.delete('/pending/:id/cancel', requireAuth, requireSuperAdminOrAdmin, asyn
   }
 });
 
-// Customer: cancel own pending service request (delete from pending_service_requests)
+// Customer: cancel own pending service request (delete from service_requests if status='requested')
 router.delete('/my/pending/:id/cancel', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Get the pending request and verify ownership
+    // Get the pending request and verify ownership (only if status is 'requested')
     const pendingResult = await db.query(
-      `SELECT * FROM pending_service_requests WHERE id = $1 AND user_id = $2`,
+      `SELECT * FROM service_requests WHERE id = $1 AND user_id = $2 AND status = 'requested'`,
       [id, req.user.id]
     );
 
     if (!pendingResult.rows.length) {
-      return res.status(404).json({ error: 'Pending service request not found or you do not have permission to cancel it' });
+      return res.status(404).json({ error: 'Pending service request not found, already confirmed, or you do not have permission to cancel it' });
     }
 
-    // Delete from pending_service_requests
+    // Delete from service_requests (only if status is 'requested', not confirmed yet)
     await db.query(
-      `DELETE FROM pending_service_requests WHERE id = $1 AND user_id = $2`,
+      `DELETE FROM service_requests WHERE id = $1 AND user_id = $2 AND status = 'requested'`,
       [id, req.user.id]
     );
 
