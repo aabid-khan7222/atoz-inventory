@@ -409,8 +409,8 @@ export default function CustomerServices() {
                       )}
                     </td>
                     <td>{item.notes || '-'}</td>
-                    <td style={{ minWidth: '100px' }}>
-                      {item.status === 'requested' ? (
+                    <td style={{ minWidth: '120px', textAlign: 'center' }}>
+                      {(item.status === 'requested' || item.status?.toLowerCase() === 'requested') ? (
                         <button
                           onClick={() => handleCancelRequest(item.id, item)}
                           style={{
@@ -423,7 +423,9 @@ export default function CustomerServices() {
                             cursor: 'pointer',
                             fontWeight: '500',
                             whiteSpace: 'nowrap',
-                            transition: 'background 0.2s'
+                            transition: 'background 0.2s',
+                            display: 'inline-block',
+                            minWidth: '80px'
                           }}
                           onMouseEnter={(e) => {
                             e.target.style.background = '#b91c1c';
