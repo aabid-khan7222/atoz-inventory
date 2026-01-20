@@ -1002,10 +1002,12 @@ router.get('/pending/orders/:invoiceNumber', requireAuth, requireAdmin, async (r
       itemsSelectCols += `, customer_business_name, customer_gst_number, customer_business_address`;
     }
 
+    // Only return items that need serial number assignment (PENDING or NULL)
     const itemsResult = await db.query(
       `SELECT ${itemsSelectCols}
       FROM sales_item 
       WHERE invoice_number = $1 
+        AND (SERIAL_NUMBER IS NULL OR SERIAL_NUMBER = 'PENDING')
       ORDER BY id`,
       [invoiceNumber]
     );

@@ -128,8 +128,9 @@ const PendingOrders = () => {
       const isWaterProduct = (item.CATEGORY || item.category || '').toLowerCase() === 'water';
       if (isWaterProduct) continue;
       
-      // Skip items that already have serial numbers
-      if (item.SERIAL_NUMBER || item.serial_number) continue;
+      // Skip items that already have serial numbers assigned (but not PENDING or N/A)
+      const serialNum = item.SERIAL_NUMBER || item.serial_number;
+      if (serialNum && serialNum !== 'PENDING' && serialNum !== 'N/A') continue;
       
       // Get serial number from state
       const serialNumber = selectedSerials[item.id];
@@ -387,7 +388,9 @@ const PendingOrders = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   {Array.isArray(selectedOrder.items) && selectedOrder.items.map((item) => {
                     const isWaterProduct = (item.CATEGORY || item.category || '').toLowerCase() === 'water';
-                    const hasSerial = !!(item.SERIAL_NUMBER || item.serial_number);
+                    const serialNum = item.SERIAL_NUMBER || item.serial_number;
+                    // Only consider it has serial if it's not PENDING or N/A
+                    const hasSerial = !!(serialNum && serialNum !== 'PENDING' && serialNum !== 'N/A');
                     const productId = item.product_id;
                     const serials = availableSerials[productId] || [];
 
