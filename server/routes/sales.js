@@ -468,10 +468,10 @@ router.post('/', requireAuth, async (req, res) => {
         paramIndex++;
       }
       
-      // Add purchase_date and product fields
+      // Add purchase_date and product fields (16 fields total)
       insertColumns += `, purchase_date, SKU, SERIES, CATEGORY, NAME, AH_VA, QUANTITY, WARRANTY, SERIAL_NUMBER,
           MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id`;
-      insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9}, $${paramIndex + 10}, $${paramIndex + 11}, $${paramIndex + 12}, $${paramIndex + 13}, $${paramIndex + 14}, $${paramIndex + 15}, $${paramIndex + 16}`;
+      insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9}, $${paramIndex + 10}, $${paramIndex + 11}, $${paramIndex + 12}, $${paramIndex + 13}, $${paramIndex + 14}, $${paramIndex + 15}`;
       insertParams.push(
         item.purchase_date,
         item.SKU,
@@ -490,7 +490,7 @@ router.post('/', requireAuth, async (req, res) => {
         item.payment_status,
         item.product_id
       );
-      paramIndex += 17;
+      paramIndex += 16;
       
       // Add business fields if they exist
       if (hasBusinessFields) {
