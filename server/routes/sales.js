@@ -1299,6 +1299,84 @@ router.get('/pending/available-serials/:productId', requireAuth, requireAdmin, a
   }
 });
 
+// Cancel order by Admin/Super Admin - Can cancel any pending order
+router.delete('/pending/orders/:invoiceNumber/cancel', requireAuth, requireAdmin, async (req, res) => {
+  const client = await db.pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+
+    const { invoiceNumber } = req.params;
+
+    // Verify the order exists
+    const orderCheck = await client.query(
+      `SELECT 
+        invoice_number,
+        customer_id,
+        customer_name,
+        customer_mobile_number,
+        COUNT(*) as item_count,
+        COUNT(CASE WHEN SERIAL_NUMBER IS NOT NULL AND SERIAL_NUMBER != 'PENDING' AND SERIAL_NUMBER != 'N/A' THEN 1 END) as confirmed_items_count
+      FROM sales_item 
+      WHERE invoice_number = $1
+      GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number`,
+      [invoiceNumber]
+    );
+
+    if (orderCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const order = orderCheck.rows[0];
+    
+    // Check if order is already confirmed (has serial numbers assigned)
+    if (parseInt(order.confirmed_items_count) > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ 
+        error: 'Cannot cancel order. Order has already been confirmed and serial numbers have been assigned.' 
+      });
+    }
+
+    // Delete all sales_item records for this invoice
+    await client.query(
+      `DELETE FROM sales_item WHERE invoice_number = $1`,
+      [invoiceNumber]
+    );
+
+    await client.query('COMMIT');
+
+    // Create notification for customer about cancelled order
+    try {
+      if (order.customer_id) {
+        await createNotification(
+          order.customer_id,
+          'Order Cancelled',
+          `Your order (Invoice: ${invoiceNumber}) has been cancelled by admin.`,
+          'warning',
+          null
+        );
+      }
+    } catch (notifErr) {
+      console.warn('Failed to create cancellation notification:', notifErr);
+    }
+
+    res.json({
+      success: true,
+      message: 'Order cancelled successfully'
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error cancelling order:', err);
+    res.status(500).json({ 
+      error: 'Failed to cancel order', 
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined 
+    });
+  } finally {
+    client.release();
+  }
+});
+
 // Cancel order - Customer can cancel pending orders (orders without serial numbers)
 router.delete('/cancel/:invoiceNumber', requireAuth, async (req, res) => {
   const client = await db.pool.connect();

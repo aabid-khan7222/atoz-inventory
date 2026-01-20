@@ -385,6 +385,18 @@ export async function cancelOrder(invoiceNumber) {
   }
 }
 
+// Cancel order by Admin/Super Admin (can cancel any pending order)
+export async function cancelOrderByAdmin(invoiceNumber) {
+  try {
+    return await request(`/sales/pending/orders/${invoiceNumber}/cancel`, {
+      method: 'DELETE',
+    });
+  } catch (error) {
+    console.error('Failed to cancel order:', error);
+    throw error;
+  }
+}
+
 // Stock management API functions
 export async function addStockWithSerials(category, productId, quantity, serialNumbers, purchase_date, purchased_from, amount, dp, purchase_value, discount_amount, discount_percent) {
   try {

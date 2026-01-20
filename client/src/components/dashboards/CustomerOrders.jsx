@@ -307,13 +307,36 @@ const CustomerOrders = ({ title, description }) => {
   const handleCancelOrder = async (invoiceNumber, order) => {
     const result = await Swal.fire({
       title: 'Cancel Order?',
-      html: `Are you sure you want to cancel order <strong>${invoiceNumber}</strong>?<br/><br/>This action cannot be undone.`,
+      html: `
+        <div style="text-align: left; padding: 1rem 0;">
+          <p style="margin-bottom: 1rem; font-size: 1rem; color: #0f172a;">
+            Are you sure you want to cancel this order?
+          </p>
+          <div style="background: #f8fafc; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem;">
+            <p style="margin: 0.25rem 0; font-size: 0.875rem;"><strong>Invoice:</strong> ${invoiceNumber}</p>
+            ${order?.customer_name ? `<p style="margin: 0.25rem 0; font-size: 0.875rem;"><strong>Customer:</strong> ${order.customer_name}</p>` : ''}
+            ${order?.items?.length ? `<p style="margin: 0.25rem 0; font-size: 0.875rem;"><strong>Items:</strong> ${order.items.length}</p>` : ''}
+            ${order?.items?.reduce((sum, item) => sum + parseFloat(item.final_amount || item.FINAL_AMOUNT || 0), 0) ? 
+              `<p style="margin: 0.25rem 0; font-size: 0.875rem;"><strong>Total Amount:</strong> ₹${order.items.reduce((sum, item) => sum + parseFloat(item.final_amount || item.FINAL_AMOUNT || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>` : ''}
+          </div>
+          <p style="margin: 0; font-size: 0.875rem; color: #dc2626; font-weight: 600;">
+            ⚠️ This action cannot be undone.
+          </p>
+        </div>
+      `,
       icon: 'warning',
+      iconColor: '#dc2626',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
       cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Yes, cancel order',
-      cancelButtonText: 'No, keep order'
+      confirmButtonText: '<i class="fas fa-times-circle"></i> Yes, Cancel Order',
+      cancelButtonText: '<i class="fas fa-arrow-left"></i> No, Keep Order',
+      reverseButtons: true,
+      customClass: {
+        popup: 'swal2-popup-custom',
+        confirmButton: 'swal2-confirm-custom',
+        cancelButton: 'swal2-cancel-custom'
+      }
     });
 
     if (!result.isConfirmed) return;
@@ -329,7 +352,20 @@ const CustomerOrders = ({ title, description }) => {
       const response = await api.cancelOrder(invoiceNumber);
       
       if (response.success) {
-        await Swal.fire('Success', 'Order cancelled successfully', 'success');
+        await Swal.fire({
+          title: 'Order Cancelled',
+          html: `
+            <div style="text-align: center; padding: 1rem 0;">
+              <div style="font-size: 3rem; color: #059669; margin-bottom: 1rem;">✓</div>
+              <p style="font-size: 1rem; color: #0f172a; margin: 0;">
+                Order <strong>${invoiceNumber}</strong> has been cancelled successfully.
+              </p>
+            </div>
+          `,
+          icon: 'success',
+          confirmButtonColor: '#059669',
+          confirmButtonText: 'OK'
+        });
         // Reload orders
         const customerId = user?.id || user?._id || null;
         const data = await api.getSales(1, 50, customerId);

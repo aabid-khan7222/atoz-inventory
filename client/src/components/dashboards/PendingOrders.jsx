@@ -116,6 +116,97 @@ const PendingOrders = () => {
     }
   };
 
+  const handleCancelOrder = async (invoiceNumber, order) => {
+    const orderInfo = order || selectedOrder;
+    const invoice = invoiceNumber || (orderInfo?.invoice_number || orderInfo?.id);
+    
+    if (!invoice) return;
+
+    const result = await Swal.fire({
+      title: 'Cancel Order?',
+      html: `
+        <div style="text-align: left; padding: 1rem 0;">
+          <p style="margin-bottom: 1rem; font-size: 1rem; color: #0f172a;">
+            Are you sure you want to cancel this order?
+          </p>
+          <div style="background: #f8fafc; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem;">
+            <p style="margin: 0.25rem 0; font-size: 0.875rem;"><strong>Invoice:</strong> ${invoice}</p>
+            ${orderInfo?.customer_name ? `<p style="margin: 0.25rem 0; font-size: 0.875rem;"><strong>Customer:</strong> ${orderInfo.customer_name}</p>` : ''}
+            ${orderInfo?.customer_mobile_number ? `<p style="margin: 0.25rem 0; font-size: 0.875rem;"><strong>Phone:</strong> ${orderInfo.customer_mobile_number}</p>` : ''}
+            ${orderInfo?.item_count ? `<p style="margin: 0.25rem 0; font-size: 0.875rem;"><strong>Items:</strong> ${orderInfo.item_count}</p>` : ''}
+          </div>
+          <p style="margin: 0; font-size: 0.875rem; color: #dc2626; font-weight: 600;">
+            ⚠️ This action cannot be undone.
+          </p>
+        </div>
+      `,
+      icon: 'warning',
+      iconColor: '#dc2626',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: '<i class="fas fa-times-circle"></i> Yes, Cancel Order',
+      cancelButtonText: '<i class="fas fa-arrow-left"></i> No, Keep Order',
+      reverseButtons: true,
+      customClass: {
+        popup: 'swal2-popup-custom',
+        confirmButton: 'swal2-confirm-custom',
+        cancelButton: 'swal2-cancel-custom'
+      }
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const response = await api.cancelOrderByAdmin(invoice);
+      
+      if (response.success) {
+        await Swal.fire({
+          title: 'Order Cancelled',
+          html: `
+            <div style="text-align: center; padding: 1rem 0;">
+              <div style="font-size: 3rem; color: #059669; margin-bottom: 1rem;">✓</div>
+              <p style="font-size: 1rem; color: #0f172a; margin: 0;">
+                Order <strong>${invoice}</strong> has been cancelled successfully.
+              </p>
+            </div>
+          `,
+          icon: 'success',
+          confirmButtonColor: '#059669',
+          confirmButtonText: 'OK'
+        });
+        
+        // Clear selected order if it was the cancelled one
+        if (selectedOrder?.invoice_number === invoice || selectedOrder?.id === invoice) {
+          setSelectedOrder(null);
+          setSelectedSerials({});
+          setAdjustedAmounts({});
+          setDiscountInputs({});
+        }
+        
+        // Reload pending orders
+        loadPendingOrders();
+      } else {
+        throw new Error(response.error || 'Failed to cancel order');
+      }
+    } catch (err) {
+      await Swal.fire({
+        title: 'Error',
+        html: `
+          <div style="text-align: center; padding: 1rem 0;">
+            <div style="font-size: 3rem; color: #dc2626; margin-bottom: 1rem;">✕</div>
+            <p style="font-size: 1rem; color: #0f172a; margin: 0;">
+              ${err.message || 'Failed to cancel order'}
+            </p>
+          </div>
+        `,
+        icon: 'error',
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'OK'
+      });
+    }
+  };
+
   const handleAssignSerials = async () => {
     if (!selectedOrder) return;
 
@@ -335,14 +426,12 @@ const PendingOrders = () => {
               {orders.map((order) => (
                 <div
                   key={order.invoice_number || order.id}
-                  onClick={() => loadOrderDetails(order.invoice_number || order.id)}
                   style={{
                     padding: '1rem',
                     border: selectedOrder?.invoice_number === order.invoice_number
                       ? '2px solid #2563eb'
                       : '1px solid var(--corp-border, #e2e8f0)',
                     borderRadius: '0.375rem',
-                    cursor: 'pointer',
                     backgroundColor: selectedOrder?.invoice_number === order.invoice_number
                       ? 'var(--corp-bg-hover, #f8fafc)'
                       : 'transparent',
@@ -350,20 +439,52 @@ const PendingOrders = () => {
                     transition: 'all 0.2s',
                   }}
                 >
-                  <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--corp-text-primary, #0f172a)' }}>
-                    Invoice: {order.invoice_number || order.id}
+                  <div 
+                    onClick={() => loadOrderDetails(order.invoice_number || order.id)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--corp-text-primary, #0f172a)' }}>
+                      Invoice: {order.invoice_number || order.id}
+                    </div>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)', marginBottom: '0.25rem' }}>
+                      Customer: {order.customer_name || 'N/A'}
+                    </div>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)', marginBottom: '0.25rem' }}>
+                      Phone: {order.customer_mobile_number || 'N/A'}
+                    </div>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)', marginBottom: '0.25rem' }}>
+                      Items: {order.item_count || 0} ({order.pending_items_count || 0} pending)
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--corp-text-muted, #64748b)' }}>
+                      {formatDateTime(order.created_at)}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)', marginBottom: '0.25rem' }}>
-                    Customer: {order.customer_name || 'N/A'}
-                  </div>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)', marginBottom: '0.25rem' }}>
-                    Phone: {order.customer_mobile_number || 'N/A'}
-                  </div>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)', marginBottom: '0.25rem' }}>
-                    Items: {order.item_count || 0} ({order.pending_items_count || 0} pending)
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--corp-text-muted, #64748b)' }}>
-                    {formatDateTime(order.created_at)}
+                  <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCancelOrder(order.invoice_number || order.id, order);
+                      }}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.875rem',
+                        backgroundColor: '#dc2626',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.375rem',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = '#b91c1c';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = '#dc2626';
+                      }}
+                    >
+                      Cancel Order
+                    </button>
                   </div>
                 </div>
               ))}
@@ -744,7 +865,7 @@ const PendingOrders = () => {
                 )}
               </div>
 
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => {
                     setSelectedOrder(null);
@@ -759,9 +880,24 @@ const PendingOrders = () => {
                     border: 'none',
                     borderRadius: '0.375rem',
                     cursor: 'pointer',
+                    fontWeight: '500',
                   }}
                 >
-                  Cancel
+                  Close
+                </button>
+                <button
+                  onClick={() => handleCancelOrder(selectedOrder?.invoice_number || selectedOrder?.id, selectedOrder)}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                  }}
+                >
+                  Cancel Order
                 </button>
                 <button
                   onClick={handleAssignSerials}
@@ -773,6 +909,7 @@ const PendingOrders = () => {
                     border: 'none',
                     borderRadius: '0.375rem',
                     cursor: assigning ? 'not-allowed' : 'pointer',
+                    fontWeight: '500',
                   }}
                 >
                   {assigning ? 'Assigning...' : 'Assign Serial Numbers'}
