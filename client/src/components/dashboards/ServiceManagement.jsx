@@ -43,6 +43,7 @@ const ServiceManagement = () => {
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [newServiceForm, setNewServiceForm] = useState({
     serviceType: 'battery_testing',
     vehicleName: '',
@@ -97,10 +98,26 @@ const ServiceManagement = () => {
 
   // Load customers for dropdown
   useEffect(() => {
-    if (showNewServiceModal && !isNewCustomer) {
+    if (showNewServiceModal && !isNewCustomer && showCustomerDropdown) {
       loadCustomers();
     }
-  }, [showNewServiceModal, customerSearchTerm, isNewCustomer]);
+  }, [showNewServiceModal, customerSearchTerm, isNewCustomer, showCustomerDropdown]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showCustomerDropdown && !event.target.closest('[data-customer-dropdown]')) {
+        setShowCustomerDropdown(false);
+      }
+    };
+
+    if (showCustomerDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showCustomerDropdown]);
 
   const loadCustomers = async () => {
     try {
@@ -113,12 +130,9 @@ const ServiceManagement = () => {
 
   const handleCustomerSelect = (customer) => {
     setSelectedCustomer(customer);
-    setNewServiceForm(prev => ({
-      ...prev,
-      customerName: customer.name || '',
-      customerPhone: customer.phone || '',
-      customerEmail: customer.email || ''
-    }));
+    setShowCustomerDropdown(false);
+    setCustomerSearchTerm('');
+    // Don't auto-fill form fields for existing customers
   };
 
   const handleNewServiceSubmit = async (e) => {
@@ -928,6 +942,21 @@ const ServiceManagement = () => {
                   setSelectedCustomer(null);
                   setIsNewCustomer(false);
                   setCustomerSearchTerm('');
+                  setShowCustomerDropdown(false);
+                  setNewServiceForm({
+                    serviceType: 'battery_testing',
+                    vehicleName: '',
+                    fuelType: 'petrol',
+                    vehicleNumber: '',
+                    inverterVa: '',
+                    inverterVoltage: '',
+                    batteryAmpereRating: '',
+                    notes: '',
+                    customerName: '',
+                    customerPhone: '',
+                    customerEmail: '',
+                    customerPassword: ''
+                  });
                 }}
                 style={{
                   background: 'transparent',
@@ -966,6 +995,8 @@ const ServiceManagement = () => {
                     onClick={() => {
                       setIsNewCustomer(false);
                       setSelectedCustomer(null);
+                      setShowCustomerDropdown(false);
+                      setCustomerSearchTerm('');
                       setNewServiceForm(prev => ({
                         ...prev,
                         customerName: '',
@@ -993,6 +1024,14 @@ const ServiceManagement = () => {
                       setIsNewCustomer(true);
                       setSelectedCustomer(null);
                       setCustomerSearchTerm('');
+                      setShowCustomerDropdown(false);
+                      setNewServiceForm(prev => ({
+                        ...prev,
+                        customerName: '',
+                        customerPhone: '',
+                        customerEmail: '',
+                        customerPassword: ''
+                      }));
                     }}
                     style={{
                       padding: '0.5rem 1rem',
@@ -1010,60 +1049,110 @@ const ServiceManagement = () => {
                 </div>
 
                 {!isNewCustomer ? (
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="Search customer by name, phone, or email..."
-                      value={customerSearchTerm}
-                      onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                  <div style={{ position: 'relative' }} data-customer-dropdown>
+                    <div
+                      onClick={() => {
+                        setShowCustomerDropdown(!showCustomerDropdown);
+                        if (!showCustomerDropdown) {
+                          loadCustomers();
+                        }
+                      }}
                       style={{
                         width: '100%',
                         padding: '0.625rem 0.75rem',
                         border: '1px solid var(--corp-border, #cbd5e1)',
                         borderRadius: '6px',
                         fontSize: '0.875rem',
-                        marginBottom: '0.5rem',
                         background: 'var(--corp-bg-card, #ffffff)',
-                        color: 'var(--corp-text-primary, #0f172a)'
+                        color: selectedCustomer ? 'var(--corp-text-primary, #0f172a)' : 'var(--corp-text-muted, #94a3b8)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        minHeight: '38px'
                       }}
-                    />
-                    {customers.length > 0 && (
+                    >
+                      <span>
+                        {selectedCustomer 
+                          ? `${selectedCustomer.name} (${selectedCustomer.phone}${selectedCustomer.email ? ` • ${selectedCustomer.email}` : ''})`
+                          : 'Select a customer...'}
+                      </span>
+                      <span style={{ fontSize: '0.75rem' }}>▼</span>
+                    </div>
+                    
+                    {showCustomerDropdown && (
                       <div style={{
-                        maxHeight: '200px',
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        marginTop: '0.25rem',
+                        maxHeight: '300px',
                         overflowY: 'auto',
                         border: '1px solid var(--corp-border, #e2e8f0)',
                         borderRadius: '6px',
-                        background: 'var(--corp-bg-card, #ffffff)'
+                        background: 'var(--corp-bg-card, #ffffff)',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        zIndex: 1000
                       }}>
-                        {customers.map((customer) => (
-                          <div
-                            key={customer.id}
-                            onClick={() => handleCustomerSelect(customer)}
+                        <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--corp-border-light, #f1f5f9)' }}>
+                          <input
+                            type="text"
+                            placeholder="Search customer by name, phone, or email..."
+                            value={customerSearchTerm}
+                            onChange={(e) => {
+                              setCustomerSearchTerm(e.target.value);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            onFocus={(e) => e.stopPropagation()}
                             style={{
-                              padding: '0.75rem',
-                              cursor: 'pointer',
-                              borderBottom: '1px solid var(--corp-border-light, #f1f5f9)',
-                              background: selectedCustomer?.id === customer.id ? 'var(--corp-accent, #10b981)' : 'var(--corp-bg-card, #ffffff)',
-                              transition: 'background 0.2s',
-                              color: selectedCustomer?.id === customer.id ? '#ffffff' : 'var(--corp-text-primary, #0f172a)'
+                              width: '100%',
+                              padding: '0.5rem 0.75rem',
+                              border: '1px solid var(--corp-border, #cbd5e1)',
+                              borderRadius: '4px',
+                              fontSize: '0.875rem',
+                              background: 'var(--corp-bg-card, #ffffff)',
+                              color: 'var(--corp-text-primary, #0f172a)'
                             }}
-                            onMouseEnter={(e) => {
-                              if (selectedCustomer?.id !== customer.id) {
-                                e.currentTarget.style.background = 'var(--corp-bg-hover, #f8fafc)';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (selectedCustomer?.id !== customer.id) {
-                                e.currentTarget.style.background = 'var(--corp-bg-card, #ffffff)';
-                              }
-                            }}
-                          >
-                            <div style={{ fontWeight: '600' }}>{customer.name}</div>
-                            <div style={{ fontSize: '0.875rem', color: selectedCustomer?.id === customer.id ? 'rgba(255,255,255,0.9)' : 'var(--corp-text-secondary, #64748b)' }}>
-                              {customer.phone} {customer.email ? `• ${customer.email}` : ''}
-                            </div>
+                          />
+                        </div>
+                        {customers.length > 0 ? (
+                          <div>
+                            {customers.map((customer) => (
+                              <div
+                                key={customer.id}
+                                onClick={() => handleCustomerSelect(customer)}
+                                style={{
+                                  padding: '0.75rem',
+                                  cursor: 'pointer',
+                                  borderBottom: '1px solid var(--corp-border-light, #f1f5f9)',
+                                  background: selectedCustomer?.id === customer.id ? 'var(--corp-accent, #10b981)' : 'var(--corp-bg-card, #ffffff)',
+                                  transition: 'background 0.2s',
+                                  color: selectedCustomer?.id === customer.id ? '#ffffff' : 'var(--corp-text-primary, #0f172a)'
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (selectedCustomer?.id !== customer.id) {
+                                    e.currentTarget.style.background = 'var(--corp-bg-hover, #f8fafc)';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (selectedCustomer?.id !== customer.id) {
+                                    e.currentTarget.style.background = 'var(--corp-bg-card, #ffffff)';
+                                  }
+                                }}
+                              >
+                                <div style={{ fontWeight: '600' }}>{customer.name}</div>
+                                <div style={{ fontSize: '0.875rem', color: selectedCustomer?.id === customer.id ? 'rgba(255,255,255,0.9)' : 'var(--corp-text-secondary, #64748b)' }}>
+                                  {customer.phone} {customer.email ? `• ${customer.email}` : ''}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        ) : (
+                          <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--corp-text-muted, #64748b)' }}>
+                            {customerSearchTerm ? 'No customers found' : 'Start typing to search...'}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
