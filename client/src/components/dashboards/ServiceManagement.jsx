@@ -55,8 +55,7 @@ const ServiceManagement = () => {
     notes: '',
     customerName: '',
     customerPhone: '',
-    customerEmail: '',
-    customerPassword: ''
+    customerEmail: ''
   });
   const [submittingService, setSubmittingService] = useState(false);
   const FUEL_TYPES = ['petrol', 'diesel', 'gas', 'electric'];
@@ -146,7 +145,6 @@ const ServiceManagement = () => {
         customerName: newServiceForm.customerName,
         customerPhone: newServiceForm.customerPhone,
         customerEmail: newServiceForm.customerEmail,
-        customerPassword: newServiceForm.customerPassword,
         serviceType: newServiceForm.serviceType,
         vehicleName: ['battery_testing', 'jump_start'].includes(newServiceForm.serviceType) ? newServiceForm.vehicleName : undefined,
         fuelType: ['battery_testing', 'jump_start'].includes(newServiceForm.serviceType) ? newServiceForm.fuelType : undefined,
@@ -175,7 +173,6 @@ const ServiceManagement = () => {
         customerName: '',
         customerPhone: '',
         customerEmail: '',
-        customerPassword: ''
       });
       setCustomerSearchTerm('');
       loadServices(pagination.currentPage);
@@ -955,7 +952,6 @@ const ServiceManagement = () => {
                     customerName: '',
                     customerPhone: '',
                     customerEmail: '',
-                    customerPassword: ''
                   });
                 }}
                 style={{
@@ -1001,8 +997,7 @@ const ServiceManagement = () => {
                         ...prev,
                         customerName: '',
                         customerPhone: '',
-                        customerEmail: '',
-                        customerPassword: ''
+                        customerEmail: ''
                       }));
                     }}
                     style={{
@@ -1029,8 +1024,7 @@ const ServiceManagement = () => {
                         ...prev,
                         customerName: '',
                         customerPhone: '',
-                        customerEmail: '',
-                        customerPassword: ''
+                        customerEmail: ''
                       }));
                     }}
                     style={{
@@ -1206,26 +1200,6 @@ const ServiceManagement = () => {
                         type="email"
                         value={newServiceForm.customerEmail}
                         onChange={(e) => setNewServiceForm(prev => ({ ...prev, customerEmail: e.target.value }))}
-                        required
-                        style={{
-                          width: '100%',
-                          padding: '0.625rem 0.75rem',
-                          border: '1px solid var(--corp-border, #cbd5e1)',
-                          borderRadius: '6px',
-                          fontSize: '0.875rem',
-                          background: 'var(--corp-bg-card, #ffffff)',
-                          color: 'var(--corp-text-primary, #0f172a)'
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
-                        Password *
-                      </label>
-                      <input
-                        type="password"
-                        value={newServiceForm.customerPassword}
-                        onChange={(e) => setNewServiceForm(prev => ({ ...prev, customerPassword: e.target.value }))}
                         required
                         style={{
                           width: '100%',
@@ -1466,7 +1440,7 @@ const ServiceManagement = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={submittingService || (!isNewCustomer && !selectedCustomer) || (isNewCustomer && (!newServiceForm.customerName || !newServiceForm.customerPhone || !newServiceForm.customerEmail || !newServiceForm.customerPassword))}
+                  disabled={submittingService || (!isNewCustomer && !selectedCustomer) || (isNewCustomer && (!newServiceForm.customerName || !newServiceForm.customerPhone || !newServiceForm.customerEmail))}
                   style={{
                     padding: '0.75rem 1.5rem',
                     border: 'none',

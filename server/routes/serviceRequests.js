@@ -486,7 +486,6 @@ router.post('/admin', requireAuth, requireSuperAdminOrAdmin, async (req, res) =>
       customerName,
       customerPhone,
       customerEmail,
-      customerPassword,
       serviceType,
       vehicleName,
       fuelType,
@@ -530,8 +529,8 @@ router.post('/admin', requireAuth, requireSuperAdminOrAdmin, async (req, res) =>
 
     // If new customer, create user and customer profile
     if (isNewCustomer) {
-      if (!customerName || !customerPhone || !customerEmail || !customerPassword) {
-        return res.status(400).json({ error: 'Customer name, phone, email and password are required for new customer' });
+      if (!customerName || !customerPhone || !customerEmail) {
+        return res.status(400).json({ error: 'Customer name, phone, and email are required for new customer' });
       }
 
       // Check if customer already exists
@@ -555,8 +554,8 @@ router.post('/admin', requireAuth, requireSuperAdminOrAdmin, async (req, res) =>
 
       const customerRoleId = roleResult.rows[0].id;
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(customerPassword, 10);
+      // Use mobile number as password (hash it)
+      const hashedPassword = await bcrypt.hash(customerPhone, 10);
 
       // Create user
       const userResult = await db.query(
