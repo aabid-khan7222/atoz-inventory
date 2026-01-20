@@ -909,6 +909,42 @@ export async function updateServiceRequestStatus(id, status, amount = null) {
   }
 }
 
+// Admin/Super Admin: Confirm pending service request (move to service_requests table)
+export async function confirmServiceRequest(id) {
+  try {
+    return await request(`/service-requests/pending/${id}/confirm`, {
+      method: 'POST',
+    });
+  } catch (error) {
+    console.error('Failed to confirm service request:', error);
+    throw error;
+  }
+}
+
+// Admin/Super Admin: Cancel pending service request
+export async function cancelPendingServiceRequestByAdmin(id) {
+  try {
+    return await request(`/service-requests/pending/${id}/cancel`, {
+      method: 'DELETE',
+    });
+  } catch (error) {
+    console.error('Failed to cancel pending service request:', error);
+    throw error;
+  }
+}
+
+// Customer: Cancel own pending service request
+export async function cancelPendingServiceRequest(id) {
+  try {
+    return await request(`/service-requests/my/pending/${id}/cancel`, {
+      method: 'DELETE',
+    });
+  } catch (error) {
+    console.error('Failed to cancel pending service request:', error);
+    throw error;
+  }
+}
+
 // Notifications API functions
 export async function getNotifications({ unreadOnly = false, limit = 50 } = {}) {
   try {
@@ -1581,6 +1617,9 @@ const api = {
   getMyServiceRequests,
   getAllServiceRequests,
   updateServiceRequestStatus,
+  confirmServiceRequest,
+  cancelPendingServiceRequestByAdmin,
+  cancelPendingServiceRequest,
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,

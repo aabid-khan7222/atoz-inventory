@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAllServiceRequests, updateServiceRequestStatus } from '../../api';
+import { getAllServiceRequests, updateServiceRequestStatus, confirmServiceRequest, cancelPendingServiceRequestByAdmin } from '../../api';
 import Swal from 'sweetalert2';
 import { getFormState, saveFormState } from '../../utils/formStateManager';
 import './DashboardContent.css';
@@ -80,6 +80,12 @@ const ServiceManagement = () => {
       const response = await getAllServiceRequests(filters);
       let filteredServices = response.items || [];
 
+      // Filter out cancelled requests from display (they should not show in Services section)
+      filteredServices = filteredServices.filter(service => 
+        service.status !== 'cancelled' && 
+        !(service.request_type === 'pending' && service.status === 'requested' && statusFilter === 'cancelled')
+      );
+
       // Client-side search filtering
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
@@ -110,8 +116,105 @@ const ServiceManagement = () => {
     }
   };
 
-  const handleStatusChange = async (serviceId, newStatus, amount = null) => {
+  const handleConfirmRequest = async (serviceId, service) => {
     try {
+      const result = await Swal.fire({
+        title: 'Confirm Service Request?',
+        html: `
+          <div style="text-align: left; padding: 1rem 0;">
+            <p style="margin-bottom: 0.75rem;"><strong>Service ID:</strong> #${serviceId}</p>
+            <p style="margin-bottom: 0.75rem;"><strong>Customer:</strong> ${service.customer_name || 'N/A'}</p>
+            <p style="margin-bottom: 0.75rem;"><strong>Phone:</strong> ${service.customer_phone || 'N/A'}</p>
+            <p style="margin-bottom: 0.75rem;"><strong>Service Type:</strong> ${SERVICE_TYPES[service.service_type] || service.service_type}</p>
+            <p style="margin-bottom: 0;"><strong>Confirm this service request?</strong></p>
+          </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Confirm',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#059669',
+        cancelButtonColor: '#dc2626',
+        reverseButtons: true
+      });
+
+      if (result.isConfirmed) {
+        await confirmServiceRequest(serviceId);
+        await Swal.fire('Confirmed!', 'Service request has been confirmed and moved to active requests.', 'success');
+        loadServices(pagination.currentPage);
+      }
+    } catch (err) {
+      console.error('Failed to confirm service request:', err);
+      await Swal.fire('Error!', `Failed to confirm service request: ${err.message}`, 'error');
+    }
+  };
+
+  const handleCancelPendingRequest = async (serviceId, service) => {
+    try {
+      const result = await Swal.fire({
+        title: 'Cancel Service Request?',
+        html: `
+          <div style="text-align: left; padding: 1rem 0;">
+            <p style="margin-bottom: 0.75rem;"><strong>Service ID:</strong> #${serviceId}</p>
+            <p style="margin-bottom: 0.75rem;"><strong>Customer:</strong> ${service.customer_name || 'N/A'}</p>
+            <p style="margin-bottom: 0.75rem;"><strong>Phone:</strong> ${service.customer_phone || 'N/A'}</p>
+            <p style="margin-bottom: 0.75rem;"><strong>Service Type:</strong> ${SERVICE_TYPES[service.service_type] || service.service_type}</p>
+            <p style="margin-bottom: 0; color: #dc2626;"><strong>Are you sure you want to cancel this request?</strong></p>
+          </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Cancel',
+        cancelButtonText: 'No, Keep It',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#64748b',
+        reverseButtons: true
+      });
+
+      if (result.isConfirmed) {
+        await cancelPendingServiceRequestByAdmin(serviceId);
+        await Swal.fire('Cancelled!', 'Service request has been cancelled successfully.', 'success');
+        // Remove from local state immediately
+        setServices(prevServices => prevServices.filter(s => s.id !== serviceId));
+        loadServices(pagination.currentPage);
+      }
+    } catch (err) {
+      console.error('Failed to cancel service request:', err);
+      await Swal.fire('Error!', `Failed to cancel service request: ${err.message}`, 'error');
+    }
+  };
+
+  const handleStatusChange = async (serviceId, newStatus, service, amount = null) => {
+    try {
+      // If status is 'cancelled', show confirmation popup
+      if (newStatus === 'cancelled') {
+        const result = await Swal.fire({
+          title: 'Cancel Service Request?',
+          html: `
+            <div style="text-align: left; padding: 1rem 0;">
+              <p style="margin-bottom: 0.75rem;"><strong>Service ID:</strong> #${serviceId}</p>
+              <p style="margin-bottom: 0.75rem;"><strong>Customer:</strong> ${service.customer_name || 'N/A'}</p>
+              <p style="margin-bottom: 0.75rem;"><strong>Phone:</strong> ${service.customer_phone || 'N/A'}</p>
+              <p style="margin-bottom: 0.75rem;"><strong>Service Type:</strong> ${SERVICE_TYPES[service.service_type] || service.service_type}</p>
+              <p style="margin-bottom: 0; color: #dc2626;"><strong>Are you sure you want to cancel this service request?</strong></p>
+            </div>
+          `,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Yes, Cancel',
+          cancelButtonText: 'No, Keep It',
+          confirmButtonColor: '#dc2626',
+          cancelButtonColor: '#64748b',
+          reverseButtons: true
+        });
+
+        if (!result.isConfirmed) {
+          // Reset dropdown to previous status
+          loadServices(pagination.currentPage);
+          return;
+        }
+      }
+
       // If status is 'completed', prompt for amount
       if (newStatus === 'completed') {
         const { value: amountValue } = await Swal.fire({
@@ -232,6 +335,9 @@ const ServiceManagement = () => {
         await updateServiceRequestStatus(serviceId, newStatus);
         // Reload services to reflect the change
         loadServices(pagination.currentPage);
+        if (newStatus === 'cancelled') {
+          await Swal.fire('Cancelled!', 'Service request has been cancelled successfully.', 'success');
+        }
       }
     } catch (err) {
       console.error('Failed to update service status:', err);
@@ -519,8 +625,12 @@ const ServiceManagement = () => {
                       )}
                     </td>
                     <td style={{ padding: '1rem' }}>
-                      <span className={`status-badge ${getStatusBadgeClass(service.status)}`}>
-                        {service.status ? service.status.charAt(0).toUpperCase() + service.status.slice(1).replace('_', ' ') : 'N/A'}
+                      <span className={`status-badge ${getStatusBadgeClass(service.request_type === 'pending' && service.status === 'requested' ? 'pending' : service.status)}`}>
+                        {service.request_type === 'pending' && service.status === 'requested' 
+                          ? 'Pending' 
+                          : service.status 
+                            ? service.status.charAt(0).toUpperCase() + service.status.slice(1).replace('_', ' ') 
+                            : 'N/A'}
                       </span>
                     </td>
                     <td style={{ padding: '1rem', color: 'var(--corp-text-primary, #0f172a)' }}>
@@ -533,25 +643,60 @@ const ServiceManagement = () => {
                       )}
                     </td>
                     <td style={{ padding: '1rem' }}>
-                      <select
-                        value={service.status || 'pending'}
-                        onChange={(e) => handleStatusChange(service.id, e.target.value)}
-                        style={{
-                          padding: '0.5rem 0.75rem',
-                          border: '1px solid var(--corp-border, #cbd5e1)',
-                          borderRadius: '6px',
-                          background: 'var(--corp-bg-card, #ffffff)',
-                          color: 'var(--corp-text-primary, #0f172a)',
-                          fontSize: '0.875rem',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {STATUS_VALUES.map(status => (
-                          <option key={status} value={status}>
-                            {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-                          </option>
-                        ))}
-                      </select>
+                      {service.request_type === 'pending' && service.status === 'requested' ? (
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={() => handleConfirmRequest(service.id, service)}
+                            style={{
+                              padding: '0.5rem 0.75rem',
+                              border: 'none',
+                              borderRadius: '6px',
+                              background: '#059669',
+                              color: '#ffffff',
+                              fontSize: '0.875rem',
+                              cursor: 'pointer',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => handleCancelPendingRequest(service.id, service)}
+                            style={{
+                              padding: '0.5rem 0.75rem',
+                              border: 'none',
+                              borderRadius: '6px',
+                              background: '#dc2626',
+                              color: '#ffffff',
+                              fontSize: '0.875rem',
+                              cursor: 'pointer',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <select
+                          value={service.status || 'pending'}
+                          onChange={(e) => handleStatusChange(service.id, e.target.value, service)}
+                          style={{
+                            padding: '0.5rem 0.75rem',
+                            border: '1px solid var(--corp-border, #cbd5e1)',
+                            borderRadius: '6px',
+                            background: 'var(--corp-bg-card, #ffffff)',
+                            color: 'var(--corp-text-primary, #0f172a)',
+                            fontSize: '0.875rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {STATUS_VALUES.map(status => (
+                            <option key={status} value={status}>
+                              {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </td>
                   </tr>
                 ))}

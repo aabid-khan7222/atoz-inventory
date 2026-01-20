@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createServiceRequest, getMyServiceRequests } from '../../api';
+import { createServiceRequest, getMyServiceRequests, cancelPendingServiceRequest } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
 import { getFormState, saveFormState, markFormSubmitted } from '../../utils/formStateManager';
+import Swal from 'sweetalert2';
 import './DashboardContent.css';
 
 const SERVICE_TYPES = [
@@ -137,6 +138,49 @@ export default function CustomerServices() {
       setSubmitError(err.message || 'Failed to book service');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleCancelRequest = async (serviceId, service) => {
+    try {
+      // Check if this is a pending request (can be cancelled)
+      const isPending = service.request_type === 'pending' && service.status === 'requested';
+      
+      if (!isPending) {
+        await Swal.fire('Error!', 'Only pending service requests can be cancelled.', 'error');
+        return;
+      }
+
+      const result = await Swal.fire({
+        title: 'Cancel Service Request?',
+        html: `
+          <div style="text-align: left; padding: 1rem 0;">
+            <p style="margin-bottom: 0.75rem;"><strong>Service ID:</strong> #${serviceId}</p>
+            <p style="margin-bottom: 0.75rem;"><strong>Service Type:</strong> ${SERVICE_TYPES.find((s) => s.value === service.service_type)?.label || service.service_type}</p>
+            ${service.vehicle_name ? `<p style="margin-bottom: 0.75rem;"><strong>Vehicle:</strong> ${service.vehicle_name}</p>` : ''}
+            ${service.vehicle_number ? `<p style="margin-bottom: 0.75rem;"><strong>Vehicle Number:</strong> ${service.vehicle_number}</p>` : ''}
+            <p style="margin-bottom: 0; color: #dc2626;"><strong>Are you sure you want to cancel this service request?</strong></p>
+          </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Cancel',
+        cancelButtonText: 'No, Keep It',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#64748b',
+        reverseButtons: true
+      });
+
+      if (result.isConfirmed) {
+        await cancelPendingServiceRequest(serviceId);
+        await Swal.fire('Cancelled!', 'Your service request has been cancelled successfully.', 'success');
+        // Remove from local state immediately
+        setHistory(prevHistory => prevHistory.filter(s => s.id !== serviceId));
+        loadHistory();
+      }
+    } catch (err) {
+      console.error('Failed to cancel service request:', err);
+      await Swal.fire('Error!', `Failed to cancel service request: ${err.message}`, 'error');
     }
   };
 
@@ -313,7 +357,7 @@ export default function CustomerServices() {
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table className="transaction-table" style={{ minWidth: '1000px' }}>
+            <table className="transaction-table" style={{ minWidth: '1100px' }}>
               <thead>
                 <tr>
                   <th>Date</th>
@@ -322,6 +366,7 @@ export default function CustomerServices() {
                   <th>Status</th>
                   <th>Amount</th>
                   <th>Notes</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -348,8 +393,10 @@ export default function CustomerServices() {
                       )}
                     </td>
                     <td>
-                      <span className={`status-badge ${statusBadge[item.status] || 'status-pending'}`}>
-                        {statusLabels[item.status] || item.status}
+                      <span className={`status-badge ${statusBadge[item.request_type === 'pending' && item.status === 'requested' ? 'pending' : item.status] || 'status-pending'}`}>
+                        {item.request_type === 'pending' && item.status === 'requested' 
+                          ? 'Pending' 
+                          : statusLabels[item.status] || item.status}
                       </span>
                     </td>
                     <td>
@@ -362,6 +409,27 @@ export default function CustomerServices() {
                       )}
                     </td>
                     <td>{item.notes || '-'}</td>
+                    <td>
+                      {item.request_type === 'pending' && item.status === 'requested' ? (
+                        <button
+                          onClick={() => handleCancelRequest(item.id, item)}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            border: 'none',
+                            borderRadius: '6px',
+                            background: '#dc2626',
+                            color: '#ffffff',
+                            fontSize: '0.875rem',
+                            cursor: 'pointer',
+                            fontWeight: '500'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      ) : (
+                        <span style={{ color: '#64748b', fontSize: '0.875rem' }}>-</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
