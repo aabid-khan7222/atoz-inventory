@@ -1130,7 +1130,7 @@ await fetchProducts();
                                             alignItems: 'center', 
                                             gap: '0.5rem', 
                                             fontSize: '0.75rem', 
-                                            color: 'var(--azb-text-muted, #64748b)', 
+                                            color: 'var(--azb-text-muted)', 
                                             cursor: 'pointer',
                                             marginTop: '0.25rem'
                                           }}>
@@ -1302,7 +1302,7 @@ await fetchProducts();
               flexDirection: 'column',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
               border: '1px solid var(--azb-border-subtle, #e2e8f0)',
-              color: 'var(--azb-text-main, #0f172a)',
+              color: 'var(--azb-text-main)',
               overflow: 'hidden'
             }}
             onClick={(e) => e.stopPropagation()}
@@ -1327,7 +1327,7 @@ await fetchProducts();
                   border: 'none',
                   fontSize: '1.5rem',
                   cursor: 'pointer',
-                  color: 'var(--azb-text-muted, #64748b)',
+                  color: 'var(--azb-text-muted)',
                   padding: '0.25rem',
                   lineHeight: 1,
                   display: 'flex',
@@ -1966,12 +1966,12 @@ await fetchProducts();
                   background: 'var(--azb-bg-hover, #f1f5f9)', 
                   borderRadius: '0.375rem',
                   fontSize: '0.875rem',
-                  color: 'var(--azb-text-secondary, #475569)',
+                  color: 'var(--azb-text-secondary)',
                   border: '1px solid var(--azb-border-subtle, rgba(148, 163, 184, 0.2))'
                 }}>
                   <strong style={{ color: 'var(--azb-text-main)' }}>Category:</strong> <span style={{ color: 'var(--azb-text-secondary)' }}>{categories.find(c => c.id === selectedCategory)?.name || selectedCategory}</span>
                   <br />
-                  <small style={{ color: 'var(--azb-text-muted, #64748b)' }}>Product will be added to the currently selected category</small>
+                  <small style={{ color: 'var(--azb-text-muted)' }}>Product will be added to the currently selected category</small>
                 </div>
 
               </div>
@@ -1997,7 +1997,7 @@ await fetchProducts();
                   flex: 1,
                   padding: '0.75rem',
                   background: 'var(--azb-bg-hover, #f1f5f9)',
-                  color: 'var(--azb-text-secondary, #475569)',
+                  color: 'var(--azb-text-secondary)',
                   border: '1px solid var(--azb-border-subtle, #e2e8f0)',
                   borderRadius: '0.375rem',
                   fontSize: '0.875rem',
