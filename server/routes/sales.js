@@ -335,14 +335,15 @@ router.post('/', requireAuth, async (req, res) => {
       const isWaterProduct = product.product_type_id === 4;
 
       // Don't auto-assign serial numbers - admin will assign them later
-      // Set all serial numbers to NULL initially (admin will assign later)
+      // Use 'PENDING' placeholder for customer orders (since SERIAL_NUMBER is NOT NULL)
+      // Admin will replace 'PENDING' with actual serial number when approving order
       let serialNumbers = [];
       if (isWaterProduct) {
-        // Water products don't have serial numbers - use null
-        serialNumbers = Array(quantity).fill(null);
+        // Water products don't have serial numbers - use 'N/A'
+        serialNumbers = Array(quantity).fill('N/A');
       } else {
-        // For non-water products, set serial numbers to NULL (admin will assign later)
-        serialNumbers = Array(quantity).fill(null);
+        // For non-water products, use 'PENDING' placeholder (admin will assign later)
+        serialNumbers = Array(quantity).fill('PENDING');
       }
 
       // Process vehicle numbers for this item - Skip validation for water products
