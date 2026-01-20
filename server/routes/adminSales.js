@@ -334,7 +334,7 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
     }
 
     console.log('[findOrCreateCustomer] Created customer_profiles entry:', profileInsertResult.rows[0]?.user_id);
-    console.log('[findOrCreateCustomer] Successfully created customer:', { id: newUser.id, email: newUser.email, type: customerType });
+    console.log('[findOrCreateCustomer] Successfully created customer:', { id: newUser.id, email: newUser.email, type: userType });
 
     return newUser;
   } catch (error) {
