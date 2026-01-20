@@ -409,7 +409,7 @@ export default function CustomerServices() {
                       )}
                     </td>
                     <td>{item.notes || '-'}</td>
-                    <td>
+                    <td style={{ minWidth: '100px' }}>
                       {item.status === 'requested' ? (
                         <button
                           onClick={() => handleCancelRequest(item.id, item)}
@@ -421,7 +421,15 @@ export default function CustomerServices() {
                             color: '#ffffff',
                             fontSize: '0.875rem',
                             cursor: 'pointer',
-                            fontWeight: '500'
+                            fontWeight: '500',
+                            whiteSpace: 'nowrap',
+                            transition: 'background 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.background = '#b91c1c';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.background = '#dc2626';
                           }}
                         >
                           Cancel
