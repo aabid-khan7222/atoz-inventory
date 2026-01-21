@@ -1367,6 +1367,21 @@
     font-size: 0.85rem !important;
   }
 
+  .form-label-discount-amount,
+  .form-label-final-amount {
+    font-size: 0.85rem !important;
+  }
+
+  .form-label-discount-amount .label-text-full,
+  .form-label-final-amount .label-text-full {
+    display: none;
+  }
+
+  .form-label-discount-amount .label-text-short,
+  .form-label-final-amount .label-text-short {
+    display: inline;
+  }
+
   .optional-text {
     font-size: 0.7rem !important;
     color: var(--corp-text-muted, #94a3b8);
@@ -1442,6 +1457,21 @@
     font-size: 0.8rem !important;
   }
 
+  .form-label-discount-amount,
+  .form-label-final-amount {
+    font-size: 0.8rem !important;
+  }
+
+  .form-label-discount-amount .label-text-full,
+  .form-label-final-amount .label-text-full {
+    display: none;
+  }
+
+  .form-label-discount-amount .label-text-short,
+  .form-label-final-amount .label-text-short {
+    display: inline;
+  }
+
   .optional-text {
     font-size: 0.65rem !important;
     color: var(--corp-text-muted, #94a3b8);
@@ -1508,6 +1538,21 @@
 
   .form-label-vehicle {
     font-size: 0.75rem !important;
+  }
+
+  .form-label-discount-amount,
+  .form-label-final-amount {
+    font-size: 0.75rem !important;
+  }
+
+  .form-label-discount-amount .label-text-full,
+  .form-label-final-amount .label-text-full {
+    display: none;
+  }
+
+  .form-label-discount-amount .label-text-short,
+  .form-label-final-amount .label-text-short {
+    display: inline;
   }
 
   .optional-text {

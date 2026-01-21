@@ -938,7 +938,7 @@ const SellStock = ({ onBack }) => {
               />
             </div>
             <div className="form-group">
-              <label className="form-label-mobile">Customer Mobile Number *</label>
+              <label className="form-label-mobile">Customer Mobile *</label>
               <input
                 type="tel"
                 value={customerMobileNumber}
@@ -1351,7 +1351,10 @@ const SellStock = ({ onBack }) => {
 
             <div className="form-row">
               <div className="form-group">
-                <label>Discount Amount (₹)</label>
+                <label className="form-label-discount-amount">
+                  <span className="label-text-full">Discount Amount (₹)</span>
+                  <span className="label-text-short">Discount (₹)</span>
+                </label>
                 <input
                   type="number"
                   min="0"
@@ -1390,7 +1393,10 @@ const SellStock = ({ onBack }) => {
                 </small>
               </div>
               <div className="form-group">
-                <label>Final Amount (₹) *</label>
+                <label className="form-label-final-amount">
+                  <span className="label-text-full">Final Amount (₹) *</span>
+                  <span className="label-text-short">Final (₹) *</span>
+                </label>
                 <input
                   type="number"
                   min="0"
