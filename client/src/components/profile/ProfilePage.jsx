@@ -307,6 +307,75 @@ const ProfilePage = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleRemovePhoto = async () => {
+    try {
+      // Confirm removal
+      const result = await Swal.fire({
+        title: 'Remove profile photo?',
+        text: 'This will remove your profile photo permanently.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, remove it',
+        cancelButtonText: 'Cancel'
+      });
+
+      if (!result.isConfirmed) return;
+
+      // Save null avatar to database via API
+      const profileData = {
+        avatar_url: null, // Explicitly set to null to remove
+        // Include existing profile data to avoid validation errors
+        full_name: formData.fullName || user?.full_name || "",
+        email: formData.email || user?.email || "",
+        phone: formData.phone || user?.phone || "",
+      };
+
+      const response = await apiUpdateUserProfile(profileData);
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to remove profile photo");
+      }
+
+      // Clear local preview
+      setAvatarPreview("");
+
+      // Update user context
+      if (response.user) {
+        updateUser({
+          ...response.user,
+          avatar_url: null,
+          profileImage: null,
+          profile_image_url: null,
+          avatar: null,
+        });
+      } else {
+        // Fallback: update local state
+        updateUser({
+          avatar_url: null,
+          profileImage: null,
+          profile_image_url: null,
+          avatar: null,
+        });
+      }
+
+      // Update local profile state
+      updateUserProfile({ avatar: null });
+
+      setStatus({
+        type: "success",
+        message: "Profile photo removed successfully.",
+      });
+    } catch (error) {
+      console.error('Remove photo error:', error);
+      setStatus({
+        type: "error",
+        message: error?.message || "Failed to remove profile photo. Please try again.",
+      });
+    }
+  };
+
   const handleLogout = async () => {
     const result = await Swal.fire({
       title: 'Are you sure?',
@@ -363,9 +432,16 @@ const ProfilePage = () => {
                 hidden
               />
             </div>
-            <button type="button" className="change-photo-btn" onClick={handleAvatarClick}>
-              Change photo
-            </button>
+            <div className="avatar-actions">
+              <button type="button" className="change-photo-btn" onClick={handleAvatarClick}>
+                Change photo
+              </button>
+              {avatarPreview && (
+                <button type="button" className="remove-photo-btn" onClick={handleRemovePhoto}>
+                  Remove photo
+                </button>
+              )}
+            </div>
             <span className={`role-badge role-badge--${roleModifier}`}>
               {user.role_name || "customer"}
             </span>
