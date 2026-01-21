@@ -1338,7 +1338,74 @@
   margin: 0;
 }
 
-/* Responsive */
+/* Responsive - Tablet */
+@media (max-width: 1024px) and (min-width: 769px) {
+  /* Keep form-row as 2 columns for specific fields on tablet */
+  .form-row {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* Reduce label font sizes for better fit */
+  .form-group label {
+    font-size: 0.85rem !important;
+  }
+
+  .form-label-mobile {
+    font-size: 0.8rem !important;
+  }
+
+  .form-label-mrp {
+    font-size: 0.8rem !important;
+  }
+
+  .form-label-discount {
+    font-size: 0.85rem !important;
+  }
+
+  .form-label-vehicle {
+    font-size: 0.85rem !important;
+  }
+
+  .optional-text {
+    font-size: 0.7rem !important;
+    color: var(--corp-text-muted, #94a3b8);
+    font-weight: 400;
+  }
+
+  /* Reduce input font sizes */
+  .form-input,
+  .form-select {
+    font-size: 0.95rem !important;
+    padding: 0.7rem 0.8rem !important;
+  }
+
+  /* Buttons side-by-side */
+  .form-actions {
+    flex-direction: row !important;
+    gap: 1rem !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.7rem 1.25rem !important;
+    font-size: 0.9rem !important;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .btn-select-product .btn-text-full {
+    display: none;
+  }
+
+  .btn-select-product .btn-text-short {
+    display: inline;
+  }
+}
+
+/* Responsive - Mobile */
 @media (max-width: 768px) {
   .inventory-section {
     padding: 1rem;
@@ -1348,12 +1415,119 @@
     padding: 1rem;
   }
 
+  /* Keep form-row as 2 columns for specific fields on mobile/tablet */
   .form-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Reduce label font sizes for better fit */
+  .form-group label {
+    font-size: 0.8rem !important;
+  }
+
+  .form-label-mobile {
+    font-size: 0.75rem !important;
+  }
+
+  .form-label-mrp {
+    font-size: 0.75rem !important;
+  }
+
+  .form-label-discount {
+    font-size: 0.8rem !important;
+  }
+
+  .form-label-vehicle {
+    font-size: 0.8rem !important;
+  }
+
+  .optional-text {
+    font-size: 0.65rem !important;
+    color: var(--corp-text-muted, #94a3b8);
+    font-weight: 400;
+  }
+
+  /* Reduce input font sizes */
+  .form-input,
+  .form-select {
+    font-size: 0.9rem !important;
+    padding: 0.65rem 0.75rem !important;
+  }
+
+  /* Buttons side-by-side */
+  .form-actions {
+    flex-direction: row !important;
+    gap: 0.75rem !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.65rem 1rem !important;
+    font-size: 0.85rem !important;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .btn-select-product .btn-text-full {
+    display: none;
+  }
+
+  .btn-select-product .btn-text-short {
+    display: inline;
   }
 
   .category-buttons {
     flex-direction: column;
+  }
+}
+
+/* Small Mobile: Further adjustments */
+@media (max-width: 480px) {
+  .form-row {
+    gap: 0.5rem !important;
+  }
+
+  .form-group label {
+    font-size: 0.75rem !important;
+  }
+
+  .form-label-mobile {
+    font-size: 0.7rem !important;
+  }
+
+  .form-label-mrp {
+    font-size: 0.7rem !important;
+  }
+
+  .form-label-discount {
+    font-size: 0.75rem !important;
+  }
+
+  .form-label-vehicle {
+    font-size: 0.75rem !important;
+  }
+
+  .optional-text {
+    font-size: 0.6rem !important;
+  }
+
+  .form-input,
+  .form-select {
+    font-size: 0.85rem !important;
+    padding: 0.6rem 0.65rem !important;
+  }
+
+  .form-actions {
+    gap: 0.5rem !important;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.6rem 0.875rem !important;
+    font-size: 0.8rem !important;
   }
 
   .category-btn {

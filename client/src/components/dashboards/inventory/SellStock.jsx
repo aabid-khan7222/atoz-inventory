@@ -938,7 +938,7 @@ const SellStock = ({ onBack }) => {
               />
             </div>
             <div className="form-group">
-              <label>Customer Mobile Number *</label>
+              <label className="form-label-mobile">Customer Mobile Number *</label>
               <input
                 type="tel"
                 value={customerMobileNumber}
@@ -948,7 +948,7 @@ const SellStock = ({ onBack }) => {
                 }}
                 required
                 className="form-input"
-                placeholder="10 digit mobile number"
+                placeholder="10 digit mobile"
                 maxLength={10}
               />
             </div>
@@ -971,8 +971,8 @@ const SellStock = ({ onBack }) => {
             {selectedCategory !== 'water' && (
               quantity === 1 ? (
                 <div className="form-group">
-                  <label>
-                    Vehicle Number (optional)
+                  <label className="form-label-vehicle">
+                    Vehicle Number <span className="optional-text">(opt)</span>
                   </label>
                   <input
                     type="text"
@@ -980,13 +980,13 @@ const SellStock = ({ onBack }) => {
                     onChange={(e) => setCustomerVehicleNumber(e.target.value)}
                     required={false}
                     className="form-input"
-                    placeholder="Enter vehicle number (optional)"
+                    placeholder="Enter vehicle number"
                   />
                 </div>
               ) : (
                 <div className="form-group">
-                <label>
-                  Vehicle Number(s) (optional)
+                <label className="form-label-vehicle">
+                  Vehicle Number(s) <span className="optional-text">(opt)</span>
                 </label>
                 
                 {/* Option to use same vehicle for all */}
@@ -1305,7 +1305,7 @@ const SellStock = ({ onBack }) => {
             
             <div className="form-row">
               <div className="form-group">
-                <label>MRP (per unit) *</label>
+                <label className="form-label-mrp">MRP (per unit) *</label>
                 <input
                   type="number"
                   min="0"
@@ -1319,7 +1319,7 @@ const SellStock = ({ onBack }) => {
                 </small>
               </div>
               <div className="form-group">
-                <label>Discount (%) *</label>
+                <label className="form-label-discount">Discount (%) *</label>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <input
                     type="number"
@@ -1630,8 +1630,9 @@ const SellStock = ({ onBack }) => {
               </button>
             )}
             {!selectedProduct && cart.length === 0 && (
-              <button type="button" className="btn-primary" disabled>
-                Select a product to add to cart
+              <button type="button" className="btn-primary btn-select-product" disabled>
+                <span className="btn-text-full">Select a product to add to cart</span>
+                <span className="btn-text-short">Select Product</span>
               </button>
             )}
           </div>
