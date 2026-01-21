@@ -583,6 +583,12 @@
 }
 
 /* Corporate Financial Cards */
+.financial-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
 .financial-card {
   background: var(--corp-bg-card);
   padding: 1.75rem;
@@ -590,6 +596,9 @@
   border: 1px solid var(--corp-border);
   box-shadow: var(--corp-shadow);
   transition: all 0.3s ease, background 0.3s ease, border-color 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .financial-card:hover {
@@ -771,6 +780,24 @@
   .orders-table-wrapper {
     overflow-x: auto;
   }
+
+  .financial-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .financial-card {
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .financial-card .amount {
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
 }
 
 /* Large Mobile & Tablet: ≤ 768px */
@@ -892,20 +919,34 @@
     padding: 0.625rem;
   }
 
+  .financial-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
   .financial-card {
     padding: 1rem;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
 
   .financial-card h4 {
     font-size: 0.8125rem;
+    margin-bottom: 0.5rem;
   }
 
   .financial-card .amount {
     font-size: 1.5rem;
+    flex: 1;
+    display: flex;
+    align-items: center;
   }
 
   .financial-card .subtext {
     font-size: 0.8125rem;
+    margin-top: 0.5rem;
   }
 }
 
@@ -1009,20 +1050,34 @@
     min-height: 44px;
   }
 
+  .financial-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
   .financial-card {
     padding: 0.875rem;
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
 
   .financial-card h4 {
     font-size: 0.75rem;
+    margin-bottom: 0.5rem;
   }
 
   .financial-card .amount {
     font-size: 1.25rem;
+    flex: 1;
+    display: flex;
+    align-items: center;
   }
 
   .financial-card .subtext {
     font-size: 0.75rem;
+    margin-top: 0.5rem;
   }
 }
 

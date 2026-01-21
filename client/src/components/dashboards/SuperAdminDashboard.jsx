@@ -732,32 +732,32 @@ const SuperAdminDashboard = ({ activeMenu }) => {
 
             {/* Financial Overview */}
             {financial && (
-              <div style={{ 
+              <div className="financial-cards-grid" style={{ 
                 display: 'grid', 
                 gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
                 gap: '1.25rem', 
                 marginTop: '2rem',
                 marginBottom: '2rem'
               }}>
-                <div className="financial-card" style={{ borderLeft: '4px solid #3b82f6' }}>
+                <div className="financial-card financial-card-sales" style={{ borderLeft: '4px solid #3b82f6' }}>
                   <h4>Sales Revenue</h4>
                   <p className="amount" style={{ color: '#3b82f6' }}>
                     {formatCurrency(financial.revenueBreakdown?.sales || 0)}
                   </p>
                 </div>
-                <div className="financial-card" style={{ borderLeft: '4px solid #8b5cf6' }}>
+                <div className="financial-card financial-card-service" style={{ borderLeft: '4px solid #8b5cf6' }}>
                   <h4>Service Revenue</h4>
                   <p className="amount" style={{ color: '#8b5cf6' }}>
                     {formatCurrency(financial.revenueBreakdown?.services || 0)}
                   </p>
                 </div>
-                <div className="financial-card" style={{ borderLeft: '4px solid #10b981' }}>
+                <div className="financial-card financial-card-total" style={{ borderLeft: '4px solid #10b981' }}>
                   <h4>Total Revenue</h4>
                   <p className="amount" style={{ color: '#10b981' }}>
                     {formatCurrency(financial.revenueBreakdown?.total || 0)}
                   </p>
                 </div>
-                <div className="financial-card" style={{ borderLeft: '4px solid #f59e0b' }}>
+                <div className="financial-card financial-card-profit" style={{ borderLeft: '4px solid #f59e0b' }}>
                   <h4>Estimated Profit</h4>
                   <p className="amount" style={{ color: '#f59e0b' }}>
                     {formatCurrency(financial.estimatedProfit || 0)}
