@@ -163,10 +163,16 @@
 /* Ensure proper order: avatar -> role badge -> buttons */
 .avatar-section .avatar-wrapper {
   order: 1;
+  position: relative;
+  top: 0;
+  left: auto;
+  transform: none;
+  margin-bottom: 0;
 }
 
 .avatar-section .role-badge {
   order: 2;
+  margin-top: 16px;
 }
 
 .avatar-section .avatar-actions {
@@ -190,6 +196,16 @@
   background: linear-gradient(145deg, var(--accent), var(--accent-strong));
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Desktop: Keep absolute positioning */
+@media (min-width: 1025px) {
+  .avatar-section .avatar-wrapper {
+    position: absolute;
+    top: -64px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
 }
 
 .avatar-wrapper:hover {
@@ -693,18 +709,21 @@
   }
 
   .avatar-section {
-    padding-top: 100px;
+    padding-top: 0;
     gap: 16px;
   }
 
-  .avatar-wrapper {
+  .avatar-section .avatar-wrapper {
+    position: relative;
+    top: 0;
+    left: auto;
+    transform: none;
     width: 100px;
     height: 100px;
-    top: -50px;
-    z-index: 1;
+    margin-bottom: 0;
   }
 
-  .role-badge {
+  .avatar-section .role-badge {
     margin-top: 0;
     margin-bottom: 0;
     z-index: 2;
@@ -793,17 +812,20 @@
 
   .avatar-section {
     gap: 16px;
-    padding-top: 110px;
+    padding-top: 0;
   }
 
-  .avatar-wrapper {
+  .avatar-section .avatar-wrapper {
+    position: relative;
+    top: 0;
+    left: auto;
+    transform: none;
     width: 80px;
     height: 80px;
-    top: -40px;
-    z-index: 1;
+    margin-bottom: 0;
   }
 
-  .role-badge {
+  .avatar-section .role-badge {
     margin-top: 0;
     margin-bottom: 0;
     z-index: 2;
