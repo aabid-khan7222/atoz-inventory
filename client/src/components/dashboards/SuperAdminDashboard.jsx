@@ -1172,95 +1172,103 @@ const SuperAdminDashboard = ({ activeMenu }) => {
                 {openSalesSections.product && (
                   <>
                 {/* Sales by Product Controls */}
-                <div style={{ marginBottom: '0.75rem', padding: '0.75rem', background: 'var(--corp-bg-tertiary, #f8fafc)', borderRadius: '0.5rem', border: '1px solid var(--corp-border, #e2e8f0)' }}>
+                <div className="sales-product-controls" style={{ marginBottom: '0.75rem', padding: '0.75rem', background: 'var(--corp-bg-tertiary, #f8fafc)', borderRadius: '0.5rem', border: '1px solid var(--corp-border, #e2e8f0)' }}>
                   <strong style={{ color: 'var(--corp-text-primary, #0f172a)', display: 'block', marginBottom: '0.75rem' }}>Sales by Product</strong>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'nowrap' }}>
-                    {/* Search Bar */}
-                    <div style={{ position: 'relative', flex: '1 1 auto', maxWidth: '400px' }}>
-                      <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--corp-text-muted, #64748b)', fontSize: '1rem', pointerEvents: 'none' }}>🔍</span>
-                      <input
-                        type="text"
-                        placeholder="Search product, SKU, series..."
-                        value={productSearchTerm}
-                        onChange={(e) => setProductSearchTerm(e.target.value)}
-                        style={{ 
-                          width: '100%', 
-                          padding: '0.6rem 0.75rem 0.6rem 2.5rem', 
-                          border: '1px solid var(--corp-border, #cbd5e1)', 
-                          borderRadius: '0.5rem', 
-                          background: 'var(--corp-bg-card, #ffffff)', 
-                          color: 'var(--corp-text-primary, #0f172a)', 
-                          fontSize: '0.875rem',
-                          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = 'var(--corp-primary, #2563eb)'}
-                        onBlur={(e) => e.target.style.borderColor = 'var(--corp-border, #cbd5e1)'}
-                      />
+                  <div className="sales-product-filters-container">
+                    {/* Row 1: Search Bar */}
+                    <div className="sales-product-search-row">
+                      <div style={{ position: 'relative', width: '100%' }}>
+                        <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--corp-text-muted, #64748b)', fontSize: '1rem', pointerEvents: 'none' }}>🔍</span>
+                        <input
+                          type="text"
+                          placeholder="Search product, SKU, series..."
+                          value={productSearchTerm}
+                          onChange={(e) => setProductSearchTerm(e.target.value)}
+                          className="sales-product-search-input"
+                          style={{ 
+                            width: '100%', 
+                            padding: '0.6rem 0.75rem 0.6rem 2.5rem', 
+                            border: '1px solid var(--corp-border, #cbd5e1)', 
+                            borderRadius: '0.5rem', 
+                            background: 'var(--corp-bg-card, #ffffff)', 
+                            color: 'var(--corp-text-primary, #0f172a)', 
+                            fontSize: '0.875rem',
+                            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = 'var(--corp-primary, #2563eb)'}
+                          onBlur={(e) => e.target.style.borderColor = 'var(--corp-border, #cbd5e1)'}
+                        />
+                      </div>
                     </div>
-                    {/* Category Filter */}
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--corp-text-muted, #64748b)', fontSize: '0.875rem', pointerEvents: 'none', zIndex: 1 }}>📁</span>
-                      <select
-                        value={productFilterCategory}
-                        onChange={(e) => setProductFilterCategory(e.target.value)}
-                        style={{ 
-                          padding: '0.6rem 2rem 0.6rem 2.25rem', 
-                          border: '1px solid var(--corp-border, #cbd5e1)', 
-                          borderRadius: '0.5rem', 
-                          width: '160px', 
-                          background: 'var(--corp-bg-card, #ffffff)', 
-                          color: 'var(--corp-text-primary, #0f172a)', 
-                          fontSize: '0.875rem',
-                          cursor: 'pointer',
-                          appearance: 'none',
-                          backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%2364748b\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")',
-                          backgroundRepeat: 'no-repeat',
-                          backgroundPosition: 'right 0.75rem center',
-                          backgroundSize: '12px',
-                          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = 'var(--corp-primary, #2563eb)'}
-                        onBlur={(e) => e.target.style.borderColor = 'var(--corp-border, #cbd5e1)'}
-                      >
-                        <option value="all">All Categories</option>
-                        <option value="car-truck-tractor">Car/Truck/Tractor</option>
-                        <option value="bike">Bike</option>
-                        <option value="ups-inverter">Inverter & Battery</option>
-                      </select>
-                    </div>
-                    {/* Series Filter */}
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--corp-text-muted, #64748b)', fontSize: '0.875rem', pointerEvents: 'none', zIndex: 1 }}>📋</span>
-                      <select
-                        value={productFilterSeries}
-                        onChange={(e) => setProductFilterSeries(e.target.value)}
-                        style={{ 
-                          padding: '0.6rem 2rem 0.6rem 2.25rem', 
-                          border: '1px solid var(--corp-border, #cbd5e1)', 
-                          borderRadius: '0.5rem', 
-                          width: '160px', 
-                          background: 'var(--corp-bg-card, #ffffff)', 
-                          color: 'var(--corp-text-primary, #0f172a)', 
-                          fontSize: '0.875rem',
-                          cursor: 'pointer',
-                          appearance: 'none',
-                          backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%2364748b\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")',
-                          backgroundRepeat: 'no-repeat',
-                          backgroundPosition: 'right 0.75rem center',
-                          backgroundSize: '12px',
-                          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = 'var(--corp-primary, #2563eb)'}
-                        onBlur={(e) => e.target.style.borderColor = 'var(--corp-border, #cbd5e1)'}
-                      >
-                        <option value="all">All Series</option>
-                        {getUniqueSeries(salesDetail).map(series => (
-                          <option key={series} value={series}>{series}</option>
-                        ))}
-                      </select>
+                    {/* Row 2: Category and Series Filters */}
+                    <div className="sales-product-filters-row">
+                      {/* Category Filter */}
+                      <div style={{ position: 'relative', flex: '1' }}>
+                        <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--corp-text-muted, #64748b)', fontSize: '0.875rem', pointerEvents: 'none', zIndex: 1 }}>📁</span>
+                        <select
+                          value={productFilterCategory}
+                          onChange={(e) => setProductFilterCategory(e.target.value)}
+                          className="sales-product-filter-select"
+                          style={{ 
+                            padding: '0.6rem 2rem 0.6rem 2.25rem', 
+                            border: '1px solid var(--corp-border, #cbd5e1)', 
+                            borderRadius: '0.5rem', 
+                            width: '100%', 
+                            background: 'var(--corp-bg-card, #ffffff)', 
+                            color: 'var(--corp-text-primary, #0f172a)', 
+                            fontSize: '0.875rem',
+                            cursor: 'pointer',
+                            appearance: 'none',
+                            backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%2364748b\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")',
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 0.75rem center',
+                            backgroundSize: '12px',
+                            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = 'var(--corp-primary, #2563eb)'}
+                          onBlur={(e) => e.target.style.borderColor = 'var(--corp-border, #cbd5e1)'}
+                        >
+                          <option value="all">All Categories</option>
+                          <option value="car-truck-tractor">Car/Truck/Tractor</option>
+                          <option value="bike">Bike</option>
+                          <option value="ups-inverter">Inverter & Battery</option>
+                        </select>
+                      </div>
+                      {/* Series Filter */}
+                      <div style={{ position: 'relative', flex: '1' }}>
+                        <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--corp-text-muted, #64748b)', fontSize: '0.875rem', pointerEvents: 'none', zIndex: 1 }}>📋</span>
+                        <select
+                          value={productFilterSeries}
+                          onChange={(e) => setProductFilterSeries(e.target.value)}
+                          className="sales-product-filter-select"
+                          style={{ 
+                            padding: '0.6rem 2rem 0.6rem 2.25rem', 
+                            border: '1px solid var(--corp-border, #cbd5e1)', 
+                            borderRadius: '0.5rem', 
+                            width: '100%', 
+                            background: 'var(--corp-bg-card, #ffffff)', 
+                            color: 'var(--corp-text-primary, #0f172a)', 
+                            fontSize: '0.875rem',
+                            cursor: 'pointer',
+                            appearance: 'none',
+                            backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%2364748b\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")',
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 0.75rem center',
+                            backgroundSize: '12px',
+                            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = 'var(--corp-primary, #2563eb)'}
+                          onBlur={(e) => e.target.style.borderColor = 'var(--corp-border, #cbd5e1)'}
+                        >
+                          <option value="all">All Series</option>
+                          {getUniqueSeries(salesDetail).map(series => (
+                            <option key={series} value={series}>{series}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1314,95 +1322,103 @@ const SuperAdminDashboard = ({ activeMenu }) => {
                 {openSalesSections.details && (
                   <>
                 {/* Sales Details Controls */}
-                <div style={{ marginBottom: '0.75rem', padding: '0.75rem', background: 'var(--corp-bg-tertiary, #f8fafc)', borderRadius: '0.5rem', border: '1px solid var(--corp-border, #e2e8f0)' }}>
+                <div className="sales-details-controls" style={{ marginBottom: '0.75rem', padding: '0.75rem', background: 'var(--corp-bg-tertiary, #f8fafc)', borderRadius: '0.5rem', border: '1px solid var(--corp-border, #e2e8f0)' }}>
                   <strong style={{ color: 'var(--corp-text-primary, #0f172a)', display: 'block', marginBottom: '0.75rem' }}>Sales Details</strong>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'nowrap' }}>
-                    {/* Search Bar */}
-                    <div style={{ position: 'relative', flex: '1 1 auto', maxWidth: '400px' }}>
-                      <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--corp-text-muted, #64748b)', fontSize: '1rem', pointerEvents: 'none' }}>🔍</span>
-                      <input
-                        type="text"
-                        placeholder="Search customer, product, SKU, invoice..."
-                        value={detailSearchTerm}
-                        onChange={(e) => setDetailSearchTerm(e.target.value)}
-                        style={{ 
-                          width: '100%', 
-                          padding: '0.6rem 0.75rem 0.6rem 2.5rem', 
-                          border: '1px solid var(--corp-border, #cbd5e1)', 
-                          borderRadius: '0.5rem', 
-                          background: 'var(--corp-bg-card, #ffffff)', 
-                          color: 'var(--corp-text-primary, #0f172a)', 
-                          fontSize: '0.875rem',
-                          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = 'var(--corp-primary, #2563eb)'}
-                        onBlur={(e) => e.target.style.borderColor = 'var(--corp-border, #cbd5e1)'}
-                      />
+                  <div className="sales-details-filters-container">
+                    {/* Row 1: Search Bar */}
+                    <div className="sales-details-search-row">
+                      <div style={{ position: 'relative', width: '100%' }}>
+                        <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--corp-text-muted, #64748b)', fontSize: '1rem', pointerEvents: 'none' }}>🔍</span>
+                        <input
+                          type="text"
+                          placeholder="Search customer, product, SKU, invoice..."
+                          value={detailSearchTerm}
+                          onChange={(e) => setDetailSearchTerm(e.target.value)}
+                          className="sales-details-search-input"
+                          style={{ 
+                            width: '100%', 
+                            padding: '0.6rem 0.75rem 0.6rem 2.5rem', 
+                            border: '1px solid var(--corp-border, #cbd5e1)', 
+                            borderRadius: '0.5rem', 
+                            background: 'var(--corp-bg-card, #ffffff)', 
+                            color: 'var(--corp-text-primary, #0f172a)', 
+                            fontSize: '0.875rem',
+                            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = 'var(--corp-primary, #2563eb)'}
+                          onBlur={(e) => e.target.style.borderColor = 'var(--corp-border, #cbd5e1)'}
+                        />
+                      </div>
                     </div>
-                    {/* Category Filter */}
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--corp-text-muted, #64748b)', fontSize: '0.875rem', pointerEvents: 'none', zIndex: 1 }}>📁</span>
-                      <select
-                        value={detailFilterCategory}
-                        onChange={(e) => setDetailFilterCategory(e.target.value)}
-                        style={{ 
-                          padding: '0.6rem 2rem 0.6rem 2.25rem', 
-                          border: '1px solid var(--corp-border, #cbd5e1)', 
-                          borderRadius: '0.5rem', 
-                          width: '160px', 
-                          background: 'var(--corp-bg-card, #ffffff)', 
-                          color: 'var(--corp-text-primary, #0f172a)', 
-                          fontSize: '0.875rem',
-                          cursor: 'pointer',
-                          appearance: 'none',
-                          backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%2364748b\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")',
-                          backgroundRepeat: 'no-repeat',
-                          backgroundPosition: 'right 0.75rem center',
-                          backgroundSize: '12px',
-                          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = 'var(--corp-primary, #2563eb)'}
-                        onBlur={(e) => e.target.style.borderColor = 'var(--corp-border, #cbd5e1)'}
-                      >
-                        <option value="all">All Categories</option>
-                        <option value="car-truck-tractor">Car/Truck/Tractor</option>
-                        <option value="bike">Bike</option>
-                        <option value="ups-inverter">Inverter & Battery</option>
-                      </select>
-                    </div>
-                    {/* Series Filter */}
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--corp-text-muted, #64748b)', fontSize: '0.875rem', pointerEvents: 'none', zIndex: 1 }}>📋</span>
-                      <select
-                        value={detailFilterSeries}
-                        onChange={(e) => setDetailFilterSeries(e.target.value)}
-                        style={{ 
-                          padding: '0.6rem 2rem 0.6rem 2.25rem', 
-                          border: '1px solid var(--corp-border, #cbd5e1)', 
-                          borderRadius: '0.5rem', 
-                          width: '160px', 
-                          background: 'var(--corp-bg-card, #ffffff)', 
-                          color: 'var(--corp-text-primary, #0f172a)', 
-                          fontSize: '0.875rem',
-                          cursor: 'pointer',
-                          appearance: 'none',
-                          backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%2364748b\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")',
-                          backgroundRepeat: 'no-repeat',
-                          backgroundPosition: 'right 0.75rem center',
-                          backgroundSize: '12px',
-                          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = 'var(--corp-primary, #2563eb)'}
-                        onBlur={(e) => e.target.style.borderColor = 'var(--corp-border, #cbd5e1)'}
-                      >
-                        <option value="all">All Series</option>
-                        {getUniqueSeries(salesDetail).map(series => (
-                          <option key={series} value={series}>{series}</option>
-                        ))}
-                      </select>
+                    {/* Row 2: Category and Series Filters */}
+                    <div className="sales-details-filters-row">
+                      {/* Category Filter */}
+                      <div style={{ position: 'relative', flex: '1' }}>
+                        <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--corp-text-muted, #64748b)', fontSize: '0.875rem', pointerEvents: 'none', zIndex: 1 }}>📁</span>
+                        <select
+                          value={detailFilterCategory}
+                          onChange={(e) => setDetailFilterCategory(e.target.value)}
+                          className="sales-details-filter-select"
+                          style={{ 
+                            padding: '0.6rem 2rem 0.6rem 2.25rem', 
+                            border: '1px solid var(--corp-border, #cbd5e1)', 
+                            borderRadius: '0.5rem', 
+                            width: '100%', 
+                            background: 'var(--corp-bg-card, #ffffff)', 
+                            color: 'var(--corp-text-primary, #0f172a)', 
+                            fontSize: '0.875rem',
+                            cursor: 'pointer',
+                            appearance: 'none',
+                            backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%2364748b\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")',
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 0.75rem center',
+                            backgroundSize: '12px',
+                            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = 'var(--corp-primary, #2563eb)'}
+                          onBlur={(e) => e.target.style.borderColor = 'var(--corp-border, #cbd5e1)'}
+                        >
+                          <option value="all">All Categories</option>
+                          <option value="car-truck-tractor">Car/Truck/Tractor</option>
+                          <option value="bike">Bike</option>
+                          <option value="ups-inverter">Inverter & Battery</option>
+                        </select>
+                      </div>
+                      {/* Series Filter */}
+                      <div style={{ position: 'relative', flex: '1' }}>
+                        <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--corp-text-muted, #64748b)', fontSize: '0.875rem', pointerEvents: 'none', zIndex: 1 }}>📋</span>
+                        <select
+                          value={detailFilterSeries}
+                          onChange={(e) => setDetailFilterSeries(e.target.value)}
+                          className="sales-details-filter-select"
+                          style={{ 
+                            padding: '0.6rem 2rem 0.6rem 2.25rem', 
+                            border: '1px solid var(--corp-border, #cbd5e1)', 
+                            borderRadius: '0.5rem', 
+                            width: '100%', 
+                            background: 'var(--corp-bg-card, #ffffff)', 
+                            color: 'var(--corp-text-primary, #0f172a)', 
+                            fontSize: '0.875rem',
+                            cursor: 'pointer',
+                            appearance: 'none',
+                            backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%2364748b\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")',
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 0.75rem center',
+                            backgroundSize: '12px',
+                            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = 'var(--corp-primary, #2563eb)'}
+                          onBlur={(e) => e.target.style.borderColor = 'var(--corp-border, #cbd5e1)'}
+                        >
+                          <option value="all">All Series</option>
+                          {getUniqueSeries(salesDetail).map(series => (
+                            <option key={series} value={series}>{series}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>

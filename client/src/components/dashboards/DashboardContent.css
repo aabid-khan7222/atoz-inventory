@@ -4498,6 +4498,110 @@
 }
 
 /* Mobile and Tablet: Make date fields side-by-side */
+/* Sales Product and Details Filters - Desktop Layout */
+@media (min-width: 1025px) {
+  .sales-product-filters-container,
+  .sales-details-filters-container {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .sales-product-search-row,
+  .sales-details-search-row {
+    display: block;
+    flex: 1 1 auto;
+    max-width: 400px;
+  }
+
+  .sales-product-filters-row,
+  .sales-details-filters-row {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .sales-product-filter-select,
+  .sales-details-filter-select {
+    width: 160px !important;
+  }
+}
+
+/* Sales Product and Details Filters - Mobile/Tablet Layout */
+@media (max-width: 1024px) {
+  .sales-product-filters-container,
+  .sales-details-filters-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .sales-product-search-row,
+  .sales-details-search-row {
+    display: block;
+    width: 100%;
+  }
+
+  .sales-product-search-input,
+  .sales-details-search-input {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .sales-product-filters-row,
+  .sales-details-filters-row {
+    display: flex;
+    flex-direction: row;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .sales-product-filter-select,
+  .sales-details-filter-select {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .sales-product-filters-container,
+  .sales-details-filters-container {
+    gap: 0.625rem;
+  }
+
+  .sales-product-filters-row,
+  .sales-details-filters-row {
+    gap: 0.625rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .sales-product-filters-container,
+  .sales-details-filters-container {
+    gap: 0.5rem;
+  }
+
+  .sales-product-filters-row,
+  .sales-details-filters-row {
+    gap: 0.5rem;
+  }
+
+  .sales-product-search-input,
+  .sales-details-search-input {
+    font-size: 0.85rem !important;
+    padding: 0.55rem 0.65rem 0.55rem 2.25rem !important;
+  }
+
+  .sales-product-filter-select,
+  .sales-details-filter-select {
+    font-size: 0.85rem !important;
+    padding: 0.55rem 1.75rem 0.55rem 2rem !important;
+  }
+}
+
 @media (max-width: 1024px) {
   .reports-date-fields-container {
     display: flex;
