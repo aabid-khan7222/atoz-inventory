@@ -195,7 +195,6 @@ const CustomerChargingServices = () => {
                   onChange={(e) => setDateFrom(e.target.value)}
                   className="filter-input date-filter-input"
                 />
-                {!dateFrom && <span className="date-placeholder-text">Select From Date</span>}
               </div>
             </div>
             <div className="date-filter-wrapper">
@@ -213,9 +212,17 @@ const CustomerChargingServices = () => {
                   onChange={(e) => setDateTo(e.target.value)}
                   className="filter-input date-filter-input"
                 />
-                {!dateTo && <span className="date-placeholder-text">Select To Date</span>}
               </div>
             </div>
+          </div>
+          {/* Refresh Button Row (Mobile/Tablet only) */}
+          <div className="charging-refresh-row-mobile">
+            <button
+              onClick={loadServices}
+              className="primary-btn charging-refresh-btn-mobile"
+            >
+              Refresh
+            </button>
           </div>
         </div>
       </div>

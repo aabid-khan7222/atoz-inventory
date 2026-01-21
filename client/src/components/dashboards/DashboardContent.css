@@ -4059,21 +4059,7 @@
   color: transparent;
 }
 
-.date-placeholder-text {
-  position: absolute;
-  left: 2.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  pointer-events: none;
-  font-size: 0.95rem;
-  z-index: 1;
-  white-space: nowrap;
-}
 
-[data-theme="dark"] .date-placeholder-text {
-  color: #64748b;
-}
 
 [data-theme="dark"] .date-filter-input:valid::-webkit-datetime-edit {
   color: #e2e8f0;
@@ -4122,6 +4108,29 @@
     flex: 1;
     min-width: 140px;
   }
+
+  /* Hide Refresh button from top row on mobile/tablet */
+  .charging-refresh-btn {
+    display: none;
+  }
+
+  /* Show Refresh button below date fields */
+  .charging-refresh-row-mobile {
+    display: flex;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  .charging-refresh-btn-mobile {
+    padding: 0.6rem 1.2rem;
+    width: auto;
+    align-self: flex-start;
+  }
+}
+
+/* Desktop: Hide mobile refresh row */
+.charging-refresh-row-mobile {
+  display: none;
 }
 
 /* Small Mobile: Further adjustments */
@@ -4140,9 +4149,7 @@
     flex: 1;
   }
 
-  .charging-refresh-btn {
-    width: 100%;
-  }
+  /* Refresh button already hidden in mobile media query above */
 
   /* Keep date fields side-by-side even on small mobile */
   .charging-filters-row-bottom {
@@ -4168,10 +4175,6 @@
     height: 16px;
   }
 
-  .date-placeholder-text {
-    left: 2.5rem;
-    font-size: 0.85rem;
-  }
 }
 
 /* Customer Services Section - Mobile/Tablet Optimization */
