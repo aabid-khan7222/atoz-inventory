@@ -134,56 +134,71 @@ const CustomerChargingServices = () => {
 
       {/* Filters */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            type="text"
-            placeholder="Search by serial, vehicle, brand, SKU..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && loadServices()}
-            className="filter-input"
-            style={{
-              flex: 1,
-              minWidth: '250px',
-            }}
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="filter-select"
-            style={{
-              minWidth: '150px',
-            }}
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="collected">Collected</option>
-          </select>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            placeholder="From Date"
-            className="filter-input"
-          />
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            placeholder="To Date"
-            className="filter-input"
-          />
-          <button
-            onClick={loadServices}
-            className="primary-btn"
-            style={{
-              padding: '0.6rem 1.2rem',
-            }}
-          >
-            Refresh
-          </button>
+        <div className="charging-services-filters">
+          {/* First Row: Search, Status Filter, Date Fields (Desktop) and Refresh */}
+          <div className="charging-filters-row charging-filters-row-top">
+            <input
+              type="text"
+              placeholder="Search by serial, vehicle, brand, SKU..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && loadServices()}
+              className="filter-input"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="collected">Collected</option>
+            </select>
+            {/* Desktop Date Fields - Hidden on Mobile/Tablet */}
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="filter-input date-filter-input-desktop"
+              title="From Date"
+            />
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="filter-input date-filter-input-desktop"
+              title="To Date"
+            />
+            <button
+              onClick={loadServices}
+              className="primary-btn charging-refresh-btn"
+            >
+              Refresh
+            </button>
+          </div>
+          {/* Second Row: Date Filters with Labels (Mobile/Tablet only) */}
+          <div className="charging-filters-row charging-filters-row-bottom">
+            <div className="date-filter-wrapper">
+              <label className="date-filter-label">From Date</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="filter-input date-filter-input"
+              />
+            </div>
+            <div className="date-filter-wrapper">
+              <label className="date-filter-label">To Date</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="filter-input date-filter-input"
+              />
+            </div>
+          </div>
         </div>
       </div>
 

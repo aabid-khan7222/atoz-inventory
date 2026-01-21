@@ -3939,3 +3939,155 @@
   word-break: break-word;
   flex-shrink: 0;
 }
+
+/* Charging Services Filters - Mobile/Tablet Optimization */
+.charging-services-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.charging-filters-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.charging-filters-row-top {
+  flex-wrap: nowrap;
+}
+
+.charging-filters-row-top .filter-input {
+  flex: 1;
+  min-width: 250px;
+}
+
+.charging-filters-row-top .filter-select {
+  min-width: 150px;
+  flex-shrink: 0;
+}
+
+.date-filter-input-desktop {
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.charging-refresh-btn {
+  padding: 0.6rem 1.2rem;
+  flex-shrink: 0;
+}
+
+.charging-filters-row-bottom {
+  display: none; /* Hidden on desktop */
+}
+
+.date-filter-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.date-filter-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--corp-text-secondary);
+  margin: 0;
+}
+
+[data-theme="dark"] .date-filter-label {
+  color: var(--corp-text-secondary);
+}
+
+.date-filter-input {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+  box-sizing: border-box;
+  height: auto;
+}
+
+.date-filter-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.15);
+}
+
+[data-theme='dark'] .date-filter-input {
+  background: #111827;
+  color: #e2e8f0;
+  border-color: #1f2937;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* Mobile and Tablet: Show date filters in separate row */
+@media (max-width: 1024px) {
+  .charging-filters-row-top {
+    flex-wrap: wrap;
+  }
+
+  .charging-filters-row-top .filter-input {
+    min-width: 200px;
+    flex: 1;
+  }
+
+  .charging-filters-row-top .filter-select {
+    min-width: 130px;
+  }
+
+  /* Hide desktop date inputs on mobile/tablet */
+  .date-filter-input-desktop {
+    display: none;
+  }
+
+  /* Show mobile date filters row */
+  .charging-filters-row-bottom {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .date-filter-wrapper {
+    flex: 1;
+    min-width: 140px;
+  }
+}
+
+/* Small Mobile: Further adjustments */
+@media (max-width: 480px) {
+  .charging-filters-row {
+    gap: 0.75rem;
+  }
+
+  .charging-filters-row-top .filter-input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .charging-filters-row-top .filter-select {
+    min-width: 120px;
+    flex: 1;
+  }
+
+  .charging-refresh-btn {
+    width: 100%;
+  }
+
+  .charging-filters-row-bottom {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .date-filter-wrapper {
+    width: 100%;
+    min-width: 0;
+  }
+}
