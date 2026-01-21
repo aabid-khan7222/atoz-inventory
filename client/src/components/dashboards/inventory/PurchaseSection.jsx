@@ -161,8 +161,8 @@ const PurchaseSection = ({ onBack }) => {
       <div className="section-content">
         {/* Filters */}
         <div className="filters-container" style={{ marginBottom: '1.5rem' }}>
-          {/* Search + From Date (stacked) */}
-          <div className="filter-group" style={{ flex: '1 1 240px' }}>
+          {/* Search */}
+          <div className="filter-group purchase-search-group" style={{ flex: '1 1 240px' }}>
             <label>Search</label>
             <input
               type="text"
@@ -171,19 +171,10 @@ const PurchaseSection = ({ onBack }) => {
               className="filter-input"
               placeholder="Search by SKU, serial number, purchase number, supplier..."
             />
-            <div style={{ marginTop: '0.75rem' }}>
-              <label>Date From</label>
-              <input
-                type="date"
-                value={filters.dateFrom}
-                onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                className="filter-input"
-              />
-            </div>
           </div>
 
-          {/* Category + To Date (stacked) */}
-          <div className="filter-group" style={{ flex: '1 1 240px' }}>
+          {/* Category */}
+          <div className="filter-group purchase-category-group" style={{ flex: '1 1 240px' }}>
             <label>Category</label>
             <select
               value={filters.category}
@@ -194,14 +185,43 @@ const PurchaseSection = ({ onBack }) => {
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
-            <div style={{ marginTop: '0.75rem' }}>
+          </div>
+
+          {/* Date From and Date To - Side by side on mobile/tablet */}
+          <div className="purchase-date-fields-container">
+            <div className="filter-group purchase-date-group">
+              <label>Date From</label>
+              <div className="purchase-date-input-wrapper">
+                <svg className="purchase-date-calendar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <input
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                  className="filter-input purchase-date-input"
+                />
+              </div>
+            </div>
+            <div className="filter-group purchase-date-group">
               <label>Date To</label>
-              <input
-                type="date"
-                value={filters.dateTo}
-                onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                className="filter-input"
-              />
+              <div className="purchase-date-input-wrapper">
+                <svg className="purchase-date-calendar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <input
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                  className="filter-input purchase-date-input"
+                />
+              </div>
             </div>
           </div>
 

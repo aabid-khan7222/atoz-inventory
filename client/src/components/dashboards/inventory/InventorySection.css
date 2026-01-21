@@ -969,6 +969,55 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+/* Purchase Section - Desktop Layout (Date fields in original positions) */
+@media (min-width: 1025px) {
+  .purchase-date-fields-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    grid-column: 1 / -1;
+  }
+
+  .purchase-date-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .purchase-search-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .purchase-category-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .purchase-date-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .purchase-date-calendar-icon {
+    position: absolute;
+    left: 0.75rem;
+    width: 18px;
+    height: 18px;
+    color: var(--corp-text-muted, #64748b);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .purchase-date-input {
+    padding-left: 2.75rem;
+    width: 100%;
+  }
+}
+
 [data-theme="dark"] .filters-container {
   background: var(--corp-bg-card, #1e293b);
   border: 1px solid var(--corp-border, #334155);
@@ -1340,6 +1389,47 @@
 
 /* Responsive - Tablet */
 @media (max-width: 1024px) and (min-width: 769px) {
+  /* Purchase Section - Date Fields Side by Side on Tablet */
+  .purchase-date-fields-container {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 1rem !important;
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+  }
+
+  .purchase-date-group {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+
+  .purchase-date-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .purchase-date-calendar-icon {
+    position: absolute;
+    left: 0.75rem;
+    width: 18px;
+    height: 18px;
+    color: var(--corp-text-muted, #64748b);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .purchase-date-input {
+    padding-left: 2.75rem !important;
+    width: 100% !important;
+    height: 42px !important;
+  }
+
+  .purchase-search-group,
+  .purchase-category-group {
+    grid-column: 1 / -1 !important;
+  }
+
   /* Keep form-row as 2 columns for specific fields on tablet */
   .form-row {
     grid-template-columns: 1fr 1fr !important;
@@ -1559,6 +1649,23 @@
     font-size: 0.6rem !important;
   }
 
+  /* Purchase Section - Date Fields Side by Side on Small Mobile */
+  .purchase-date-fields-container {
+    gap: 0.5rem !important;
+  }
+
+  .purchase-date-calendar-icon {
+    width: 16px !important;
+    height: 16px !important;
+    left: 0.65rem !important;
+  }
+
+  .purchase-date-input {
+    padding-left: 2.5rem !important;
+    height: 40px !important;
+    font-size: 0.85rem !important;
+  }
+
   .form-input,
   .form-select {
     font-size: 0.85rem !important;
@@ -1581,6 +1688,47 @@
 
   .filters-container {
     grid-template-columns: 1fr;
+  }
+
+  /* Purchase Section - Date Fields Side by Side on Mobile/Tablet */
+  .purchase-date-fields-container {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 0.75rem !important;
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+  }
+
+  .purchase-date-group {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+
+  .purchase-date-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .purchase-date-calendar-icon {
+    position: absolute;
+    left: 0.75rem;
+    width: 18px;
+    height: 18px;
+    color: var(--corp-text-muted, #64748b);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .purchase-date-input {
+    padding-left: 2.75rem !important;
+    width: 100% !important;
+    height: 42px !important;
+  }
+
+  .purchase-search-group,
+  .purchase-category-group {
+    grid-column: 1 / -1 !important;
   }
 
   .history-table {
