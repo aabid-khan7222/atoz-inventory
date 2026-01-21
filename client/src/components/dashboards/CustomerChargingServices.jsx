@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getMyChargingServices } from '../../api';
-import { getFormState, saveFormState } from '../../utils/formStateManager';
+import { getFormState, saveFormState, clearFormState } from '../../utils/formStateManager';
 import './DashboardContent.css';
 
 const STORAGE_KEY = 'customerChargingServicesState';
@@ -84,6 +84,21 @@ const CustomerChargingServices = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefresh = () => {
+    // Reset all filters to default/empty state
+    setStatusFilter('all');
+    setSearchInput('');
+    setSearchTerm('');
+    setDateFrom('');
+    setDateTo('');
+    // Clear saved state from sessionStorage
+    clearFormState(STORAGE_KEY);
+    // Reset pagination to page 1
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+    // Load services with cleared filters
+    // Note: The useEffect will trigger loadServices when filters change
   };
 
   const formatDate = (dateString) => {
@@ -172,7 +187,7 @@ const CustomerChargingServices = () => {
               title="To Date"
             />
             <button
-              onClick={loadServices}
+              onClick={handleRefresh}
               className="primary-btn charging-refresh-btn"
             >
               Refresh
@@ -218,7 +233,7 @@ const CustomerChargingServices = () => {
           {/* Refresh Button Row (Mobile/Tablet only) */}
           <div className="charging-refresh-row-mobile">
             <button
-              onClick={loadServices}
+              onClick={handleRefresh}
               className="primary-btn charging-refresh-btn-mobile"
             >
               Refresh
