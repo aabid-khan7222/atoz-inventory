@@ -348,6 +348,16 @@
   margin-bottom: 1.5rem;
 }
 
+.product-header-top {
+  display: flex;
+  align-items: center;
+}
+
+.product-header-title {
+  margin: 0;
+  flex: 1;
+}
+
 /* Search and Filters Container - All in one line */
 .search-filters-container {
   display: flex;
@@ -812,13 +822,13 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
-.product-header h2 {
+.product-header-title {
   font-size: 2rem;
   color: #333;
   margin: 0;
 }
 
-[data-theme="dark"] .product-header h2 {
+[data-theme="dark"] .product-header-title {
   color: #ffffff !important;
 }
 
@@ -1222,11 +1232,30 @@
   }
 
   /* Back button - left aligned with reduced width on tablet */
+  .product-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .product-header-top {
+    width: 100%;
+  }
+
   .back-button {
     width: auto;
     padding: 0.75rem 1.5rem;
     font-size: 0.95rem;
     flex-shrink: 0;
+  }
+
+  .product-header-title {
+    width: 100%;
+    font-size: 1.6rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* Search and filters layout - search bar full width, filters side by side below */
@@ -1332,9 +1361,13 @@
 
   /* Back button - left aligned with reduced width */
   .product-header {
-    flex-direction: row;
-    align-items: center;
-    gap: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .product-header-top {
+    width: 100%;
   }
 
   .back-button {
@@ -1342,6 +1375,15 @@
     padding: 0.75rem 1.25rem;
     font-size: 0.9rem;
     flex-shrink: 0;
+  }
+
+  .product-header-title {
+    width: 100%;
+    font-size: 1.5rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* Search and filters layout - search bar full width, filters side by side below */
@@ -1533,9 +1575,13 @@
 
   /* Back button - left aligned with reduced width */
   .product-header {
-    flex-direction: row;
-    align-items: center;
-    gap: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .product-header-top {
+    width: 100%;
   }
 
   .back-button {
@@ -1545,9 +1591,13 @@
     flex-shrink: 0;
   }
 
-  .product-header h2 {
-    font-size: 1.5rem;
-    flex: 1;
+  .product-header-title {
+    width: 100%;
+    font-size: 1.4rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 

@@ -328,10 +328,12 @@ const CustomerProductListing = () => {
     return (
       <div className="customer-product-listing">
         <div className="product-header">
-          <button className="back-button" onClick={handleBackToCategories}>
-            ← {t('products.backToCategories')}
-          </button>
-          <h2>{categoryInfo?.name || t('products.title')}</h2>
+          <div className="product-header-top">
+            <button className="back-button" onClick={handleBackToCategories}>
+              ← {t('products.backToCategories')}
+            </button>
+          </div>
+          <h2 className="product-header-title">{categoryInfo?.name || t('products.title')}</h2>
         </div>
 
         {/* Search and Filters Bar - All in one line */}
