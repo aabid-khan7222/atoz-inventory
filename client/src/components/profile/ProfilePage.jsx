@@ -432,6 +432,9 @@ const ProfilePage = () => {
                 hidden
               />
             </div>
+            <span className={`role-badge role-badge--${roleModifier}`}>
+              {user.role_name || "customer"}
+            </span>
             <div className="avatar-actions">
               <button type="button" className="change-photo-btn" onClick={handleAvatarClick}>
                 Change photo
@@ -442,9 +445,6 @@ const ProfilePage = () => {
                 </button>
               )}
             </div>
-            <span className={`role-badge role-badge--${roleModifier}`}>
-              {user.role_name || "customer"}
-            </span>
           </div>
 
           <div className="profile-section">

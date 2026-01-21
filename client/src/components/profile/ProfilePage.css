@@ -157,13 +157,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .avatar-wrapper {
   position: absolute;
   top: -64px;
-  left: 10%;
+  left: 50%;
   transform: translateX(-50%);
   width: 120px;
   height: 120px;
@@ -208,6 +208,19 @@
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
+  margin-top: 0;
+}
+
+.role-badge {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  margin: 0;
+  display: inline-block;
 }
 
 .change-photo-btn {
@@ -260,15 +273,7 @@
   color: #f87171;
 }
 
-.role-badge {
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  padding: 0.4rem 1rem;
-  border-radius: 999px;
-  font-weight: 700;
-  border: 1px solid transparent;
-}
+/* Role badge moved to be directly after avatar, before buttons */
 
 .role-badge--admin {
   background: rgba(249, 115, 22, 0.2);
@@ -738,17 +743,28 @@
     font-size: 1.6rem;
   }
 
+  .avatar-section {
+    gap: 10px;
+    padding-top: 70px;
+  }
+
   .avatar-actions {
-    flex-direction: column;
-    gap: 8px;
+    flex-direction: row;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
   .change-photo-btn,
   .remove-photo-btn {
     padding: 0.5rem 1rem;
     font-size: 0.85rem;
-    width: 100%;
-    max-width: 200px;
+    flex: 0 0 auto;
+  }
+
+  .role-badge {
+    font-size: 0.7rem;
+    padding: 0.35rem 0.9rem;
   }
 
   .profile-section {
