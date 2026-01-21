@@ -160,6 +160,19 @@
   gap: 12px;
 }
 
+/* Ensure proper order: avatar -> role badge -> buttons */
+.avatar-section .avatar-wrapper {
+  order: 1;
+}
+
+.avatar-section .role-badge {
+  order: 2;
+}
+
+.avatar-section .avatar-actions {
+  order: 3;
+}
+
 .avatar-wrapper {
   position: absolute;
   top: -64px;
@@ -222,7 +235,6 @@
   margin: 0;
   position: relative;
   z-index: 2;
-  margin-top: 8px;
   display: inline-block;
 }
 
@@ -681,7 +693,8 @@
   }
 
   .avatar-section {
-    padding-top: 80px;
+    padding-top: 100px;
+    gap: 16px;
   }
 
   .avatar-wrapper {
@@ -692,9 +705,26 @@
   }
 
   .role-badge {
-    margin-top: 12px;
+    margin-top: 0;
+    margin-bottom: 0;
     z-index: 2;
     position: relative;
+  }
+
+  .avatar-actions {
+    margin-top: 0;
+    flex-direction: row;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+
+  .change-photo-btn,
+  .remove-photo-btn {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
   }
 
   .avatar-initials {
@@ -762,14 +792,24 @@
   }
 
   .avatar-section {
-    gap: 10px;
-    padding-top: 90px;
+    gap: 16px;
+    padding-top: 110px;
+  }
+
+  .avatar-wrapper {
+    width: 80px;
+    height: 80px;
+    top: -40px;
+    z-index: 1;
   }
 
   .role-badge {
-    margin-top: 16px;
+    margin-top: 0;
+    margin-bottom: 0;
     z-index: 2;
     position: relative;
+    font-size: 0.7rem;
+    padding: 0.35rem 0.9rem;
   }
 
   .avatar-actions {
@@ -778,6 +818,7 @@
     justify-content: center;
     flex-wrap: nowrap;
     width: 100%;
+    margin-top: 0;
   }
 
   .change-photo-btn,
@@ -788,11 +829,6 @@
     min-width: 0;
     height: 40px;
     max-width: none;
-  }
-
-  .role-badge {
-    font-size: 0.7rem;
-    padding: 0.35rem 0.9rem;
   }
 
   .profile-section {
