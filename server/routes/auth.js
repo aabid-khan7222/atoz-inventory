@@ -47,6 +47,7 @@ router.post("/login", async (req, res) => {
           u.password,
           u.role_id,
           u.is_active,
+          u.avatar_url,
           r.role_name
         FROM users u
         JOIN roles r ON u.role_id = r.id
@@ -71,7 +72,8 @@ router.post("/login", async (req, res) => {
             email,
             password,
             role_id,
-            is_active
+            is_active,
+            avatar_url
           FROM users
           WHERE LOWER(email) = $1
           LIMIT 1;
@@ -179,6 +181,7 @@ router.post("/login", async (req, res) => {
       email: user.email,
       role_id: user.role_id,
       role_name: user.role_name, // <-- yaha se frontend ko exact role milega
+      avatar_url: user.avatar_url || null, // Include avatar URL if available
       // Include profile data if available
       ...(customerProfile ? {
         phone: customerProfile.phone,
@@ -438,6 +441,7 @@ router.get("/me", optionalAuth, async (req, res) => {
           u.email,
           u.role_id,
           u.is_active,
+          u.avatar_url,
           r.role_name
        FROM users u
        JOIN roles r ON u.role_id = r.id
@@ -474,6 +478,7 @@ router.get("/me", optionalAuth, async (req, res) => {
     // Merge profile data with user data
     const userWithProfile = {
       ...user,
+      avatar_url: user.avatar_url || null, // Include avatar URL
       ...(customerProfile ? {
         phone: customerProfile.phone,
         state: customerProfile.state,

@@ -174,6 +174,7 @@ router.put('/profile', requireAuth, async (req, res) => {
       company_name,
       company_address,
       gstDetails, // Support both formats
+      avatar_url, // Profile photo (base64 or URL)
     } = req.body;
 
     // Extract GST details from either format
@@ -378,6 +379,11 @@ router.put('/profile', requireAuth, async (req, res) => {
       WHERE table_name = 'users' AND column_name = 'pincode' LIMIT 1
     `)).rows.length > 0;
 
+    const userHasAvatarUrlCol = (await client.query(`
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'avatar_url' LIMIT 1
+    `)).rows.length > 0;
+
     const profileHasPincodeCol = (await client.query(`
       SELECT 1 FROM information_schema.columns 
       WHERE table_name = 'customer_profiles' AND column_name = 'pincode' LIMIT 1
@@ -389,7 +395,89 @@ router.put('/profile', requireAuth, async (req, res) => {
     `)).rows.length > 0;
 
     // Update users table
-    if (userHasPincodeCol) {
+    // Handle avatar_url update (only if column exists and value is provided)
+    // If avatar_url is undefined, don't update it (preserve existing value)
+    // If avatar_url is null or empty string, clear it
+    const shouldUpdateAvatar = avatar_url !== undefined;
+    const avatarUrlValue = shouldUpdateAvatar 
+      ? ((avatar_url !== null && avatar_url.trim()) ? avatar_url.trim() : null)
+      : undefined; // undefined means "don't update"
+
+    if (userHasPincodeCol && userHasAvatarUrlCol) {
+      if (shouldUpdateAvatar) {
+        await client.query(`
+          UPDATE users 
+          SET 
+            full_name = $1,
+            email = $2,
+            phone = $3,
+            state = $4,
+            city = $5,
+            address = $6,
+            pincode = $7,
+            avatar_url = $8,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $9
+        `, [
+          full_name.trim(),
+          email?.trim() || null,
+          normalizedPhone,
+          state?.trim() || null,
+          city?.trim() || null,
+          address?.trim() || null,
+          pincode?.trim() || null,
+          avatarUrlValue,
+          userId
+        ]);
+      } else {
+        await client.query(`
+          UPDATE users 
+          SET 
+            full_name = $1,
+            email = $2,
+            phone = $3,
+            state = $4,
+            city = $5,
+            address = $6,
+            pincode = $7,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $8
+        `, [
+          full_name.trim(),
+          email?.trim() || null,
+          normalizedPhone,
+          state?.trim() || null,
+          city?.trim() || null,
+          address?.trim() || null,
+          pincode?.trim() || null,
+          userId
+        ]);
+      }
+      await client.query(`
+        UPDATE users 
+        SET 
+          full_name = $1,
+          email = $2,
+          phone = $3,
+          state = $4,
+          city = $5,
+          address = $6,
+          pincode = $7,
+          avatar_url = $8,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $9
+      `, [
+        full_name.trim(),
+        email?.trim() || null,
+        normalizedPhone,
+        state?.trim() || null,
+        city?.trim() || null,
+        address?.trim() || null,
+        pincode?.trim() || null,
+        avatarUrlValue,
+        userId
+      ]);
+    } else if (userHasPincodeCol) {
       await client.query(`
         UPDATE users 
         SET 
@@ -412,6 +500,52 @@ router.put('/profile', requireAuth, async (req, res) => {
         pincode?.trim() || null,
         userId
       ]);
+    } else if (userHasAvatarUrlCol) {
+      if (shouldUpdateAvatar) {
+        await client.query(`
+          UPDATE users 
+          SET 
+            full_name = $1,
+            email = $2,
+            phone = $3,
+            state = $4,
+            city = $5,
+            address = $6,
+            avatar_url = $7,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $8
+        `, [
+          full_name.trim(),
+          email?.trim() || null,
+          normalizedPhone,
+          state?.trim() || null,
+          city?.trim() || null,
+          address?.trim() || null,
+          avatarUrlValue,
+          userId
+        ]);
+      } else {
+        await client.query(`
+          UPDATE users 
+          SET 
+            full_name = $1,
+            email = $2,
+            phone = $3,
+            state = $4,
+            city = $5,
+            address = $6,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $7
+        `, [
+          full_name.trim(),
+          email?.trim() || null,
+          normalizedPhone,
+          state?.trim() || null,
+          city?.trim() || null,
+          address?.trim() || null,
+          userId
+        ]);
+      }
     } else {
       await client.query(`
         UPDATE users 
@@ -434,6 +568,7 @@ router.put('/profile', requireAuth, async (req, res) => {
         userId
       ]);
     }
+
 
     // Don't update user_type - preserve it as set during the initial sale
     // User type should NOT change when GST details are added/updated
@@ -624,6 +759,7 @@ router.put('/profile', requireAuth, async (req, res) => {
         COALESCE(cp.city, u.city) AS city,
         COALESCE(cp.address, u.address) AS address,
         ${profileHasPincodeCol && userHasPincodeCol ? 'COALESCE(cp.pincode, u.pincode) AS pincode,' : profileHasPincodeCol ? 'cp.pincode AS pincode,' : userHasPincodeCol ? 'u.pincode AS pincode,' : 'NULL AS pincode,'}
+        ${userHasAvatarUrlCol ? 'u.avatar_url,' : 'NULL AS avatar_url,'}
         cp.is_business_customer,
         cp.company_name,
         cp.gst_number,

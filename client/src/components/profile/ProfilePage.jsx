@@ -71,7 +71,7 @@ const ProfilePage = () => {
             userGstDetails.companyAddress
         )
       );
-      setAvatarPreview(user.avatar || "");
+      setAvatarPreview(user.avatar_url || user.avatar || user.profileImage || user.profile_image_url || "");
     }
   }, [user]);
 
@@ -213,22 +213,87 @@ const ProfilePage = () => {
     fileInputRef.current?.click();
   };
 
-  const handleAvatarChange = (event) => {
+  const handleAvatarChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setStatus({
+        type: "error",
+        message: "Image size must be less than 5MB.",
+      });
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setStatus({
+        type: "error",
+        message: "Please select a valid image file.",
+      });
+      return;
+    }
+
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const result = reader.result;
       if (typeof result === "string") {
         const newUrl = result;
-        setAvatarPreview(newUrl);
-        updateUserProfile({ avatar: newUrl });
-        updateUser({
-          avatar_url: newUrl,
-          profileImage: newUrl,
-          profile_image_url: newUrl,
-        });
+        
+        try {
+          // Update local preview immediately for better UX
+          setAvatarPreview(newUrl);
+          
+          // Save avatar to database via API
+          const profileData = {
+            avatar_url: newUrl,
+            // Include existing profile data to avoid validation errors
+            full_name: formData.fullName || user?.full_name || "",
+            phone: formData.phone || user?.phone || "",
+          };
+
+          const response = await apiUpdateUserProfile(profileData);
+
+          if (!response.success) {
+            throw new Error(response.error || "Failed to save profile photo");
+          }
+
+          // Update user context with the saved avatar
+          if (response.user) {
+            updateUser({
+              ...response.user,
+              avatar_url: response.user.avatar_url || newUrl,
+              profileImage: response.user.avatar_url || newUrl,
+              profile_image_url: response.user.avatar_url || newUrl,
+              avatar: response.user.avatar_url || newUrl,
+            });
+          } else {
+            // Fallback: update local state if response doesn't have user
+            updateUser({
+              avatar_url: newUrl,
+              profileImage: newUrl,
+              profile_image_url: newUrl,
+              avatar: newUrl,
+            });
+          }
+
+          // Update local profile state
+          updateUserProfile({ avatar: newUrl });
+
+          setStatus({
+            type: "success",
+            message: "Profile photo updated successfully.",
+          });
+        } catch (error) {
+          console.error('Avatar upload error:', error);
+          setStatus({
+            type: "error",
+            message: error?.message || "Failed to save profile photo. Please try again.",
+          });
+          // Revert preview on error
+          setAvatarPreview(user?.avatar_url || user?.avatar || "");
+        }
       }
     };
     reader.onerror = () => {
