@@ -205,16 +205,15 @@ export default function CustomerServices() {
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         {!showForm ? (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h3 style={{ margin: 0 }}>Book a Service</h3>
-              <p style={{ margin: '0.5rem 0 0 0', color: 'var(--corp-text-muted)' }}>Click the button below to book a new service</p>
+          <div className="book-service-container">
+            <div className="book-service-content">
+              <h3 className="book-service-title">Book a Service</h3>
+              <p className="book-service-description">Click the button below to book a new service</p>
             </div>
             <button
               type="button"
               onClick={() => setShowForm(true)}
-              className="primary-btn"
-              style={{ padding: '0.75rem 1.5rem' }}
+              className="primary-btn book-service-button"
             >
               Book Service
             </button>
@@ -375,23 +374,24 @@ export default function CustomerServices() {
       </div>
 
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <div>
-            <h3 style={{ margin: 0 }}>Service History</h3>
-            <p style={{ margin: 0, color: '#64748b' }}>All services you have booked</p>
+        <div className="service-history-container">
+          <div className="service-history-content">
+            <h3 className="service-history-title">Service History</h3>
+            <p className="service-history-description">All services you have booked</p>
           </div>
-          <select
-            className="filter-select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ minWidth: '160px' }}
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+          <div className="service-history-filter-wrapper">
+            <select
+              className="filter-select service-history-filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
         </div>
 
         {historyError && (

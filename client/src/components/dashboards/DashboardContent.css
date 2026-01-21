@@ -4173,3 +4173,124 @@
     font-size: 0.85rem;
   }
 }
+
+/* Customer Services Section - Mobile/Tablet Optimization */
+.book-service-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.book-service-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.book-service-title {
+  margin: 0;
+  white-space: nowrap;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--corp-text-primary);
+}
+
+.book-service-description {
+  margin: 0;
+  color: var(--corp-text-muted);
+  font-size: 0.95rem;
+}
+
+.book-service-button {
+  padding: 0.75rem 1.5rem;
+  align-self: flex-start;
+}
+
+.service-history-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.service-history-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.service-history-title {
+  margin: 0;
+  white-space: nowrap;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--corp-text-primary);
+}
+
+.service-history-description {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.service-history-filter-wrapper {
+  display: flex;
+  align-items: flex-start;
+}
+
+.service-history-filter {
+  min-width: 160px;
+}
+
+/* Desktop: Keep original layout */
+@media (min-width: 1025px) {
+  .book-service-container {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .book-service-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .book-service-title {
+    margin: 0;
+  }
+
+  .book-service-description {
+    margin: 0.5rem 0 0 0;
+  }
+
+  .book-service-button {
+    align-self: center;
+    flex-shrink: 0;
+  }
+
+  .service-history-container {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .service-history-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .service-history-title {
+    margin: 0;
+  }
+
+  .service-history-description {
+    margin: 0;
+  }
+
+  .service-history-filter-wrapper {
+    align-items: center;
+    flex-shrink: 0;
+  }
+}
