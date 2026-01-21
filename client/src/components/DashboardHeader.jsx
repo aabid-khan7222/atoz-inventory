@@ -275,6 +275,7 @@ const DashboardHeader = ({ onMenuToggle, isSidebarOpen }) => {
           <div className="user-avatar">
             {profileImageUrl ? (
               <img
+                key={`avatar-${user?.id}-${profileImageUrl?.substring(0, 50)}`}
                 src={profileImageUrl}
                 alt={user?.full_name || "User avatar"}
                 className="dashboard-avatar-img"
