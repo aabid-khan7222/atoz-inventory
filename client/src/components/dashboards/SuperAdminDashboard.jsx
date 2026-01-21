@@ -732,13 +732,7 @@ const SuperAdminDashboard = ({ activeMenu }) => {
 
             {/* Financial Overview */}
             {financial && (
-              <div className="financial-cards-grid" style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
-                gap: '1.25rem', 
-                marginTop: '2rem',
-                marginBottom: '2rem'
-              }}>
+              <div className="financial-cards-grid">
                 <div className="financial-card financial-card-sales" style={{ borderLeft: '4px solid #3b82f6' }}>
                   <h4>Sales Revenue</h4>
                   <p className="amount" style={{ color: '#3b82f6' }}>
