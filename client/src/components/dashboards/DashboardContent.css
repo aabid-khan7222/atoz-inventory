@@ -1178,6 +1178,66 @@
   color: var(--corp-text-muted, #64748b);
 }
 
+/* Card Select and Textarea Styles */
+.card select,
+.card textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--corp-border, #e2e8f0);
+  border-radius: var(--corp-radius);
+  background: var(--corp-bg-card, #ffffff);
+  color: var(--corp-text-primary, #0f172a);
+  font-size: 0.9375rem;
+  transition: all 0.2s ease, background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .card select,
+[data-theme="dark"] .card textarea {
+  background: var(--corp-bg-tertiary, #334155);
+  border-color: var(--corp-border, #475569);
+  color: var(--corp-text-primary, #f1f5f9);
+}
+
+.card select:focus,
+.card textarea:focus {
+  outline: none;
+  border-color: var(--corp-primary-light, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+[data-theme="dark"] .card select:focus,
+[data-theme="dark"] .card textarea:focus {
+  border-color: var(--corp-primary-light, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.card select option {
+  background: var(--corp-bg-card, #ffffff);
+  color: var(--corp-text-primary, #0f172a);
+}
+
+[data-theme="dark"] .card select option {
+  background: var(--corp-bg-tertiary, #334155);
+  color: var(--corp-text-primary, #f1f5f9);
+}
+
+/* Consistent form field heights */
+.card .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.card .form-group input,
+.card .form-group select {
+  min-height: 42px;
+  height: 42px;
+}
+
+.card .form-group textarea {
+  min-height: 80px;
+}
+
 /* Primary Button */
 .primary-btn {
   padding: 0.75rem 1.5rem;

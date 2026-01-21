@@ -588,8 +588,8 @@ const ChargingServices = () => {
           <h3>{editingService ? 'Edit Charging Service' : 'New Charging Service'}</h3>
           <form onSubmit={handleSubmit}>
             {/* Customer Selection Section */}
-            <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <h4 style={{ marginBottom: '0.75rem', color: '#1e3a8a' }}>Select Customer</h4>
+            <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'var(--corp-bg-hover)', borderRadius: '8px', border: '1px solid var(--corp-border)' }}>
+              <h4 style={{ marginBottom: '0.75rem', color: 'var(--corp-text-primary)' }}>Select Customer</h4>
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: '300px' }}>
                   <SearchableDropdown
@@ -614,8 +614,9 @@ const ChargingServices = () => {
                     style={{
                       padding: '0.5rem 1rem',
                       borderRadius: '4px',
-                      border: '1px solid #ddd',
-                      background: '#fff',
+                      border: '1px solid var(--corp-border)',
+                      background: 'var(--corp-bg-card)',
+                      color: 'var(--corp-text-primary)',
                       cursor: 'pointer',
                       fontSize: '0.875rem',
                       marginTop: '1.5rem',
@@ -628,23 +629,23 @@ const ChargingServices = () => {
                   type="button"
                   onClick={loadCustomers}
                   disabled={customersLoading}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    borderRadius: '4px',
-                    border: '1px solid #1e3a8a',
-                    background: '#1e3a8a',
-                    color: '#fff',
-                    cursor: customersLoading ? 'not-allowed' : 'pointer',
-                    fontSize: '0.875rem',
-                    marginTop: '1.5rem',
-                    opacity: customersLoading ? 0.6 : 1,
-                  }}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      borderRadius: '4px',
+                      border: '1px solid var(--corp-primary)',
+                      background: 'var(--corp-primary)',
+                      color: '#fff',
+                      cursor: customersLoading ? 'not-allowed' : 'pointer',
+                      fontSize: '0.875rem',
+                      marginTop: '1.5rem',
+                      opacity: customersLoading ? 0.6 : 1,
+                    }}
                 >
                   {customersLoading ? 'Loading...' : 'Refresh List'}
                 </button>
               </div>
               <div style={{ marginTop: '0.5rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <small style={{ color: '#64748b', fontSize: '0.75rem', display: 'block' }}>
+                <small style={{ color: 'var(--corp-text-muted)', fontSize: '0.75rem', display: 'block' }}>
                   {customersLoading 
                     ? 'Loading customers...' 
                     : customers.length > 0 
@@ -654,28 +655,30 @@ const ChargingServices = () => {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-              <div className="form-group">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', alignItems: 'start' }}>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                 <label>Battery Serial Number <span style={{ color: 'red' }}>*</span></label>
                 <input
                   type="text"
                   value={formData.batterySerialNumber}
                   onChange={(e) => setFormData({ ...formData, batterySerialNumber: e.target.value })}
                   required
+                  style={{ flex: '0 0 auto' }}
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                 <label>Customer Name <span style={{ color: 'red' }}>*</span></label>
                 <input
                   type="text"
                   value={formData.customerName}
                   onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
                   required
+                  style={{ flex: '0 0 auto' }}
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                 <label>Customer Email <span style={{ color: 'red' }}>*</span></label>
                 <input
                   type="email"
@@ -683,68 +686,75 @@ const ChargingServices = () => {
                   onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
                   required
                   placeholder="customer@example.com"
+                  style={{ flex: '0 0 auto' }}
                 />
-                <small style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
+                <small style={{ color: 'var(--corp-text-muted)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', flex: '0 0 auto' }}>
                   {selectedCustomerId 
                     ? 'Customer already exists in system. You can edit details if needed.' 
                     : 'Customer will be auto-created as a user with email as username and mobile as password'}
                 </small>
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                 <label>Customer Mobile Number <span style={{ color: 'red' }}>*</span></label>
                 <input
                   type="tel"
                   value={formData.customerMobileNumber}
                   onChange={(e) => setFormData({ ...formData, customerMobileNumber: e.target.value })}
                   required
+                  style={{ flex: '0 0 auto' }}
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                 <label>Vehicle Number</label>
                 <input
                   type="text"
                   value={formData.vehicleNumber}
                   onChange={(e) => setFormData({ ...formData, vehicleNumber: e.target.value })}
+                  style={{ flex: '0 0 auto' }}
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                 <label>Battery Brand</label>
                 <input
                   type="text"
                   value={formData.batteryBrand}
                   onChange={(e) => setFormData({ ...formData, batteryBrand: e.target.value })}
                   placeholder="e.g., Exide, Amaron, Luminous, etc."
+                  style={{ flex: '0 0 auto' }}
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                 <label>Battery SKU</label>
                 <input
                   type="text"
                   value={formData.batterySku}
                   onChange={(e) => setFormData({ ...formData, batterySku: e.target.value })}
+                  style={{ flex: '0 0 auto' }}
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                 <label>Battery Ampere Rating</label>
                 <input
                   type="text"
                   value={formData.batteryAmpereRating}
                   onChange={(e) => setFormData({ ...formData, batteryAmpereRating: e.target.value })}
                   placeholder="e.g., 12V 7Ah"
+                  style={{ flex: '0 0 auto' }}
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                 <label>Battery Condition <span style={{ color: 'red' }}>*</span></label>
                 <select
                   value={formData.batteryCondition}
                   onChange={(e) => setFormData({ ...formData, batteryCondition: e.target.value })}
                   required
+                  style={{ flex: '0 0 auto' }}
                 >
                   <option value="good">Good</option>
                   <option value="fair">Fair</option>
@@ -752,7 +762,7 @@ const ChargingServices = () => {
                 </select>
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                 <label>Service Price (₹) <span style={{ color: 'red' }}>*</span></label>
                 <input
                   type="number"
@@ -761,10 +771,11 @@ const ChargingServices = () => {
                   onChange={(e) => setFormData({ ...formData, servicePrice: e.target.value })}
                   required
                   min="0"
+                  style={{ flex: '0 0 auto' }}
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                 <label>Expected Completion Date <span style={{ color: 'red' }}>*</span></label>
                 <input
                   type="date"
@@ -772,15 +783,17 @@ const ChargingServices = () => {
                   onChange={(e) => setFormData({ ...formData, completionDate: e.target.value })}
                   required
                   min={new Date().toISOString().split('T')[0]}
+                  style={{ flex: '0 0 auto' }}
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                 <label>Time of Day <span style={{ color: 'red' }}>*</span></label>
                 <select
                   value={formData.completionTimeOfDay}
                   onChange={(e) => setFormData({ ...formData, completionTimeOfDay: e.target.value })}
                   required
+                  style={{ flex: '0 0 auto' }}
                 >
                   <option value="morning">Morning</option>
                   <option value="afternoon">Afternoon</option>
@@ -811,7 +824,7 @@ const ChargingServices = () => {
                   setEditingService(null);
                   resetForm();
                 }}
-                style={{ padding: '0.75rem 1.5rem', border: '1px solid #ddd', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+                style={{ padding: '0.75rem 1.5rem', border: '1px solid var(--corp-border)', borderRadius: '4px', background: 'var(--corp-bg-card)', color: 'var(--corp-text-primary)', cursor: 'pointer' }}
               >
                 Cancel
               </button>
