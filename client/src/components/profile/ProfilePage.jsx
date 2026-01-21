@@ -246,10 +246,12 @@ const ProfilePage = () => {
           setAvatarPreview(newUrl);
           
           // Save avatar to database via API
+          // IMPORTANT: Include email to preserve it (don't let it become null)
           const profileData = {
             avatar_url: newUrl,
             // Include existing profile data to avoid validation errors
             full_name: formData.fullName || user?.full_name || "",
+            email: formData.email || user?.email || "", // Preserve email!
             phone: formData.phone || user?.phone || "",
           };
 

@@ -266,7 +266,7 @@ router.put('/profile', requireAuth, async (req, res) => {
 
     // Check if user exists and get existing GST details and user_type
     const userCheck = await client.query(`
-      SELECT u.id, u.email, u.user_type, cp.company_name, cp.gst_number, cp.company_address
+      SELECT u.id, u.email, u.user_type, cp.email as profile_email, cp.company_name, cp.gst_number, cp.company_address
       FROM users u
       LEFT JOIN customer_profiles cp ON u.id = cp.user_id
       WHERE u.id = $1
@@ -280,6 +280,8 @@ router.put('/profile', requireAuth, async (req, res) => {
       });
     }
 
+    const existingEmail = userCheck.rows[0].email; // Preserve existing email from users table
+    const existingProfileEmail = userCheck.rows[0].profile_email; // Preserve existing email from customer_profiles
     const existingCompanyName = userCheck.rows[0].company_name;
     const existingGstNumber = userCheck.rows[0].gst_number;
     const existingCompanyAddress = userCheck.rows[0].company_address;
@@ -332,14 +334,27 @@ router.put('/profile', requireAuth, async (req, res) => {
     // is_business_customer should match user_type, not be inferred from GST
     const isBusinessCustomer = isBusinessCustomerFromType;
 
+    // Determine final email value: only update if explicitly provided, otherwise preserve existing
+    // If email is undefined, don't change it (preserve existing value)
+    // If email is null or empty string, clear it
+    // If email is provided, validate and use it
+    const shouldUpdateEmail = email !== undefined;
+    const finalEmailValue = shouldUpdateEmail
+      ? ((email !== null && email.trim()) ? email.trim() : null)
+      : existingEmail; // Preserve existing email if not provided
+    
+    // For customer_profiles, use the same logic but preserve profile_email if email not provided
+    const finalProfileEmailValue = shouldUpdateEmail
+      ? finalEmailValue
+      : (existingProfileEmail || existingEmail); // Use profile email if exists, otherwise fallback to users.email
+
     // Check if email already exists for another user (if email is being changed)
-    if (email && email.trim()) {
-      const existingEmail = userCheck.rows[0].email;
+    if (shouldUpdateEmail && finalEmailValue && finalEmailValue.trim()) {
       // Only check if email is different from current email
-      if (existingEmail !== email.trim()) {
+      if (existingEmail !== finalEmailValue) {
         const emailCheck = await client.query(
           `SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND id != $2`,
-          [email.trim(), userId]
+          [finalEmailValue, userId]
         );
         if (emailCheck.rows.length > 0) {
           await client.query('ROLLBACK');
@@ -420,7 +435,7 @@ router.put('/profile', requireAuth, async (req, res) => {
           WHERE id = $9
         `, [
           full_name.trim(),
-          email?.trim() || null,
+          finalEmailValue,
           normalizedPhone,
           state?.trim() || null,
           city?.trim() || null,
@@ -444,7 +459,7 @@ router.put('/profile', requireAuth, async (req, res) => {
           WHERE id = $8
         `, [
           full_name.trim(),
-          email?.trim() || null,
+          finalEmailValue,
           normalizedPhone,
           state?.trim() || null,
           city?.trim() || null,
@@ -453,30 +468,6 @@ router.put('/profile', requireAuth, async (req, res) => {
           userId
         ]);
       }
-      await client.query(`
-        UPDATE users 
-        SET 
-          full_name = $1,
-          email = $2,
-          phone = $3,
-          state = $4,
-          city = $5,
-          address = $6,
-          pincode = $7,
-          avatar_url = $8,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = $9
-      `, [
-        full_name.trim(),
-        email?.trim() || null,
-        normalizedPhone,
-        state?.trim() || null,
-        city?.trim() || null,
-        address?.trim() || null,
-        pincode?.trim() || null,
-        avatarUrlValue,
-        userId
-      ]);
     } else if (userHasPincodeCol) {
       await client.query(`
         UPDATE users 
@@ -492,7 +483,7 @@ router.put('/profile', requireAuth, async (req, res) => {
         WHERE id = $8
       `, [
         full_name.trim(),
-        email?.trim() || null,
+        finalEmailValue,
         normalizedPhone,
         state?.trim() || null,
         city?.trim() || null,
@@ -516,7 +507,7 @@ router.put('/profile', requireAuth, async (req, res) => {
           WHERE id = $8
         `, [
           full_name.trim(),
-          email?.trim() || null,
+          finalEmailValue,
           normalizedPhone,
           state?.trim() || null,
           city?.trim() || null,
@@ -538,7 +529,7 @@ router.put('/profile', requireAuth, async (req, res) => {
           WHERE id = $7
         `, [
           full_name.trim(),
-          email?.trim() || null,
+          finalEmailValue,
           normalizedPhone,
           state?.trim() || null,
           city?.trim() || null,
@@ -560,7 +551,7 @@ router.put('/profile', requireAuth, async (req, res) => {
         WHERE id = $7
       `, [
         full_name.trim(),
-        email?.trim() || null,
+        finalEmailValue,
         normalizedPhone,
         state?.trim() || null,
         city?.trim() || null,
@@ -592,7 +583,7 @@ router.put('/profile', requireAuth, async (req, res) => {
     console.log('[PUT /users/profile] Values for INSERT:', {
       userId,
       full_name: full_name.trim(),
-      email: email?.trim() || null,
+      email: finalEmailValue,
       phone: phone.trim(),
       state: state?.trim() || null,
       city: city?.trim() || null,
@@ -627,7 +618,7 @@ router.put('/profile', requireAuth, async (req, res) => {
         `, [
           userId,
           full_name.trim(),
-          email?.trim() || null,
+          finalProfileEmailValue,
           phone.trim(),
           state?.trim() || null,
           city?.trim() || null,
@@ -658,7 +649,7 @@ router.put('/profile', requireAuth, async (req, res) => {
         `, [
           userId,
           full_name.trim(),
-          email?.trim() || null,
+          finalProfileEmailValue,
           phone.trim(),
           state?.trim() || null,
           city?.trim() || null,
@@ -690,7 +681,7 @@ router.put('/profile', requireAuth, async (req, res) => {
         `, [
           userId,
           full_name.trim(),
-          email?.trim() || null,
+          finalProfileEmailValue,
           phone.trim(),
           state?.trim() || null,
           city?.trim() || null,
@@ -719,7 +710,7 @@ router.put('/profile', requireAuth, async (req, res) => {
         `, [
           userId,
           full_name.trim(),
-          email?.trim() || null,
+          finalProfileEmailValue,
           phone.trim(),
           state?.trim() || null,
           city?.trim() || null,
