@@ -576,6 +576,7 @@ await fetchProducts();
         </div>
         <button
           onClick={() => setShowAddProductModal(true)}
+          className="add-product-btn"
           style={{
             padding: '0.75rem 1.5rem',
             background: '#10b981',
@@ -706,18 +707,18 @@ await fetchProducts();
           {inventoryData.series && inventoryData.series.length > 0 ? (
             <div className="series-sections">
               {/* Search and Filter Controls - Right before tables */}
-              <div style={{ 
+              <div className="product-search-filter-container" style={{ 
                 marginBottom: '1.5rem', 
                 padding: '1rem', 
                 borderRadius: '0.5rem',
                 background: 'transparent',
                 border: 'none',
-                display: 'flex !important',
-                flexDirection: 'row !important',
-                alignItems: 'center !important',
-                justifyContent: 'flex-start !important',
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
                 gap: '1rem',
-                flexWrap: 'nowrap !important',
+                flexWrap: 'nowrap',
                 width: '100%',
                 overflow: 'hidden'
               }}>
@@ -732,7 +733,6 @@ await fetchProducts();
                   value={seriesFilter}
                   onChange={(e) => setSeriesFilter(e.target.value)}
                   className="product-filter-select"
-                  style={{ marginLeft: '1rem' }}
                 >
                   <option value="all">All Series</option>
                   {inventoryData.series && inventoryData.series.map((series) => (
