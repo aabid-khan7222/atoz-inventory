@@ -133,3 +133,70 @@
   color: #e5e7eb;
 }
 
+/* Mobile and Tablet Optimizations */
+/* Tablet: 769px - 1024px */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .filters-bar {
+    gap: 0.6rem;
+  }
+
+  .filter-input {
+    min-width: 180px;
+    flex: 1;
+  }
+
+  .filter-select {
+    min-width: 130px;
+    max-width: 150px;
+    padding-right: 2.2rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Large Mobile & Tablet: ≤ 768px */
+@media (max-width: 768px) {
+  .filters-bar {
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+  }
+
+  .filter-input {
+    min-width: 0;
+    flex: 1;
+    font-size: 0.9rem;
+    padding: 0.7rem 0.8rem;
+  }
+
+  .filter-select {
+    min-width: 120px;
+    max-width: 140px;
+    padding: 0.7rem 0.8rem;
+    padding-right: 2rem;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+}
+
+/* Small Mobile: ≤ 480px */
+@media (max-width: 480px) {
+  .filters-bar {
+    gap: 0.4rem;
+  }
+
+  .filter-input {
+    min-width: 0;
+    flex: 1;
+    font-size: 0.85rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .filter-select {
+    min-width: 110px;
+    max-width: 130px;
+    padding: 0.65rem 0.75rem;
+    padding-right: 1.8rem;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+}
+
