@@ -52,6 +52,7 @@ export default function CustomerServices() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState(null);
   const [statusFilter, setStatusFilter] = useState(() => savedState?.statusFilter || 'all');
+  const [showForm, setShowForm] = useState(false);
   
   const [isInitialMount, setIsInitialMount] = useState(true);
   
@@ -203,8 +204,42 @@ export default function CustomerServices() {
       </div>
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h3>Book a Service</h3>
-        <form onSubmit={handleSubmit} className="form-grid">
+        {!showForm ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Book a Service</h3>
+              <p style={{ margin: '0.5rem 0 0 0', color: 'var(--corp-text-muted)' }}>Click the button below to book a new service</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowForm(true)}
+              className="primary-btn"
+              style={{ padding: '0.75rem 1.5rem' }}
+            >
+              Book Service
+            </button>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Book a Service</h3>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: '1px solid var(--corp-border)',
+                  borderRadius: '4px',
+                  background: 'var(--corp-bg-card)',
+                  color: 'var(--corp-text-primary)',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem'
+                }}
+              >
+                Close
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="form-grid">
           <div className="form-group">
             <label>Service Type</label>
             <select value={form.serviceType} onChange={handleChange('serviceType')}>
@@ -315,12 +350,28 @@ export default function CustomerServices() {
             </div>
           )}
 
-          <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              style={{
+                padding: '0.75rem 1.5rem',
+                border: '1px solid var(--corp-border)',
+                borderRadius: '4px',
+                background: 'var(--corp-bg-card)',
+                color: 'var(--corp-text-primary)',
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
+            </button>
             <button type="submit" className="primary-btn" disabled={submitting}>
               {submitting ? 'Booking...' : 'Book Service'}
             </button>
           </div>
         </form>
+          </>
+        )}
       </div>
 
       <div className="card">
