@@ -79,8 +79,9 @@
   margin: 0;
   text-transform: uppercase;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
+  flex-shrink: 0;
 }
 
 .dashboard-role-badge {
@@ -375,6 +376,15 @@
 
   .dashboard-title {
     font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .dashboard-header-left {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
   }
 }
 
@@ -391,6 +401,9 @@
 
   .dashboard-header-left {
     gap: 0.4rem;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .dashboard-logo-wrapper {
@@ -402,8 +415,13 @@
   }
 
   .dashboard-title {
-    font-size: 0.9rem;
-    letter-spacing: 0.05em;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
+    flex-shrink: 1;
   }
 
   .dashboard-header-right {
@@ -464,8 +482,13 @@
   }
 
   .dashboard-title {
-    font-size: 0.8rem;
-    display: none; /* Hide title on very small screens */
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
+    flex-shrink: 1;
   }
 
   .dashboard-logo-wrapper {
