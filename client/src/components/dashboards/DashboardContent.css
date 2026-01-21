@@ -4129,8 +4129,10 @@
 }
 
 /* Desktop: Hide mobile refresh row */
-.charging-refresh-row-mobile {
-  display: none;
+@media (min-width: 1025px) {
+  .charging-refresh-row-mobile {
+    display: none;
+  }
 }
 
 /* Small Mobile: Further adjustments */
