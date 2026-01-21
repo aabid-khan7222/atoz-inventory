@@ -216,7 +216,7 @@ const SoldBatteries = ({ onBack }) => {
       <div className="section-content">
         {/* Filters */}
         <div className="filters-container">
-          <div className="filter-group">
+          <div className="filter-group sold-batteries-category-group">
             <label>Category</label>
             <select
               value={selectedCategory}
@@ -229,27 +229,7 @@ const SoldBatteries = ({ onBack }) => {
             </select>
           </div>
 
-          <div className="filter-group">
-            <label>Date From</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="filter-input"
-            />
-          </div>
-
-          <div className="filter-group">
-            <label>Date To</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="filter-input"
-            />
-          </div>
-
-          <div className="filter-group" style={{ minWidth: '220px' }}>
+          <div className="filter-group sold-batteries-search-group" style={{ minWidth: '220px' }}>
             <label>Search</label>
             <input
               type="text"
@@ -258,6 +238,44 @@ const SoldBatteries = ({ onBack }) => {
               className="filter-input"
               placeholder="Search by name, SKU, serial, customer..."
             />
+          </div>
+
+          {/* Date From and Date To - Side by side on mobile/tablet */}
+          <div className="sold-batteries-date-fields-container">
+            <div className="filter-group sold-batteries-date-group">
+              <label>Date From</label>
+              <div className="sold-batteries-date-input-wrapper">
+                <svg className="sold-batteries-date-calendar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="filter-input sold-batteries-date-input"
+                />
+              </div>
+            </div>
+            <div className="filter-group sold-batteries-date-group">
+              <label>Date To</label>
+              <div className="sold-batteries-date-input-wrapper">
+                <svg className="sold-batteries-date-calendar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="filter-input sold-batteries-date-input"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
