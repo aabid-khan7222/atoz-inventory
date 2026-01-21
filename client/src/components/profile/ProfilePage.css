@@ -160,6 +160,12 @@
   gap: 12px;
 }
 
+/* Ensure role badge appears below avatar on all screens */
+.avatar-section .role-badge {
+  margin-top: 0;
+  order: 2;
+}
+
 .avatar-wrapper {
   position: absolute;
   top: -64px;
@@ -221,9 +227,9 @@
   border: 1px solid transparent;
   margin: 0;
   position: relative;
-  z-index: 2;
-  margin-top: 8px;
+  z-index: 10;
   display: inline-block;
+  margin-top: 20px;
 }
 
 .change-photo-btn {
@@ -681,7 +687,7 @@
   }
 
   .avatar-section {
-    padding-top: 80px;
+    padding-top: 90px;
   }
 
   .avatar-wrapper {
@@ -692,8 +698,8 @@
   }
 
   .role-badge {
-    margin-top: 12px;
-    z-index: 2;
+    margin-top: 24px;
+    z-index: 10;
     position: relative;
   }
 
@@ -763,12 +769,12 @@
 
   .avatar-section {
     gap: 10px;
-    padding-top: 90px;
+    padding-top: 100px;
   }
 
   .role-badge {
-    margin-top: 16px;
-    z-index: 2;
+    margin-top: 28px;
+    z-index: 10;
     position: relative;
   }
 
