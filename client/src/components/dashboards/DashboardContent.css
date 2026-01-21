@@ -4001,9 +4001,29 @@
   color: var(--corp-text-secondary);
 }
 
+.date-input-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.date-calendar-icon {
+  position: absolute;
+  left: 0.9rem;
+  color: #64748b;
+  pointer-events: none;
+  z-index: 1;
+}
+
+[data-theme="dark"] .date-calendar-icon {
+  color: #94a3b8;
+}
+
 .date-filter-input {
   width: 100%;
   padding: 0.75rem 0.9rem;
+  padding-left: 2.75rem;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   background: #ffffff;
@@ -4014,6 +4034,49 @@
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
   box-sizing: border-box;
   height: auto;
+  position: relative;
+}
+
+.date-filter-input::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  position: absolute;
+  right: 0.75rem;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.date-filter-input::-webkit-datetime-edit {
+  padding: 0;
+}
+
+.date-filter-input:valid::-webkit-datetime-edit {
+  color: #0f172a;
+}
+
+.date-filter-input:invalid::-webkit-datetime-edit {
+  color: transparent;
+}
+
+.date-placeholder-text {
+  position: absolute;
+  left: 2.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+  font-size: 0.95rem;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .date-placeholder-text {
+  color: #64748b;
+}
+
+[data-theme="dark"] .date-filter-input:valid::-webkit-datetime-edit {
+  color: #e2e8f0;
 }
 
 .date-filter-input:focus {
@@ -4081,13 +4144,32 @@
     width: 100%;
   }
 
+  /* Keep date fields side-by-side even on small mobile */
   .charging-filters-row-bottom {
-    flex-direction: column;
+    display: flex;
+    flex-direction: row;
     gap: 0.75rem;
   }
 
   .date-filter-wrapper {
-    width: 100%;
+    flex: 1;
     min-width: 0;
+  }
+
+  .date-filter-input {
+    font-size: 0.85rem;
+    padding: 0.65rem 0.75rem;
+    padding-left: 2.5rem;
+  }
+
+  .date-calendar-icon {
+    left: 0.75rem;
+    width: 16px;
+    height: 16px;
+  }
+
+  .date-placeholder-text {
+    left: 2.5rem;
+    font-size: 0.85rem;
   }
 }

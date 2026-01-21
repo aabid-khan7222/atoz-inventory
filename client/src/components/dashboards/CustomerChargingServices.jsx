@@ -182,21 +182,39 @@ const CustomerChargingServices = () => {
           <div className="charging-filters-row charging-filters-row-bottom">
             <div className="date-filter-wrapper">
               <label className="date-filter-label">From Date</label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="filter-input date-filter-input"
-              />
+              <div className="date-input-container">
+                <svg className="date-calendar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="filter-input date-filter-input"
+                />
+                {!dateFrom && <span className="date-placeholder-text">Select From Date</span>}
+              </div>
             </div>
             <div className="date-filter-wrapper">
               <label className="date-filter-label">To Date</label>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="filter-input date-filter-input"
-              />
+              <div className="date-input-container">
+                <svg className="date-calendar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="filter-input date-filter-input"
+                />
+                {!dateTo && <span className="date-placeholder-text">Select To Date</span>}
+              </div>
             </div>
           </div>
         </div>
