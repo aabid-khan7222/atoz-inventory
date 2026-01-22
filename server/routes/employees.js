@@ -270,13 +270,23 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
   try {
     console.log('[Daily Attendance API] Route called - Using ON CONFLICT (employee_id, attendance_date)');
     
-    // Log database connection info (without password)
+    // Log database connection info (without password) - TEMPORARY DEBUG LOG
     try {
-      const dbInfo = await db.query('SELECT current_database(), current_user, inet_server_addr(), inet_server_port()');
-      console.log('[DB Info] Database:', dbInfo.rows[0]?.current_database || 'unknown');
-      console.log('[DB Info] User:', dbInfo.rows[0]?.current_user || 'unknown');
-      console.log('[DB Info] Host:', dbInfo.rows[0]?.inet_server_addr || 'unknown');
-      console.log('[DB Info] Port:', dbInfo.rows[0]?.inet_server_port || 'unknown');
+      const dbInfo = await db.query('SELECT current_database() as db, current_user as user');
+      console.log('=== CONNECTED DB INFO (TEMPORARY DEBUG) ===');
+      console.log('Database:', dbInfo.rows[0]?.db || 'unknown');
+      console.log('User:', dbInfo.rows[0]?.user || 'unknown');
+      
+      // Check constraints on daily_attendance table
+      const constraintInfo = await db.query(`
+        SELECT conname, pg_get_constraintdef(oid) as constraint_def
+        FROM pg_constraint
+        WHERE conrelid = 'daily_attendance'::regclass
+        AND contype = 'u'
+        ORDER BY conname
+      `);
+      console.log('Unique constraints on daily_attendance:', JSON.stringify(constraintInfo.rows, null, 2));
+      console.log('=== END DEBUG INFO ===');
     } catch (dbInfoErr) {
       console.log('[DB Info] Could not fetch database info:', dbInfoErr.message);
     }
