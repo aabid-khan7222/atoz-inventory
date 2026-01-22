@@ -270,22 +270,51 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
   try {
     console.log('[Daily Attendance API] Route called - Using ON CONFLICT (employee_id, attendance_date)');
     
-    // Log database connection info (without password) - TEMPORARY DEBUG LOG
+    // TEMPORARY DEBUG LOG - Remove after fixing
     try {
-      const dbInfo = await db.query('SELECT current_database() as db, current_user as user');
+      const dbInfo = await db.query('SELECT current_database() as db, current_user as user, current_schema() as schema');
       console.log('=== CONNECTED DB INFO (TEMPORARY DEBUG) ===');
       console.log('Database:', dbInfo.rows[0]?.db || 'unknown');
       console.log('User:', dbInfo.rows[0]?.user || 'unknown');
+      console.log('Schema:', dbInfo.rows[0]?.schema || 'unknown');
+      
+      // Check if table exists
+      const tableExists = await db.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = current_schema()
+          AND table_name = 'daily_attendance'
+        ) as exists
+      `);
+      console.log('Table daily_attendance exists:', tableExists.rows[0]?.exists);
       
       // Check constraints on daily_attendance table
       const constraintInfo = await db.query(`
-        SELECT conname, pg_get_constraintdef(oid) as constraint_def
+        SELECT 
+          conname, 
+          pg_get_constraintdef(oid) as constraint_def,
+          conkey as column_indexes
         FROM pg_constraint
         WHERE conrelid = 'daily_attendance'::regclass
         AND contype = 'u'
         ORDER BY conname
       `);
       console.log('Unique constraints on daily_attendance:', JSON.stringify(constraintInfo.rows, null, 2));
+      
+      // Check which columns are in the constraints
+      if (constraintInfo.rows.length > 0) {
+        const columnInfo = await db.query(`
+          SELECT 
+            c.conname,
+            array_agg(a.attname ORDER BY a.attnum) as columns
+          FROM pg_constraint c
+          JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
+          WHERE c.conrelid = 'daily_attendance'::regclass
+          AND c.contype = 'u'
+          GROUP BY c.conname
+        `);
+        console.log('Constraint columns:', JSON.stringify(columnInfo.rows, null, 2));
+      }
       console.log('=== END DEBUG INFO ===');
     } catch (dbInfoErr) {
       console.log('[DB Info] Could not fetch database info:', dbInfoErr.message);
@@ -319,6 +348,14 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
 
       // Insert or update daily attendance using ON CONFLICT
       // Use column names directly (works with any constraint name)
+      console.log('[Daily Attendance] Attempting INSERT with:', {
+        employeeId,
+        attendance_date,
+        status,
+        check_in_time: normalizedCheckIn,
+        check_out_time: normalizedCheckOut
+      });
+      
       const attendanceResult = await client.query(
         `INSERT INTO daily_attendance 
          (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, created_at, updated_at)
@@ -341,6 +378,8 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
           req.user.id
         ]
       );
+      
+      console.log('[Daily Attendance] INSERT successful, rows affected:', attendanceResult.rows.length);
 
       // Update monthly attendance summary
       const monthDate = new Date(attendance_date);
@@ -401,6 +440,10 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
     }
   } catch (err) {
     console.error('POST /employees/:id/daily-attendance error:', err);
+    console.error('Error code:', err.code);
+    console.error('Error message:', err.message);
+    console.error('Error detail:', err.detail);
+    console.error('Error hint:', err.hint);
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
