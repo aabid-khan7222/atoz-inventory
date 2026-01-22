@@ -265,8 +265,10 @@ router.get('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, async
 });
 
 // Mark daily attendance
+// FIXED VERSION: Uses check-then-insert/update pattern (NO ON CONFLICT)
 router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   try {
+    console.log('[Daily Attendance API] Route called - FIXED VERSION (no ON CONFLICT)');
     const employeeId = parseInt(req.params.id);
     if (isNaN(employeeId)) {
       return res.status(400).json({ error: 'Invalid employee ID' });
