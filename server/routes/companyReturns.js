@@ -346,6 +346,7 @@ router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
     }
 
     // Create the return record
+    // Note: quantity defaults to 1 for company returns (typically one battery per return)
     const result = await client.query(
       `INSERT INTO company_returns (
         returned_serial_number,
@@ -360,8 +361,9 @@ router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
         customer_mobile_number,
         reason,
         notes,
-        created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        created_by,
+        quantity
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
       [
         returnedSerialNumber ? returnedSerialNumber.trim() : null,
@@ -376,7 +378,8 @@ router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
         customerMobileNumber ? customerMobileNumber.trim() : null,
         reason ? reason.trim() : null,
         notes ? notes.trim() : null,
-        req.user?.id || null
+        req.user?.id || null,
+        1 // quantity - default to 1 for company returns
       ]
     );
 
