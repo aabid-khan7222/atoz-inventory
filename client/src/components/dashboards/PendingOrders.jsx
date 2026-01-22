@@ -444,9 +444,9 @@ const PendingOrders = () => {
       )}
 
       {!loading && !error && orders.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: selectedOrder ? '1fr 2fr' : '1fr', gap: '1.5rem' }}>
+        <div className="pending-orders-container">
           {/* Orders List */}
-          <div style={{ background: 'var(--corp-bg-card, #ffffff)', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: 'var(--corp-shadow, 0 1px 3px rgba(0,0,0,0.1))' }}>
+          <div className="pending-orders-list" style={{ background: 'var(--corp-bg-card, #ffffff)', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: 'var(--corp-shadow, 0 1px 3px rgba(0,0,0,0.1))' }}>
             <h3 style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--corp-text-primary, #0f172a)' }}>Pending Orders ({orders.length})</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {orders.map((order) => (
@@ -517,9 +517,9 @@ const PendingOrders = () => {
             </div>
           </div>
 
-          {/* Order Details & Assignment */}
+          {/* Order Details & Assignment - Desktop Side-by-Side */}
           {selectedOrder && (
-            <div style={{ background: 'var(--corp-bg-card, #ffffff)', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: 'var(--corp-shadow, 0 1px 3px rgba(0,0,0,0.1))' }}>
+            <div className="pending-order-details-desktop" style={{ background: 'var(--corp-bg-card, #ffffff)', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: 'var(--corp-shadow, 0 1px 3px rgba(0,0,0,0.1))' }}>
               <h3 style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--corp-text-primary, #0f172a)' }}>
                 Assign Serial Numbers - {selectedOrder.invoice_number}
               </h3>
@@ -942,6 +942,443 @@ const PendingOrders = () => {
                 </button>
               </div>
             </div>
+          )}
+
+          {/* Order Details & Assignment - Mobile/Tablet Modal */}
+          {selectedOrder && (
+            <>
+              <div 
+                className="pending-order-modal-overlay"
+                onClick={() => {
+                  setSelectedOrder(null);
+                  setSelectedSerials({});
+                  setAdjustedAmounts({});
+                  setDiscountInputs({});
+                }}
+              />
+              <div className="pending-order-modal">
+                <div className="pending-order-modal-header">
+                  <h3 style={{ margin: 0, color: 'var(--corp-text-primary, #0f172a)' }}>
+                    Assign Serial Numbers - {selectedOrder.invoice_number}
+                  </h3>
+                  <button
+                    className="pending-order-modal-close"
+                    onClick={() => {
+                      setSelectedOrder(null);
+                      setSelectedSerials({});
+                      setAdjustedAmounts({});
+                      setDiscountInputs({});
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="pending-order-modal-body">
+                  <div style={{ marginBottom: '1rem', padding: '1rem', background: 'var(--corp-bg-secondary, #f8fafc)', borderRadius: '0.375rem', color: 'var(--corp-text-primary, #0f172a)' }}>
+                    <div><strong>Customer:</strong> {selectedOrder.customer_name}</div>
+                    <div><strong>Phone:</strong> {selectedOrder.customer_mobile_number}</div>
+                    <div><strong>Date:</strong> {formatDateTime(selectedOrder.created_at)}</div>
+                  </div>
+
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <h4 style={{ marginBottom: '0.75rem', color: 'var(--corp-text-primary, #0f172a)' }}>Order Items</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {Array.isArray(selectedOrder.items) && selectedOrder.items.map((item) => {
+                        const isWaterProduct = (item.CATEGORY || item.category || '').toLowerCase() === 'water';
+                        const serialNum = item.SERIAL_NUMBER || item.serial_number;
+                        const hasSerial = !!(serialNum && serialNum !== 'PENDING' && serialNum !== 'N/A');
+                        const productId = item.product_id;
+                        const serials = availableSerials[productId] || [];
+
+                        if (hasSerial) {
+                          return (
+                            <div
+                              key={item.id}
+                              style={{
+                                padding: '1rem',
+                                border: '1px solid var(--corp-accent, #10b981)',
+                                borderRadius: '0.375rem',
+                                background: 'var(--corp-bg-secondary, #f8fafc)',
+                                color: 'var(--corp-text-primary, #0f172a)',
+                              }}
+                            >
+                              <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--corp-text-primary, #0f172a)' }}>
+                                {item.NAME || item.name || 'Product'}
+                              </div>
+                              <div style={{ fontSize: '0.875rem', color: 'var(--corp-accent-dark, #059669)', marginBottom: '0.25rem' }}>
+                                ✓ Serial Number: {item.SERIAL_NUMBER || item.serial_number}
+                              </div>
+                              <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)' }}>
+                                Amount: ₹{parseFloat(item.final_amount || item.FINAL_AMOUNT || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (isWaterProduct) {
+                          return (
+                            <div
+                              key={item.id}
+                              style={{
+                                padding: '1rem',
+                                border: '1px solid var(--corp-border, #e2e8f0)',
+                                borderRadius: '0.375rem',
+                                background: 'var(--corp-bg-secondary, #f8fafc)',
+                                color: 'var(--corp-text-primary, #0f172a)',
+                              }}
+                            >
+                              <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--corp-text-primary, #0f172a)' }}>
+                                {item.NAME || item.name || 'Product'}
+                              </div>
+                              <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)' }}>
+                                Water product - No serial number required
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={item.id}
+                            style={{
+                              padding: '1rem',
+                              border: '1px solid var(--corp-warning, #fbbf24)',
+                              borderRadius: '0.375rem',
+                              background: 'var(--corp-bg-secondary, #f8fafc)',
+                              color: 'var(--corp-text-primary, #0f172a)',
+                            }}
+                          >
+                            <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--corp-text-primary, #0f172a)' }}>
+                              {item.NAME || item.name || 'Product'}
+                            </div>
+                            <div style={{ fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)', marginBottom: '0.75rem' }}>
+                              SKU: {item.SKU || item.sku || 'N/A'} | Category: {item.CATEGORY || item.category || 'N/A'}
+                            </div>
+                            {(() => {
+                              const mrp = parseFloat(item.MRP || item.mrp || 0);
+                              const originalFinalAmount = parseFloat(item.final_amount || item.FINAL_AMOUNT || 0);
+                              const existingDiscountAmount = parseFloat(item.discount_amount || item.DISCOUNT_AMOUNT || 0);
+                              const basePrice = mrp > 0 ? mrp : originalFinalAmount;
+                              const currentAmount = adjustedAmounts[item.id] !== undefined ? adjustedAmounts[item.id] : originalFinalAmount;
+                              const discountInput = discountInputs[item.id];
+                              const existingDiscount = existingDiscountAmount > 0 ? existingDiscountAmount : (basePrice > originalFinalAmount ? basePrice - originalFinalAmount : 0);
+                              const existingDiscountPercent = basePrice > 0 ? ((existingDiscount / basePrice) * 100).toFixed(2) : 0;
+                              const currentDiscount = basePrice - currentAmount;
+                              const currentDiscountPercent = basePrice > 0 ? ((currentDiscount / basePrice) * 100).toFixed(2) : 0;
+                              
+                              return (
+                                <>
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', fontWeight: '500', color: 'var(--corp-text-primary, #0f172a)' }}>
+                                        {mrp > 0 ? 'MRP / Base Price' : 'Current Amount'}
+                                      </label>
+                                      <div style={{
+                                        padding: '0.5rem',
+                                        border: '1px solid var(--corp-border, #e2e8f0)',
+                                        borderRadius: '0.375rem',
+                                        background: 'var(--corp-bg-tertiary, #f1f5f9)',
+                                        fontSize: '0.875rem',
+                                        color: 'var(--corp-text-secondary, #475569)'
+                                      }}>
+                                        ₹{basePrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', fontWeight: '500', color: 'var(--corp-text-primary, #0f172a)' }}>
+                                        Final Amount
+                                      </label>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="Enter final amount"
+                                        value={currentAmount}
+                                        onChange={(e) => handleAmountChange(item.id, e.target.value)}
+                                        style={{
+                                          width: '100%',
+                                          padding: '0.5rem',
+                                          border: '1px solid var(--corp-border, #e2e8f0)',
+                                          borderRadius: '0.375rem',
+                                          fontSize: '0.875rem',
+                                          background: 'var(--corp-bg-card, #ffffff)',
+                                          color: 'var(--corp-text-primary, #0f172a)',
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                  
+                                  <div style={{ 
+                                    marginBottom: '0.75rem', 
+                                    padding: '0.75rem', 
+                                    background: 'var(--corp-bg-tertiary, #f1f5f9)', 
+                                    border: '1px solid var(--corp-info, #3b82f6)', 
+                                    borderRadius: '0.375rem',
+                                    color: 'var(--corp-text-primary, #0f172a)'
+                                  }}>
+                                    <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', fontWeight: '600', color: 'var(--corp-info, #3b82f6)' }}>
+                                      Adjust Discount (Increase/Decrease)
+                                    </label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--corp-text-secondary, #475569)' }}>
+                                          Discount Percentage (%)
+                                        </label>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          max="100"
+                                          placeholder={existingDiscount > 0 ? `Current: ${existingDiscountPercent}%` : "Enter %"}
+                                          value={discountInput ? (discountInput.type === 'percent' ? discountInput.value : (discountInput.calculatedPercent || '')) : (existingDiscount > 0 ? existingDiscountPercent : '')}
+                                          onChange={(e) => handleDiscountChange(item.id, 'percent', e.target.value, basePrice)}
+                                          style={{
+                                            width: '100%',
+                                            padding: '0.5rem',
+                                            border: '1px solid var(--corp-border, #e2e8f0)',
+                                            borderRadius: '0.375rem',
+                                            fontSize: '0.875rem',
+                                            background: 'var(--corp-bg-card, #ffffff)',
+                                            color: 'var(--corp-text-primary, #0f172a)',
+                                          }}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--corp-text-secondary, #475569)' }}>
+                                          Discount Amount (₹)
+                                        </label>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          max={basePrice}
+                                          placeholder={existingDiscount > 0 ? `Current: ₹${existingDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Enter amount"}
+                                          value={discountInput ? (discountInput.type === 'amount' ? discountInput.value : (discountInput.calculatedAmount || '')) : (existingDiscount > 0 ? existingDiscount : '')}
+                                          onChange={(e) => handleDiscountChange(item.id, 'amount', e.target.value, basePrice)}
+                                          style={{
+                                            width: '100%',
+                                            padding: '0.5rem',
+                                            border: '1px solid var(--corp-border, #e2e8f0)',
+                                            borderRadius: '0.375rem',
+                                            fontSize: '0.875rem',
+                                            background: 'var(--corp-bg-card, #ffffff)',
+                                            color: 'var(--corp-text-primary, #0f172a)',
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                    
+                                    {Math.abs(currentDiscount - existingDiscount) > 0.01 && (
+                                      <div style={{ 
+                                        fontSize: '0.75rem', 
+                                        color: currentDiscount > existingDiscount ? '#059669' : '#dc2626', 
+                                        marginTop: '0.5rem', 
+                                        display: 'flex', 
+                                        gap: '0.5rem', 
+                                        alignItems: 'center', 
+                                        flexWrap: 'wrap',
+                                        padding: '0.5rem',
+                                        background: currentDiscount > existingDiscount ? '#f0fdf4' : '#fef2f2',
+                                        borderRadius: '0.25rem'
+                                      }}>
+                                        <span style={{ fontWeight: '600' }}>
+                                          {currentDiscount > existingDiscount ? 'Additional Discount:' : 'Reduced Discount:'}
+                                        </span>
+                                        <span style={{ fontWeight: '700' }}>
+                                          ₹{Math.abs(currentDiscount - existingDiscount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                        <span style={{ color: 'var(--corp-text-secondary, #475569)' }}>
+                                          (Total: ₹{currentDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {currentDiscountPercent}%)
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </>
+                              );
+                            })()}
+                            <div style={{ position: 'relative' }}>
+                              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', fontWeight: '500', color: 'var(--corp-text-primary, #0f172a)' }}>
+                                Serial Number *
+                              </label>
+                              {serials.length > 0 ? (
+                                <div style={{ position: 'relative' }}>
+                                  <SearchableSelect
+                                    value={selectedSerials[item.id] || ''}
+                                    onChange={(value) => handleSerialChange(item.id, value)}
+                                    options={serials.map(serial => ({
+                                      value: serial,
+                                      label: serial
+                                    }))}
+                                    placeholder="Search and select serial number..."
+                                    displayKey="label"
+                                    valueKey="value"
+                                  />
+                                </div>
+                              ) : (
+                                <input
+                                  type="text"
+                                  placeholder="Enter serial number manually"
+                                  value={selectedSerials[item.id] || ''}
+                                  onChange={(e) => handleSerialChange(item.id, e.target.value)}
+                                  style={{
+                                    width: '100%',
+                                    padding: '0.5rem',
+                                    border: '1px solid var(--corp-border, #e2e8f0)',
+                                    borderRadius: '0.375rem',
+                                    fontSize: '0.875rem',
+                                    background: 'var(--corp-bg-card, #ffffff)',
+                                    color: 'var(--corp-text-primary, #0f172a)',
+                                  }}
+                                />
+                              )}
+                              {serials.length > 0 && (
+                                <div style={{ fontSize: '0.75rem', color: 'var(--corp-text-secondary, #475569)', marginTop: '0.5rem' }}>
+                                  {serials.length} serial number{serials.length !== 1 ? 's' : ''} available
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  {selectedOrder && Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 && (
+                    <div style={{
+                      marginTop: '1.5rem',
+                      padding: '1rem',
+                      background: 'var(--corp-bg-tertiary, #f1f5f9)',
+                      border: '1px solid var(--corp-info, #3b82f6)',
+                      borderRadius: '0.375rem',
+                      color: 'var(--corp-text-primary, #0f172a)'
+                    }}>
+                      {(() => {
+                        const baseTotal = selectedOrder.items.reduce((sum, item) => {
+                          const mrp = parseFloat(item.MRP || item.mrp || 0);
+                          const originalFinalAmount = parseFloat(item.final_amount || item.FINAL_AMOUNT || 0);
+                          return sum + (mrp > 0 ? mrp : originalFinalAmount);
+                        }, 0);
+                        const existingDiscountTotal = selectedOrder.items.reduce((sum, item) => {
+                          const mrp = parseFloat(item.MRP || item.mrp || 0);
+                          const originalFinalAmount = parseFloat(item.final_amount || item.FINAL_AMOUNT || 0);
+                          const existingDiscountAmount = parseFloat(item.discount_amount || item.DISCOUNT_AMOUNT || 0);
+                          const basePrice = mrp > 0 ? mrp : originalFinalAmount;
+                          const existingDiscount = existingDiscountAmount > 0 ? existingDiscountAmount : (basePrice > originalFinalAmount ? basePrice - originalFinalAmount : 0);
+                          return sum + existingDiscount;
+                        }, 0);
+                        const finalTotal = selectedOrder.items.reduce((sum, item) => {
+                          const originalAmount = parseFloat(item.final_amount || item.FINAL_AMOUNT || 0);
+                          const adjustedAmount = adjustedAmounts[item.id];
+                          const finalAmount = (adjustedAmount !== undefined) ? adjustedAmount : originalAmount;
+                          return sum + finalAmount;
+                        }, 0);
+                        const totalDiscount = baseTotal - finalTotal;
+                        const totalDiscountPercent = baseTotal > 0 ? ((totalDiscount / baseTotal) * 100).toFixed(2) : 0;
+                        
+                        return (
+                          <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                              <span style={{ fontWeight: '600', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>Base Total (MRP):</span>
+                              <span style={{ fontWeight: '600', fontSize: '0.875rem', color: 'var(--corp-text-primary, #0f172a)' }}>
+                                ₹{baseTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            {existingDiscountTotal > 0.01 && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: '500', fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)' }}>Existing Discount:</span>
+                                <span style={{ fontWeight: '600', fontSize: '0.875rem', color: 'var(--corp-accent-dark, #059669)' }}>
+                                  -₹{existingDiscountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            )}
+                            {totalDiscount > existingDiscountTotal + 0.01 && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: '500', fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)' }}>Additional Discount:</span>
+                                <span style={{ fontWeight: '600', fontSize: '0.875rem', color: 'var(--corp-accent-dark, #059669)' }}>
+                                  -₹{(totalDiscount - existingDiscountTotal).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            )}
+                            {totalDiscount < existingDiscountTotal - 0.01 && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: '500', fontSize: '0.875rem', color: 'var(--corp-text-secondary, #475569)' }}>Discount Reduced:</span>
+                                <span style={{ fontWeight: '600', fontSize: '0.875rem', color: 'var(--corp-danger, #dc2626)' }}>
+                                  +₹{(existingDiscountTotal - totalDiscount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--corp-border, #e2e8f0)' }}>
+                              <span style={{ fontWeight: '600', fontSize: '1rem', color: 'var(--corp-text-primary, #0f172a)' }}>Final Total:</span>
+                              <span style={{ fontWeight: '700', fontSize: '1.125rem', color: '#059669' }}>
+                                ₹{finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            {totalDiscount > 0.01 && (
+                              <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--corp-accent-dark, #059669)', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span style={{ fontWeight: '600' }}>Total Discount:</span>
+                                <span style={{ fontWeight: '700' }}>₹{totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span style={{ color: 'var(--corp-text-secondary, #475569)' }}>({totalDiscountPercent}%)</span>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: '1.5rem' }}>
+                    <button
+                      onClick={() => {
+                        setSelectedOrder(null);
+                        setSelectedSerials({});
+                        setAdjustedAmounts({});
+                        setDiscountInputs({});
+                      }}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#6b7280',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.375rem',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                      }}
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => handleCancelOrder(selectedOrder?.invoice_number || selectedOrder?.id, selectedOrder)}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#dc2626',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.375rem',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                      }}
+                    >
+                      Cancel Order
+                    </button>
+                    <button
+                      onClick={handleAssignSerials}
+                      disabled={assigning}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: assigning ? '#94a3b8' : '#059669',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.375rem',
+                        cursor: assigning ? 'not-allowed' : 'pointer',
+                        fontWeight: '500',
+                      }}
+                    >
+                      {assigning ? 'Assigning...' : 'Assign Serial Numbers'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}
