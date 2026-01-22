@@ -318,62 +318,29 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
       await client.query('BEGIN');
 
       // Insert or update daily attendance using ON CONFLICT
-      // Try constraint name first, fallback to column names
-      let attendanceResult;
-      try {
-        // First try with explicit constraint name
-        attendanceResult = await client.query(
-          `INSERT INTO daily_attendance 
-           (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, created_at, updated_at)
-           VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, NOW(), NOW())
-           ON CONFLICT ON CONSTRAINT daily_attendance_employee_date_unique
-           DO UPDATE SET
-             status = EXCLUDED.status,
-             check_in_time = EXCLUDED.check_in_time,
-             check_out_time = EXCLUDED.check_out_time,
-             notes = EXCLUDED.notes,
-             updated_at = NOW()
-           RETURNING *`,
-          [
-            employeeId, 
-            attendance_date, 
-            status, 
-            normalizedCheckIn,
-            normalizedCheckOut,
-            normalizedNotes,
-            req.user.id
-          ]
-        );
-      } catch (constraintErr) {
-        // If constraint name fails, try with column names
-        if (constraintErr.message && constraintErr.message.includes('constraint')) {
-          console.log('[Daily Attendance] Constraint name failed, trying column names...');
-          attendanceResult = await client.query(
-            `INSERT INTO daily_attendance 
-             (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, created_at, updated_at)
-             VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, NOW(), NOW())
-             ON CONFLICT (employee_id, attendance_date)
-             DO UPDATE SET
-               status = EXCLUDED.status,
-               check_in_time = EXCLUDED.check_in_time,
-               check_out_time = EXCLUDED.check_out_time,
-               notes = EXCLUDED.notes,
-               updated_at = NOW()
-             RETURNING *`,
-            [
-              employeeId, 
-              attendance_date, 
-              status, 
-              normalizedCheckIn,
-              normalizedCheckOut,
-              normalizedNotes,
-              req.user.id
-            ]
-          );
-        } else {
-          throw constraintErr;
-        }
-      }
+      // Use column names directly (works with any constraint name)
+      const attendanceResult = await client.query(
+        `INSERT INTO daily_attendance 
+         (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, created_at, updated_at)
+         VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, NOW(), NOW())
+         ON CONFLICT (employee_id, attendance_date)
+         DO UPDATE SET
+           status = EXCLUDED.status,
+           check_in_time = EXCLUDED.check_in_time,
+           check_out_time = EXCLUDED.check_out_time,
+           notes = EXCLUDED.notes,
+           updated_at = NOW()
+         RETURNING *`,
+        [
+          employeeId, 
+          attendance_date, 
+          status, 
+          normalizedCheckIn,
+          normalizedCheckOut,
+          normalizedNotes,
+          req.user.id
+        ]
+      );
 
       // Update monthly attendance summary
       const monthDate = new Date(attendance_date);
@@ -463,62 +430,29 @@ router.post('/daily-attendance/bulk', requireAuth, requireSuperAdminOrAdmin, asy
         const normalizedNotes = (notes && notes.trim() !== '') ? notes : null;
 
         // Insert or update daily attendance using ON CONFLICT
-        // Try constraint name first, fallback to column names
-        let attendanceResult;
-        try {
-          // First try with explicit constraint name
-          attendanceResult = await client.query(
-            `INSERT INTO daily_attendance 
-             (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, created_at, updated_at)
-             VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, NOW(), NOW())
-             ON CONFLICT ON CONSTRAINT daily_attendance_employee_date_unique
-             DO UPDATE SET
-               status = EXCLUDED.status,
-               check_in_time = EXCLUDED.check_in_time,
-               check_out_time = EXCLUDED.check_out_time,
-               notes = EXCLUDED.notes,
-               updated_at = NOW()
-             RETURNING *`,
-            [
-              parseInt(employee_id), 
-              attendance_date, 
-              status, 
-              normalizedCheckIn,
-              normalizedCheckOut,
-              normalizedNotes,
-              req.user.id
-            ]
-          );
-        } catch (constraintErr) {
-          // If constraint name fails, try with column names
-          if (constraintErr.message && constraintErr.message.includes('constraint')) {
-            console.log('[Bulk Attendance] Constraint name failed, trying column names...');
-            attendanceResult = await client.query(
-              `INSERT INTO daily_attendance 
-               (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, created_at, updated_at)
-               VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, NOW(), NOW())
-               ON CONFLICT (employee_id, attendance_date)
-               DO UPDATE SET
-                 status = EXCLUDED.status,
-                 check_in_time = EXCLUDED.check_in_time,
-                 check_out_time = EXCLUDED.check_out_time,
-                 notes = EXCLUDED.notes,
-                 updated_at = NOW()
-               RETURNING *`,
-              [
-                parseInt(employee_id), 
-                attendance_date, 
-                status, 
-                normalizedCheckIn,
-                normalizedCheckOut,
-                normalizedNotes,
-                req.user.id
-              ]
-            );
-          } else {
-            throw constraintErr;
-          }
-        }
+        // Use column names directly (works with any constraint name)
+        const attendanceResult = await client.query(
+          `INSERT INTO daily_attendance 
+           (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, created_at, updated_at)
+           VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, NOW(), NOW())
+           ON CONFLICT (employee_id, attendance_date)
+           DO UPDATE SET
+             status = EXCLUDED.status,
+             check_in_time = EXCLUDED.check_in_time,
+             check_out_time = EXCLUDED.check_out_time,
+             notes = EXCLUDED.notes,
+             updated_at = NOW()
+           RETURNING *`,
+          [
+            parseInt(employee_id), 
+            attendance_date, 
+            status, 
+            normalizedCheckIn,
+            normalizedCheckOut,
+            normalizedNotes,
+            req.user.id
+          ]
+        );
 
         results.push(attendanceResult.rows[0]);
 
