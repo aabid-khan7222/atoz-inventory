@@ -974,8 +974,9 @@ const PendingOrders = () => {
                         setDiscountInputs({});
                       }}
                       title="Back to Pending Orders"
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
-                      ←
+                      <span style={{ display: 'inline-block', lineHeight: '1' }}>←</span>
                     </button>
                     <h3 style={{ margin: 0, color: 'var(--corp-text-primary, #0f172a)' }}>
                       Assign Serial Numbers - {selectedOrder.invoice_number}
