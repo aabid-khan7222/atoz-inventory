@@ -131,6 +131,16 @@ const ChargingServices = () => {
     }
   };
 
+  const handleRefreshCustomers = async () => {
+    // Clear selected customer
+    setSelectedCustomerId(null);
+    setIsManualEntry(false);
+    // Reset form
+    resetForm();
+    // Reload customers
+    await loadCustomers();
+  };
+
   const handleCustomerSelect = async (option) => {
     if (!option) {
       clearCustomerSelection();
@@ -709,7 +719,7 @@ const ChargingServices = () => {
                 <button
                   type="button"
                   className="charging-service-refresh-btn"
-                  onClick={loadCustomers}
+                  onClick={handleRefreshCustomers}
                   disabled={customersLoading}
                     style={{
                       padding: '0.5rem 1rem',
