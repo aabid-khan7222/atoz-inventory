@@ -959,3 +959,122 @@
     height: 32px !important;
   }
 }
+
+/* Mobile/Tablet Optimization */
+@media (max-width: 1024px) {
+  .user-management-header {
+    flex-wrap: nowrap !important;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .user-management-header h2 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+    font-size: 1.1rem;
+  }
+
+  .add-customer-btn {
+    padding: 0.5rem 0.9rem !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap;
+    flex-shrink: 0;
+    height: auto;
+    min-height: 36px;
+    max-height: 40px;
+  }
+
+  .user-management-search-row {
+    flex-wrap: nowrap !important;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .user-management-search-row input {
+    flex: 1;
+    min-width: 0;
+    height: 42px;
+    min-height: 42px;
+    max-height: 42px;
+    padding: 0.65rem 0.9rem;
+    font-size: 0.9rem;
+  }
+
+  .user-management-search-row button {
+    padding: 0 1rem !important;
+    min-width: 80px !important;
+    max-width: 100px !important;
+    width: auto !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+    font-size: 0.85rem !important;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .user-management-header h2 {
+    font-size: 1rem;
+  }
+
+  .add-customer-btn {
+    padding: 0.45rem 0.8rem !important;
+    font-size: 0.75rem !important;
+    min-height: 34px;
+    max-height: 38px;
+  }
+
+  .user-management-search-row input {
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.85rem;
+  }
+
+  .user-management-search-row button {
+    padding: 0 0.9rem !important;
+    min-width: 75px !important;
+    max-width: 95px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-management-header h2 {
+    font-size: 0.95rem;
+  }
+
+  .add-customer-btn {
+    padding: 0.4rem 0.7rem !important;
+    font-size: 0.7rem !important;
+    min-height: 32px;
+    max-height: 36px;
+  }
+
+  .user-management-search-row input {
+    height: 38px;
+    min-height: 38px;
+    max-height: 38px;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .user-management-search-row button {
+    padding: 0 0.8rem !important;
+    min-width: 70px !important;
+    max-width: 90px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    font-size: 0.75rem !important;
+  }
+}
