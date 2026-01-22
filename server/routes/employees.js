@@ -345,8 +345,10 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
         } catch (insertErr) {
           // Handle duplicate key error (unique constraint violation)
           // This can happen in race conditions where record was inserted between check and insert
-          if (insertErr.code === '23505' || insertErr.message.includes('unique') || insertErr.message.includes('duplicate')) {
+          console.log('INSERT error caught:', insertErr.code, insertErr.message);
+          if (insertErr.code === '23505' || insertErr.message.includes('unique') || insertErr.message.includes('duplicate') || insertErr.message.includes('constraint')) {
             // Record was inserted by another request, update it instead
+            console.log('Duplicate key error - updating existing record instead');
             attendanceResult = await client.query(
               `UPDATE daily_attendance 
                SET 
@@ -368,6 +370,7 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
             );
           } else {
             // Re-throw if it's a different error
+            console.error('Unexpected INSERT error:', insertErr);
             throw insertErr;
           }
         }
@@ -512,8 +515,10 @@ router.post('/daily-attendance/bulk', requireAuth, requireSuperAdminOrAdmin, asy
           } catch (insertErr) {
             // Handle duplicate key error (unique constraint violation)
             // This can happen in race conditions where record was inserted between check and insert
-            if (insertErr.code === '23505' || insertErr.message.includes('unique') || insertErr.message.includes('duplicate')) {
+            console.log('Bulk INSERT error caught:', insertErr.code, insertErr.message);
+            if (insertErr.code === '23505' || insertErr.message.includes('unique') || insertErr.message.includes('duplicate') || insertErr.message.includes('constraint')) {
               // Record was inserted by another request, update it instead
+              console.log('Bulk duplicate key error - updating existing record instead');
               attendanceResult = await client.query(
                 `UPDATE daily_attendance 
                  SET 
@@ -535,6 +540,7 @@ router.post('/daily-attendance/bulk', requireAuth, requireSuperAdminOrAdmin, asy
               );
             } else {
               // Re-throw if it's a different error
+              console.error('Bulk unexpected INSERT error:', insertErr);
               throw insertErr;
             }
           }
