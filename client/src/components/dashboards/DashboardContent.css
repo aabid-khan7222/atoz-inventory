@@ -4661,11 +4661,16 @@
 }
 
 .pending-order-modal-header > div {
-  display: flex;
+  display: flex !important;
   align-items: center;
   gap: 0.5rem;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+}
+
+.pending-order-modal-header > div > button {
+  flex-shrink: 0 !important;
 }
 
 .pending-order-modal-back {
@@ -4677,6 +4682,7 @@
   color: var(--corp-text-primary, #0f172a) !important;
   cursor: pointer;
   padding: 0 !important;
+  margin: 0 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -4686,12 +4692,16 @@
   height: 32px !important;
   min-width: 32px !important;
   min-height: 32px !important;
-  flex-shrink: 0;
+  max-width: 32px !important;
+  max-height: 32px !important;
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  position: relative;
-  z-index: 1;
+  position: relative !important;
+  z-index: 10 !important;
   visibility: visible !important;
   opacity: 1 !important;
+  order: -1 !important;
 }
 
 .pending-order-modal-back:hover {
@@ -4713,6 +4723,10 @@
   color: var(--corp-text-primary, #0f172a);
   font-weight: 600;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pending-order-modal-close {
@@ -4771,6 +4785,14 @@
     font-size: 1.125rem;
   }
 
+  .pending-order-modal-back {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    display: flex !important;
+  }
+
   .pending-order-modal-body {
     padding: 1.25rem;
   }
@@ -4793,7 +4815,16 @@
   }
 
   .pending-order-modal-header h3 {
-    font-size: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .pending-order-modal-back {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    font-size: 1.125rem !important;
+    display: flex !important;
   }
 
   .pending-order-modal-body {

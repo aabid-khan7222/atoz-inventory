@@ -964,7 +964,7 @@ const PendingOrders = () => {
               />
               <div className="pending-order-modal">
                 <div className="pending-order-modal-header">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div className="pending-order-modal-header-left" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
                     <button
                       className="pending-order-modal-back"
                       onClick={() => {
@@ -974,11 +974,20 @@ const PendingOrders = () => {
                         setDiscountInputs({});
                       }}
                       title="Back to Pending Orders"
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        width: '32px',
+                        height: '32px',
+                        minWidth: '32px',
+                        minHeight: '32px'
+                      }}
                     >
-                      <span style={{ display: 'inline-block', lineHeight: '1' }}>←</span>
+                      ←
                     </button>
-                    <h3 style={{ margin: 0, color: 'var(--corp-text-primary, #0f172a)' }}>
+                    <h3 style={{ margin: 0, color: 'var(--corp-text-primary, #0f172a)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       Assign Serial Numbers - {selectedOrder.invoice_number}
                     </h3>
                   </div>
