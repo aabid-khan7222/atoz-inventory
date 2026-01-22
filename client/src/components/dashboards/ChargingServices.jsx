@@ -494,14 +494,14 @@ const ChargingServices = () => {
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
           {/* Search Bar and Status Filter Row */}
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'nowrap', width: '100%' }}>
+          <div className="charging-search-filter-row" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'nowrap', width: '100%' }}>
             <input
               type="text"
               placeholder="Search by serial, customer, phone, vehicle..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && loadServices()}
-              className="filter-input"
+              className="filter-input charging-search-input"
               style={{
                 flex: 1,
                 minWidth: '250px',
@@ -513,7 +513,7 @@ const ChargingServices = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="filter-select"
+              className="filter-select charging-status-filter"
               style={{
                 width: '140px',
                 flexShrink: 0,
@@ -530,21 +530,41 @@ const ChargingServices = () => {
             </select>
           </div>
           {/* Date Filters and Button Row */}
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            placeholder="From Date"
-            className="filter-input"
-          />
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            placeholder="To Date"
-            className="filter-input"
-          />
+          <div className="charging-date-filters-row" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="charging-date-filter-wrapper">
+              <label className="charging-date-filter-label">Date From</label>
+              <div className="charging-date-input-container">
+                <svg className="charging-date-calendar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="filter-input charging-date-input"
+                />
+              </div>
+            </div>
+            <div className="charging-date-filter-wrapper">
+              <label className="charging-date-filter-label">Date To</label>
+              <div className="charging-date-input-container">
+                <svg className="charging-date-calendar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="filter-input charging-date-input"
+                />
+              </div>
+            </div>
           <button
             onClick={loadServices}
             className="primary-btn"
