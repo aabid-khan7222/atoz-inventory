@@ -289,7 +289,8 @@ const CompanyReturns = () => {
       {/* Filters */}
       <div className="card" style={{ marginBottom: '20px' }}>
         <h3>Filters</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+        {/* Desktop: Grid layout */}
+        <div className="company-returns-filters-desktop" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>Status</label>
             <select
@@ -310,7 +311,7 @@ const CompanyReturns = () => {
               type="text"
               value={filters.search}
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                      placeholder="Search serial, product, customer..."
+              placeholder="Search serial, product, customer..."
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
             />
           </div>
@@ -331,6 +332,76 @@ const CompanyReturns = () => {
               onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
             />
+          </div>
+        </div>
+
+        {/* Mobile/Tablet: Two rows */}
+        <div className="company-returns-filters-mobile">
+          {/* First Row: Search and Status */}
+          <div className="company-returns-filters-row-1">
+            <div className="company-returns-search-wrapper">
+              <label className="company-returns-filter-label">Search</label>
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                placeholder="Search serial, product, customer..."
+                className="company-returns-search-input"
+              />
+            </div>
+            <div className="company-returns-status-wrapper">
+              <label className="company-returns-filter-label">Status</label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                className="company-returns-status-select"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="returned">Returned</option>
+                <option value="received">Received</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Second Row: Date Fields */}
+          <div className="company-returns-filters-row-2">
+            <div className="company-returns-date-wrapper">
+              <label className="company-returns-date-label">From Date</label>
+              <div className="company-returns-date-container">
+                <svg className="company-returns-date-calendar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <input
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                  className="company-returns-date-input"
+                />
+              </div>
+            </div>
+
+            <div className="company-returns-date-wrapper">
+              <label className="company-returns-date-label">To Date</label>
+              <div className="company-returns-date-container">
+                <svg className="company-returns-date-calendar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <input
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                  className="company-returns-date-input"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>

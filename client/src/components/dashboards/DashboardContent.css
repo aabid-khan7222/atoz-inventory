@@ -5516,3 +5516,253 @@
     font-size: 0.75rem;
   }
 }
+
+/* Company Returns Filters - Mobile/Tablet Optimization */
+@media (max-width: 1024px) {
+  .company-returns-filters-desktop {
+    display: none !important;
+  }
+
+  .company-returns-filters-mobile {
+    display: block;
+  }
+
+  .company-returns-filters-row-1 {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+
+  .company-returns-search-wrapper {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .company-returns-status-wrapper {
+    min-width: 130px;
+    max-width: 150px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .company-returns-filter-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--corp-text-primary, #0f172a);
+    margin: 0;
+  }
+
+  .company-returns-search-input {
+    width: 100%;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid var(--corp-border, #e2e8f0);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: var(--corp-bg-card, #ffffff);
+    color: var(--corp-text-primary, #0f172a);
+    box-sizing: border-box;
+    height: 42px;
+    min-height: 42px;
+    max-height: 42px;
+  }
+
+  .company-returns-status-select {
+    width: 100%;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid var(--corp-border, #e2e8f0);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: var(--corp-bg-card, #ffffff);
+    color: var(--corp-text-primary, #0f172a);
+    box-sizing: border-box;
+    height: 42px;
+    min-height: 42px;
+    max-height: 42px;
+  }
+
+  .company-returns-filters-row-2 {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+
+  .company-returns-date-wrapper {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .company-returns-date-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--corp-text-primary, #0f172a);
+    margin: 0;
+  }
+
+  .company-returns-date-container {
+    position: relative;
+    width: 100%;
+  }
+
+  .company-returns-date-calendar-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: var(--corp-text-secondary, #64748b);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .company-returns-date-input {
+    width: 100%;
+    padding: 0.65rem 0.9rem;
+    padding-left: 2.5rem;
+    border: 1px solid var(--corp-border, #e2e8f0);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: var(--corp-bg-card, #ffffff);
+    color: var(--corp-text-primary, #0f172a);
+    box-sizing: border-box;
+    height: 42px;
+    min-height: 42px;
+    max-height: 42px;
+  }
+
+  /* Company Returns Header - Button width reduction */
+  .company-returns-header-actions {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .company-returns-header-actions h3 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .company-returns-create-btn {
+    padding: 0.65rem 1.2rem !important;
+    font-size: 0.85rem !important;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+@media (min-width: 1025px) {
+  .company-returns-filters-mobile {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .company-returns-filters-row-1 {
+    gap: 0.5rem;
+  }
+
+  .company-returns-search-input,
+  .company-returns-status-select {
+    padding: 0.6rem 0.85rem;
+    font-size: 0.85rem;
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+  }
+
+  .company-returns-status-wrapper {
+    min-width: 120px;
+    max-width: 140px;
+  }
+
+  .company-returns-filter-label,
+  .company-returns-date-label {
+    font-size: 0.8rem;
+  }
+
+  .company-returns-filters-row-2 {
+    gap: 0.5rem;
+  }
+
+  .company-returns-date-input {
+    padding: 0.6rem 0.85rem;
+    padding-left: 2.4rem;
+    font-size: 0.85rem;
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+  }
+
+  .company-returns-date-calendar-icon {
+    left: 0.7rem;
+    width: 16px;
+    height: 16px;
+  }
+
+  .company-returns-create-btn {
+    padding: 0.6rem 1rem !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .company-returns-filters-row-1 {
+    gap: 0.5rem;
+  }
+
+  .company-returns-search-input,
+  .company-returns-status-select {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.8rem;
+    height: 38px;
+    min-height: 38px;
+    max-height: 38px;
+  }
+
+  .company-returns-status-wrapper {
+    min-width: 110px;
+    max-width: 130px;
+  }
+
+  .company-returns-filter-label,
+  .company-returns-date-label {
+    font-size: 0.75rem;
+  }
+
+  .company-returns-filters-row-2 {
+    gap: 0.5rem;
+  }
+
+  .company-returns-date-input {
+    padding: 0.55rem 0.75rem;
+    padding-left: 2.2rem;
+    font-size: 0.8rem;
+    height: 38px;
+    min-height: 38px;
+    max-height: 38px;
+  }
+
+  .company-returns-date-calendar-icon {
+    left: 0.65rem;
+    width: 15px;
+    height: 15px;
+  }
+
+  .company-returns-create-btn {
+    padding: 0.55rem 0.9rem !important;
+    font-size: 0.75rem !important;
+  }
+}
