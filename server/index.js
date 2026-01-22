@@ -292,10 +292,14 @@ const checkExpiringGuaranteesDaily = async () => {
 
 // Schedule the check to run daily at midnight (or adjust interval as needed)
 // For testing, you can use a shorter interval like 60000 (1 minute)
+// Defer scheduled task initialization to avoid blocking server startup
 const DAILY_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 
-setInterval(checkExpiringGuaranteesDaily, DAILY_INTERVAL);
-console.log("Scheduled task: Checking for expiring guarantees daily");
+// Start scheduled task after server is listening (non-blocking)
+setTimeout(() => {
+  setInterval(checkExpiringGuaranteesDaily, DAILY_INTERVAL);
+  console.log("Scheduled task: Checking for expiring guarantees daily");
+}, 5000); // Start 5 seconds after server starts
 
 /* ================== 404 HANDLER ================== */
 app.use((req, res) => {
@@ -323,6 +327,24 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+
+// Start server immediately - don't wait for database or other operations
+const server = app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`✅ Health check available at http://localhost:${PORT}/health`);
+});
+
+// Handle server errors gracefully
+server.on('error', (err) => {
+  console.error('❌ Server error:', err);
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });
