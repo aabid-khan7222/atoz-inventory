@@ -4660,11 +4660,42 @@
   border-bottom: 1px solid var(--corp-border, #e2e8f0);
 }
 
+.pending-order-modal-header > div {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.pending-order-modal-back {
+  background: transparent;
+  border: 1px solid var(--corp-border, #e2e8f0);
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--corp-text-primary, #0f172a);
+  cursor: pointer;
+  padding: 0.375rem 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+  min-width: 36px;
+  height: 36px;
+}
+
+.pending-order-modal-back:hover {
+  background: var(--corp-bg-hover, #f5f5f5);
+  border-color: var(--corp-primary, #2563eb);
+  color: var(--corp-primary, #2563eb);
+}
+
 .pending-order-modal-header h3 {
   margin: 0;
   font-size: 1.25rem;
   color: var(--corp-text-primary, #0f172a);
   font-weight: 600;
+  flex: 1;
 }
 
 .pending-order-modal-close {
@@ -4750,6 +4781,39 @@
 
   .pending-order-modal-body {
     padding: 1rem;
+  }
+}
+
+/* Discount Inputs - Mobile/Tablet Optimization */
+@media (max-width: 1024px) {
+  .discount-inputs-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.75rem !important;
+    align-items: start;
+  }
+
+  .discount-label-mobile .label-text-full {
+    display: none;
+  }
+
+  .discount-label-mobile .label-text-short {
+    display: block;
+  }
+
+  .discount-input {
+    height: 100% !important;
+    min-height: 38px;
+  }
+}
+
+@media (min-width: 1025px) {
+  .discount-label-mobile .label-text-full {
+    display: block;
+  }
+
+  .discount-label-mobile .label-text-short {
+    display: none;
   }
 }
 

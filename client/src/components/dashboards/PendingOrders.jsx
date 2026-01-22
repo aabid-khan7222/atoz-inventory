@@ -380,13 +380,13 @@ const PendingOrders = () => {
       // Discount percentage: calculate final amount from base price
       if (numDiscount > 100) return; // Can't discount more than 100%
       calculatedDiscountAmount = (basePrice * numDiscount) / 100;
-      calculatedDiscountPercent = numDiscount;
+      calculatedDiscountPercent = parseFloat(numDiscount.toFixed(3));
       finalAmount = basePrice - calculatedDiscountAmount;
     } else {
       // Discount amount: subtract from base price
       if (numDiscount > basePrice) return; // Can't discount more than base price
       calculatedDiscountAmount = numDiscount;
-      calculatedDiscountPercent = basePrice > 0 ? (numDiscount / basePrice) * 100 : 0;
+      calculatedDiscountPercent = basePrice > 0 ? parseFloat(((numDiscount / basePrice) * 100).toFixed(3)) : 0;
       finalAmount = basePrice - calculatedDiscountAmount;
     }
 
@@ -618,11 +618,11 @@ const PendingOrders = () => {
                           
                           // Calculate existing discount from database
                           const existingDiscount = existingDiscountAmount > 0 ? existingDiscountAmount : (basePrice > originalFinalAmount ? basePrice - originalFinalAmount : 0);
-                          const existingDiscountPercent = basePrice > 0 ? ((existingDiscount / basePrice) * 100).toFixed(2) : 0;
+                          const existingDiscountPercent = basePrice > 0 ? parseFloat(((existingDiscount / basePrice) * 100).toFixed(3)) : 0;
                           
                           // Calculate current discount (if modified)
                           const currentDiscount = basePrice - currentAmount;
-                          const currentDiscountPercent = basePrice > 0 ? ((currentDiscount / basePrice) * 100).toFixed(2) : 0;
+                          const currentDiscountPercent = basePrice > 0 ? parseFloat(((currentDiscount / basePrice) * 100).toFixed(3)) : 0;
                           
                           return (
                             <>
@@ -678,19 +678,21 @@ const PendingOrders = () => {
                                 <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', fontWeight: '600', color: 'var(--corp-info, #3b82f6)' }}>
                                   Adjust Discount (Increase/Decrease)
                                 </label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                <div className="discount-inputs-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                                   <div>
-                                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--corp-text-secondary, #475569)' }}>
-                                      Discount Percentage (%)
+                                    <label className="discount-label-mobile" style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--corp-text-secondary, #475569)' }}>
+                                      <span className="label-text-full">Discount Percentage (%)</span>
+                                      <span className="label-text-short">Disc %</span>
                                     </label>
                                     <input
                                       type="number"
-                                      step="0.01"
+                                      step="0.001"
                                       min="0"
                                       max="100"
-                                      placeholder={existingDiscount > 0 ? `Current: ${existingDiscountPercent}%` : "Enter %"}
-                                      value={discountInput ? (discountInput.type === 'percent' ? discountInput.value : (discountInput.calculatedPercent || '')) : (existingDiscount > 0 ? existingDiscountPercent : '')}
+                                      placeholder={existingDiscount > 0 ? `Current: ${existingDiscountPercent.toFixed(3)}%` : "Enter %"}
+                                      value={discountInput ? (discountInput.type === 'percent' ? discountInput.value : (discountInput.calculatedPercent ? parseFloat(discountInput.calculatedPercent).toFixed(3) : '')) : (existingDiscount > 0 ? existingDiscountPercent.toFixed(3) : '')}
                                       onChange={(e) => handleDiscountChange(item.id, 'percent', e.target.value, basePrice)}
+                                      className="discount-input"
                                       style={{
                                         width: '100%',
                                         padding: '0.5rem',
@@ -699,12 +701,14 @@ const PendingOrders = () => {
                                         fontSize: '0.875rem',
                                         background: 'var(--corp-bg-card, #ffffff)',
                                         color: 'var(--corp-text-primary, #0f172a)',
+                                        height: '100%',
                                       }}
                                     />
                                   </div>
                                   <div>
-                                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--corp-text-secondary, #475569)' }}>
-                                      Discount Amount (₹)
+                                    <label className="discount-label-mobile" style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--corp-text-secondary, #475569)' }}>
+                                      <span className="label-text-full">Discount Amount (₹)</span>
+                                      <span className="label-text-short">Disc Amt</span>
                                     </label>
                                     <input
                                       type="number"
@@ -714,6 +718,7 @@ const PendingOrders = () => {
                                       placeholder={existingDiscount > 0 ? `Current: ₹${existingDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Enter amount"}
                                       value={discountInput ? (discountInput.type === 'amount' ? discountInput.value : (discountInput.calculatedAmount || '')) : (existingDiscount > 0 ? existingDiscount : '')}
                                       onChange={(e) => handleDiscountChange(item.id, 'amount', e.target.value, basePrice)}
+                                      className="discount-input"
                                       style={{
                                         width: '100%',
                                         padding: '0.5rem',
@@ -722,6 +727,7 @@ const PendingOrders = () => {
                                         fontSize: '0.875rem',
                                         background: 'var(--corp-bg-card, #ffffff)',
                                         color: 'var(--corp-text-primary, #0f172a)',
+                                        height: '100%',
                                       }}
                                     />
                                   </div>
@@ -748,7 +754,7 @@ const PendingOrders = () => {
                                       ₹{Math.abs(currentDiscount - existingDiscount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                     <span style={{ color: 'var(--corp-text-secondary, #475569)' }}>
-                                      (Total: ₹{currentDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {currentDiscountPercent}%)
+                                      (Total: ₹{currentDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {parseFloat(currentDiscountPercent).toFixed(3)}%)
                                     </span>
                                   </div>
                                 )}
@@ -958,9 +964,23 @@ const PendingOrders = () => {
               />
               <div className="pending-order-modal">
                 <div className="pending-order-modal-header">
-                  <h3 style={{ margin: 0, color: 'var(--corp-text-primary, #0f172a)' }}>
-                    Assign Serial Numbers - {selectedOrder.invoice_number}
-                  </h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <button
+                      className="pending-order-modal-back"
+                      onClick={() => {
+                        setSelectedOrder(null);
+                        setSelectedSerials({});
+                        setAdjustedAmounts({});
+                        setDiscountInputs({});
+                      }}
+                      title="Back to Pending Orders"
+                    >
+                      ←
+                    </button>
+                    <h3 style={{ margin: 0, color: 'var(--corp-text-primary, #0f172a)' }}>
+                      Assign Serial Numbers - {selectedOrder.invoice_number}
+                    </h3>
+                  </div>
                   <button
                     className="pending-order-modal-close"
                     onClick={() => {
@@ -1062,9 +1082,9 @@ const PendingOrders = () => {
                               const currentAmount = adjustedAmounts[item.id] !== undefined ? adjustedAmounts[item.id] : originalFinalAmount;
                               const discountInput = discountInputs[item.id];
                               const existingDiscount = existingDiscountAmount > 0 ? existingDiscountAmount : (basePrice > originalFinalAmount ? basePrice - originalFinalAmount : 0);
-                              const existingDiscountPercent = basePrice > 0 ? ((existingDiscount / basePrice) * 100).toFixed(2) : 0;
+                              const existingDiscountPercent = basePrice > 0 ? parseFloat(((existingDiscount / basePrice) * 100).toFixed(3)) : 0;
                               const currentDiscount = basePrice - currentAmount;
-                              const currentDiscountPercent = basePrice > 0 ? ((currentDiscount / basePrice) * 100).toFixed(2) : 0;
+                              const currentDiscountPercent = basePrice > 0 ? parseFloat(((currentDiscount / basePrice) * 100).toFixed(3)) : 0;
                               
                               return (
                                 <>
@@ -1119,19 +1139,21 @@ const PendingOrders = () => {
                                     <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', fontWeight: '600', color: 'var(--corp-info, #3b82f6)' }}>
                                       Adjust Discount (Increase/Decrease)
                                     </label>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                    <div className="discount-inputs-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                                       <div>
-                                        <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--corp-text-secondary, #475569)' }}>
-                                          Discount Percentage (%)
+                                        <label className="discount-label-mobile" style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--corp-text-secondary, #475569)' }}>
+                                          <span className="label-text-full">Discount Percentage (%)</span>
+                                          <span className="label-text-short">Disc %</span>
                                         </label>
                                         <input
                                           type="number"
-                                          step="0.01"
+                                          step="0.001"
                                           min="0"
                                           max="100"
-                                          placeholder={existingDiscount > 0 ? `Current: ${existingDiscountPercent}%` : "Enter %"}
-                                          value={discountInput ? (discountInput.type === 'percent' ? discountInput.value : (discountInput.calculatedPercent || '')) : (existingDiscount > 0 ? existingDiscountPercent : '')}
+                                          placeholder={existingDiscount > 0 ? `Current: ${existingDiscountPercent.toFixed(3)}%` : "Enter %"}
+                                          value={discountInput ? (discountInput.type === 'percent' ? discountInput.value : (discountInput.calculatedPercent ? parseFloat(discountInput.calculatedPercent).toFixed(3) : '')) : (existingDiscount > 0 ? existingDiscountPercent.toFixed(3) : '')}
                                           onChange={(e) => handleDiscountChange(item.id, 'percent', e.target.value, basePrice)}
+                                          className="discount-input"
                                           style={{
                                             width: '100%',
                                             padding: '0.5rem',
@@ -1140,12 +1162,14 @@ const PendingOrders = () => {
                                             fontSize: '0.875rem',
                                             background: 'var(--corp-bg-card, #ffffff)',
                                             color: 'var(--corp-text-primary, #0f172a)',
+                                            height: '100%',
                                           }}
                                         />
                                       </div>
                                       <div>
-                                        <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--corp-text-secondary, #475569)' }}>
-                                          Discount Amount (₹)
+                                        <label className="discount-label-mobile" style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--corp-text-secondary, #475569)' }}>
+                                          <span className="label-text-full">Discount Amount (₹)</span>
+                                          <span className="label-text-short">Disc Amt</span>
                                         </label>
                                         <input
                                           type="number"
@@ -1155,6 +1179,7 @@ const PendingOrders = () => {
                                           placeholder={existingDiscount > 0 ? `Current: ₹${existingDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Enter amount"}
                                           value={discountInput ? (discountInput.type === 'amount' ? discountInput.value : (discountInput.calculatedAmount || '')) : (existingDiscount > 0 ? existingDiscount : '')}
                                           onChange={(e) => handleDiscountChange(item.id, 'amount', e.target.value, basePrice)}
+                                          className="discount-input"
                                           style={{
                                             width: '100%',
                                             padding: '0.5rem',
@@ -1163,6 +1188,7 @@ const PendingOrders = () => {
                                             fontSize: '0.875rem',
                                             background: 'var(--corp-bg-card, #ffffff)',
                                             color: 'var(--corp-text-primary, #0f172a)',
+                                            height: '100%',
                                           }}
                                         />
                                       </div>
@@ -1188,7 +1214,7 @@ const PendingOrders = () => {
                                           ₹{Math.abs(currentDiscount - existingDiscount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
                                         <span style={{ color: 'var(--corp-text-secondary, #475569)' }}>
-                                          (Total: ₹{currentDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {currentDiscountPercent}%)
+                                          (Total: ₹{currentDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {parseFloat(currentDiscountPercent).toFixed(3)}%)
                                         </span>
                                       </div>
                                     )}
