@@ -294,11 +294,12 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
       await client.query('BEGIN');
 
       // Insert or update daily attendance
+      // Use named constraint for ON CONFLICT to avoid errors
       const attendanceResult = await client.query(
         `INSERT INTO daily_attendance 
          (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by)
          VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)
-         ON CONFLICT (employee_id, attendance_date)
+         ON CONFLICT ON CONSTRAINT daily_attendance_employee_id_attendance_date_key
          DO UPDATE SET
            status = EXCLUDED.status,
            check_in_time = EXCLUDED.check_in_time,
@@ -405,11 +406,12 @@ router.post('/daily-attendance/bulk', requireAuth, requireSuperAdminOrAdmin, asy
         const normalizedNotes = (notes && notes.trim() !== '') ? notes : null;
 
         // Insert daily attendance
+        // Use named constraint for ON CONFLICT to avoid errors
         const attendanceResult = await client.query(
           `INSERT INTO daily_attendance 
            (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by)
            VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)
-           ON CONFLICT (employee_id, attendance_date)
+           ON CONFLICT ON CONSTRAINT daily_attendance_employee_id_attendance_date_key
            DO UPDATE SET
              status = EXCLUDED.status,
              check_in_time = EXCLUDED.check_in_time,
