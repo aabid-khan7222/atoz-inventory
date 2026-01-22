@@ -325,21 +325,52 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
         );
       } else {
         // Insert new record
-        attendanceResult = await client.query(
-          `INSERT INTO daily_attendance 
-           (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by)
-           VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)
-           RETURNING *`,
-          [
-            employeeId, 
-            attendance_date, 
-            status, 
-            normalizedCheckIn ? normalizedCheckIn : null,
-            normalizedCheckOut ? normalizedCheckOut : null,
-            normalizedNotes,
-            req.user.id
-          ]
-        );
+        // If duplicate key error occurs (race condition), update instead
+        try {
+          attendanceResult = await client.query(
+            `INSERT INTO daily_attendance 
+             (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by)
+             VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)
+             RETURNING *`,
+            [
+              employeeId, 
+              attendance_date, 
+              status, 
+              normalizedCheckIn ? normalizedCheckIn : null,
+              normalizedCheckOut ? normalizedCheckOut : null,
+              normalizedNotes,
+              req.user.id
+            ]
+          );
+        } catch (insertErr) {
+          // Handle duplicate key error (unique constraint violation)
+          // This can happen in race conditions where record was inserted between check and insert
+          if (insertErr.code === '23505' || insertErr.message.includes('unique') || insertErr.message.includes('duplicate')) {
+            // Record was inserted by another request, update it instead
+            attendanceResult = await client.query(
+              `UPDATE daily_attendance 
+               SET 
+                 status = $1,
+                 check_in_time = $2,
+                 check_out_time = $3,
+                 notes = $4,
+                 updated_at = CURRENT_TIMESTAMP
+               WHERE employee_id = $5 AND attendance_date = $6::DATE
+               RETURNING *`,
+              [
+                status,
+                normalizedCheckIn ? normalizedCheckIn : null,
+                normalizedCheckOut ? normalizedCheckOut : null,
+                normalizedNotes,
+                employeeId,
+                attendance_date
+              ]
+            );
+          } else {
+            // Re-throw if it's a different error
+            throw insertErr;
+          }
+        }
       }
 
       // Update monthly attendance summary
@@ -461,21 +492,52 @@ router.post('/daily-attendance/bulk', requireAuth, requireSuperAdminOrAdmin, asy
           );
         } else {
           // Insert new record
-          attendanceResult = await client.query(
-            `INSERT INTO daily_attendance 
-             (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by)
-             VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)
-             RETURNING *`,
-            [
-              parseInt(employee_id), 
-              attendance_date, 
-              status, 
-              normalizedCheckIn,
-              normalizedCheckOut,
-              normalizedNotes,
-              req.user.id
-            ]
-          );
+          // If duplicate key error occurs (race condition), update instead
+          try {
+            attendanceResult = await client.query(
+              `INSERT INTO daily_attendance 
+               (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by)
+               VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)
+               RETURNING *`,
+              [
+                parseInt(employee_id), 
+                attendance_date, 
+                status, 
+                normalizedCheckIn,
+                normalizedCheckOut,
+                normalizedNotes,
+                req.user.id
+              ]
+            );
+          } catch (insertErr) {
+            // Handle duplicate key error (unique constraint violation)
+            // This can happen in race conditions where record was inserted between check and insert
+            if (insertErr.code === '23505' || insertErr.message.includes('unique') || insertErr.message.includes('duplicate')) {
+              // Record was inserted by another request, update it instead
+              attendanceResult = await client.query(
+                `UPDATE daily_attendance 
+                 SET 
+                   status = $1,
+                   check_in_time = $2,
+                   check_out_time = $3,
+                   notes = $4,
+                   updated_at = CURRENT_TIMESTAMP
+                 WHERE employee_id = $5 AND attendance_date = $6::DATE
+                 RETURNING *`,
+                [
+                  status,
+                  normalizedCheckIn,
+                  normalizedCheckOut,
+                  normalizedNotes,
+                  parseInt(employee_id),
+                  attendance_date
+                ]
+              );
+            } else {
+              // Re-throw if it's a different error
+              throw insertErr;
+            }
+          }
         }
 
         results.push(attendanceResult.rows[0]);
