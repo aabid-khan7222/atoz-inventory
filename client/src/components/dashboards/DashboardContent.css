@@ -5305,3 +5305,214 @@
     font-size: 0.7rem !important;
   }
 }
+
+/* Replacement History Filters - Mobile/Tablet Optimization */
+@media (max-width: 1024px) {
+  .replacement-history-filters-desktop {
+    display: none !important;
+  }
+
+  .replacement-history-filters-mobile {
+    display: block;
+    margin: 12px 0 16px;
+  }
+
+  .replacement-history-filters-row-1 {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: nowrap;
+    align-items: stretch;
+  }
+
+  .replacement-history-search-mobile {
+    flex: 1;
+    min-width: 0;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid var(--corp-border, #e2e8f0);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: var(--corp-bg-card, #ffffff);
+    color: var(--corp-text-primary, #0f172a);
+    box-sizing: border-box;
+  }
+
+  .replacement-history-filter-mobile {
+    min-width: 130px;
+    max-width: 150px;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid var(--corp-border, #e2e8f0);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: var(--corp-bg-card, #ffffff);
+    color: var(--corp-text-primary, #0f172a);
+    box-sizing: border-box;
+    height: auto;
+  }
+
+  .replacement-history-filters-row-2 {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+
+  .replacement-history-date-wrapper {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .replacement-history-date-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--corp-text-primary, #0f172a);
+    margin: 0;
+  }
+
+  .replacement-history-date-container {
+    position: relative;
+    width: 100%;
+  }
+
+  .replacement-history-date-calendar-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: var(--corp-text-secondary, #64748b);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .replacement-history-date-input {
+    width: 100%;
+    padding: 0.65rem 0.9rem;
+    padding-left: 2.5rem;
+    border: 1px solid var(--corp-border, #e2e8f0);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: var(--corp-bg-card, #ffffff);
+    color: var(--corp-text-primary, #0f172a);
+    box-sizing: border-box;
+    height: 42px;
+    min-height: 42px;
+    max-height: 42px;
+  }
+
+  .replacement-history-clear-row {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 0.5rem;
+  }
+
+  .replacement-history-clear-btn-mobile {
+    padding: 0.6rem 1.2rem;
+    border: 1px solid var(--corp-border, #e2e8f0);
+    border-radius: 8px;
+    background: var(--corp-bg-card, #ffffff);
+    color: var(--corp-text-primary, #0f172a);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .replacement-history-clear-btn-mobile:hover {
+    background: var(--corp-bg-hover, #f8fafc);
+  }
+}
+
+@media (min-width: 1025px) {
+  .replacement-history-filters-mobile {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .replacement-history-search-mobile {
+    padding: 0.6rem 0.85rem;
+    font-size: 0.85rem;
+  }
+
+  .replacement-history-filter-mobile {
+    min-width: 120px;
+    max-width: 140px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.85rem;
+  }
+
+  .replacement-history-date-label {
+    font-size: 0.8rem;
+  }
+
+  .replacement-history-date-input {
+    padding: 0.6rem 0.85rem;
+    padding-left: 2.4rem;
+    font-size: 0.85rem;
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+  }
+
+  .replacement-history-date-calendar-icon {
+    left: 0.7rem;
+    width: 16px;
+    height: 16px;
+  }
+
+  .replacement-history-clear-btn-mobile {
+    padding: 0.55rem 1rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .replacement-history-filters-row-1 {
+    gap: 0.5rem;
+  }
+
+  .replacement-history-search-mobile {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .replacement-history-filter-mobile {
+    min-width: 110px;
+    max-width: 130px;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .replacement-history-filters-row-2 {
+    gap: 0.5rem;
+  }
+
+  .replacement-history-date-label {
+    font-size: 0.75rem;
+  }
+
+  .replacement-history-date-input {
+    padding: 0.55rem 0.75rem;
+    padding-left: 2.2rem;
+    font-size: 0.8rem;
+    height: 38px;
+    min-height: 38px;
+    max-height: 38px;
+  }
+
+  .replacement-history-date-calendar-icon {
+    left: 0.65rem;
+    width: 15px;
+    height: 15px;
+  }
+
+  .replacement-history-clear-btn-mobile {
+    padding: 0.5rem 0.9rem;
+    font-size: 0.75rem;
+  }
+}
