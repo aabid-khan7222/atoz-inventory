@@ -530,7 +530,7 @@ const ChargingServices = () => {
             </select>
           </div>
           {/* Date Filters and Button Row */}
-          <div className="charging-date-filters-row" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="charging-date-filters-row" style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'nowrap' }}>
             <div className="charging-date-filter-wrapper">
               <label className="charging-date-filter-label">Date From</label>
               <div className="charging-date-input-container">
