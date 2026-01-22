@@ -967,7 +967,8 @@ const PendingOrders = () => {
                   <div className="pending-order-modal-header-left" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
                     <button
                       className="pending-order-modal-back"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setSelectedOrder(null);
                         setSelectedSerials({});
                         setAdjustedAmounts({});
@@ -979,10 +980,15 @@ const PendingOrders = () => {
                         alignItems: 'center', 
                         justifyContent: 'center',
                         flexShrink: 0,
-                        width: '32px',
-                        height: '32px',
-                        minWidth: '32px',
-                        minHeight: '32px'
+                        width: '36px',
+                        height: '36px',
+                        minWidth: '36px',
+                        minHeight: '36px',
+                        backgroundColor: '#ffffff',
+                        border: '2px solid #2563eb',
+                        color: '#2563eb',
+                        fontSize: '1.5rem',
+                        fontWeight: '700'
                       }}
                     >
                       ←
