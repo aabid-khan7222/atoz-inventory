@@ -4190,7 +4190,6 @@
     gap: 0.5rem;
     flex: 1;
     min-width: 0;
-    max-width: 50%;
   }
 
   .charging-date-filter-label {
@@ -4229,6 +4228,7 @@
     box-sizing: border-box;
     height: 38px !important;
     min-height: 38px !important;
+    max-height: 38px !important;
   }
 
   .charging-date-input:focus {
@@ -4240,6 +4240,10 @@
 
 /* Mobile and Tablet: Show date filters in separate row */
 @media (max-width: 1024px) {
+  .charging-desktop-date-buttons-row {
+    display: none !important;
+  }
+
   .charging-search-filter-row {
     display: flex !important;
     flex-wrap: nowrap !important;
@@ -4288,22 +4292,52 @@
     min-width: 140px;
   }
 
-  /* Hide Refresh button from top row on mobile/tablet */
+  /* Hide desktop buttons on mobile/tablet */
   .charging-refresh-btn {
     display: none;
   }
 
-  /* Show Refresh button below date fields */
-  .charging-refresh-row-mobile {
+  /* Show mobile button rows */
+  .charging-refresh-button-row,
+  .charging-new-service-button-row {
     display: flex;
     width: 100%;
-    margin-top: 0.5rem;
+  }
+
+  .charging-refresh-button-row {
+    margin-top: 0;
+  }
+
+  .charging-new-service-button-row {
+    margin-top: 0;
   }
 
   .charging-refresh-btn-mobile {
     padding: 0.6rem 1.2rem;
     width: auto;
     align-self: flex-start;
+  }
+}
+
+/* Desktop: Show desktop date/buttons row, hide mobile rows */
+@media (min-width: 1025px) {
+  .charging-desktop-date-buttons-row {
+    display: flex !important;
+  }
+
+  .charging-date-filters-row,
+  .charging-refresh-button-row,
+  .charging-new-service-button-row {
+    display: none !important;
+  }
+
+  .charging-date-filter-label,
+  .charging-date-calendar-icon {
+    display: none !important;
+  }
+
+  .charging-date-input {
+    padding-left: 0.75rem !important;
   }
 }
 

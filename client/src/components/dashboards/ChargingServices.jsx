@@ -529,7 +529,61 @@ const ChargingServices = () => {
               <option value="collected">Collected</option>
             </select>
           </div>
-          {/* Date Filters and Button Row */}
+          {/* Desktop: Date Filters and Buttons Row */}
+          <div className="charging-desktop-date-buttons-row" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="filter-input charging-date-input-desktop"
+              style={{
+                minWidth: '140px',
+                height: '38px',
+                padding: '0.6rem 0.75rem',
+                boxSizing: 'border-box',
+              }}
+            />
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="filter-input charging-date-input-desktop"
+              style={{
+                minWidth: '140px',
+                height: '38px',
+                padding: '0.6rem 0.75rem',
+                boxSizing: 'border-box',
+              }}
+            />
+            <button
+              onClick={loadServices}
+              className="primary-btn charging-refresh-btn"
+              style={{
+                padding: '0.6rem 1.2rem',
+              }}
+            >
+              Refresh
+            </button>
+            <button
+              onClick={() => {
+                setShowForm(true);
+                setEditingService(null);
+                resetForm();
+              }}
+              className="primary-btn"
+              style={{
+                padding: '0.6rem 1.2rem',
+                borderRadius: '4px',
+                border: 'none',
+                backgroundColor: '#059669',
+                color: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              + New Service
+            </button>
+          </div>
+          {/* Mobile/Tablet: Second Row - Date From and Date To */}
           <div className="charging-date-filters-row" style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'nowrap' }}>
             <div className="charging-date-filter-wrapper">
               <label className="charging-date-filter-label">Date From</label>
@@ -565,33 +619,39 @@ const ChargingServices = () => {
                 />
               </div>
             </div>
-          <button
-            onClick={loadServices}
-            className="primary-btn"
-            style={{
-              padding: '0.6rem 1.2rem',
-            }}
-          >
-            Refresh
-          </button>
-          <button
-            onClick={() => {
-              setShowForm(true);
-              setEditingService(null);
-              resetForm();
-            }}
-            className="primary-btn"
-            style={{
-              padding: '0.6rem 1.2rem',
-              borderRadius: '4px',
-              border: 'none',
-              backgroundColor: '#059669',
-              color: '#fff',
-              cursor: 'pointer',
-            }}
-          >
-            + New Service
-          </button>
+          </div>
+          {/* Mobile/Tablet: Third Row - Refresh Button */}
+          <div className="charging-refresh-button-row">
+            <button
+              onClick={loadServices}
+              className="primary-btn charging-refresh-btn-mobile"
+              style={{
+                padding: '0.6rem 1.2rem',
+              }}
+            >
+              Refresh
+            </button>
+          </div>
+          {/* Mobile/Tablet: Fourth Row - New Service Button */}
+          <div className="charging-new-service-button-row">
+            <button
+              onClick={() => {
+                setShowForm(true);
+                setEditingService(null);
+                resetForm();
+              }}
+              className="primary-btn"
+              style={{
+                padding: '0.6rem 1.2rem',
+                borderRadius: '4px',
+                border: 'none',
+                backgroundColor: '#059669',
+                color: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              + New Service
+            </button>
           </div>
         </div>
       </div>
