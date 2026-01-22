@@ -407,7 +407,7 @@ const CompanyReturns = () => {
       </div>
 
       {/* Add New Return Button */}
-      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="company-returns-header-actions" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0 }}>Company Returns</h3>
         <button
           onClick={() => {
@@ -420,6 +420,7 @@ const CompanyReturns = () => {
               setShowForm(true);
             }
           }}
+          className="primary-btn company-returns-create-btn"
           style={{
             padding: '10px 20px',
             background: '#1e3a8a',
