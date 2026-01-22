@@ -963,9 +963,12 @@
 /* Mobile/Tablet Optimization */
 @media (max-width: 1024px) {
   .user-management-header {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
     flex-wrap: nowrap !important;
     gap: 0.75rem;
-    align-items: center;
   }
 
   .user-management-header h2 {
@@ -974,6 +977,7 @@
     text-overflow: ellipsis;
     flex: 1;
     min-width: 0;
+    margin: 0 !important;
     font-size: 1.1rem;
   }
 
@@ -985,12 +989,19 @@
     height: auto;
     min-height: 36px;
     max-height: 40px;
+    margin: 0 !important;
+  }
+
+  .user-management-controls {
+    flex-wrap: wrap;
+    gap: 0.75rem;
   }
 
   .user-management-search-row {
+    flex: 1;
+    min-width: 0;
     flex-wrap: nowrap !important;
     gap: 0.5rem;
-    min-width: 0;
   }
 
   .user-management-search-row input {
@@ -1013,6 +1024,10 @@
     max-height: 42px !important;
     font-size: 0.85rem !important;
     white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .user-management-filter {
     flex-shrink: 0;
   }
 }
