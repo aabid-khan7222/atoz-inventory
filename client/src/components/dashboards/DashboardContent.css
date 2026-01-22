@@ -5176,3 +5176,63 @@
     font-size: 0.6rem !important;
   }
 }
+
+/* Service Management Header - Mobile/Tablet Optimization */
+@media (max-width: 1024px) {
+  .service-management-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+
+  .service-management-title-section {
+    width: 100%;
+  }
+
+  .service-management-title-section h2 {
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .service-management-title-section p {
+    font-size: 0.85rem;
+    margin-top: 0.25rem !important;
+  }
+
+  .service-management-new-btn {
+    width: 100%;
+    justify-content: center !important;
+    padding: 0.65rem 1.25rem !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .service-management-title-section h2 {
+    font-size: 1.1rem;
+  }
+
+  .service-management-title-section p {
+    font-size: 0.8rem;
+  }
+
+  .service-management-new-btn {
+    padding: 0.6rem 1rem !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .service-management-title-section h2 {
+    font-size: 1rem;
+  }
+
+  .service-management-title-section p {
+    font-size: 0.75rem;
+  }
+
+  .service-management-new-btn {
+    padding: 0.55rem 0.9rem !important;
+    font-size: 0.7rem !important;
+  }
+}

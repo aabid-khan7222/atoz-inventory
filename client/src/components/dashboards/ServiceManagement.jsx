@@ -507,14 +507,15 @@ const ServiceManagement = () => {
 
   return (
     <div className="dashboard-content">
-      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
+      <div className="service-management-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="service-management-title-section">
           <h2>Service Management</h2>
           <p style={{ color: 'var(--corp-text-secondary, #64748b)', marginTop: '0.5rem' }}>
             View and manage all customer service requests
           </p>
         </div>
         <button
+          className="service-management-new-btn"
           onClick={() => setShowNewServiceModal(true)}
           style={{
             padding: '0.75rem 1.5rem',
