@@ -339,6 +339,8 @@ router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
 
+    const product = productCheck.rows[0];
+
     // Determine initial status - if received serial is provided, status should be 'received' or 'completed'
     let initialStatus = status || 'pending';
     if (receivedSerialNumber && receivedSerialNumber.trim()) {
@@ -362,8 +364,10 @@ router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
         reason,
         notes,
         created_by,
-        quantity
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        quantity,
+        sku,
+        product_name
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *`,
       [
         returnedSerialNumber ? returnedSerialNumber.trim() : null,
@@ -379,7 +383,9 @@ router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
         reason ? reason.trim() : null,
         notes ? notes.trim() : null,
         req.user?.id || null,
-        1 // quantity - default to 1 for company returns
+        1, // quantity - default to 1 for company returns
+        product.sku || null, // SKU from product
+        product.name || null // Product name from product
       ]
     );
 
