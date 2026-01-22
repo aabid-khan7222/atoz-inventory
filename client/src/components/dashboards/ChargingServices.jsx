@@ -697,25 +697,6 @@ const ChargingServices = () => {
                     disabled={customersLoading || !!editingService}
                   />
                 </div>
-                {selectedCustomerId && (
-                  <button
-                    type="button"
-                    className="charging-service-clear-btn"
-                    onClick={clearCustomerSelection}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      borderRadius: '4px',
-                      border: '1px solid var(--corp-border)',
-                      background: 'var(--corp-bg-card)',
-                      color: 'var(--corp-text-primary)',
-                      cursor: 'pointer',
-                      fontSize: '0.875rem',
-                      marginTop: '1.5rem',
-                    }}
-                  >
-                    Clear Selection
-                  </button>
-                )}
                 <button
                   type="button"
                   className="charging-service-refresh-btn"
