@@ -583,46 +583,67 @@ const GuaranteeWarranty = () => {
                     }}
                   >
                     <option value="">Select replacement product...</option>
-                    {products
-                      .filter(p => {
-                        // Filter by same product type as original battery
-                        const originalProductType = batteryStatus.product?.product_type_id || batteryStatus.product?.category;
-                        if (p.product_type_id) {
-                          return p.product_type_id === (batteryStatus.product?.product_type_id || 1);
+                    {(() => {
+                      // Get product_type_id and category from batteryStatus.product (now includes these fields from API)
+                      const originalProductTypeId = batteryStatus.product?.product_type_id;
+                      const originalCategory = batteryStatus.product?.category;
+                      
+                      // Filter products by matching product_type_id (preferred) or category (fallback)
+                      const filteredProducts = products.filter(p => {
+                        // Must have stock
+                        if (!p.qty || p.qty <= 0) return false;
+                        
+                        // If original product has product_type_id, match by that
+                        if (originalProductTypeId !== undefined && originalProductTypeId !== null) {
+                          return p.product_type_id === originalProductTypeId;
                         }
+                        
                         // Fallback to category matching
-                        const categoryMap = {
-                          1: 'car-truck-tractor',
-                          2: 'bike',
-                          3: 'ups-inverter'
-                        };
-                        const originalCategory = categoryMap[batteryStatus.product?.product_type_id] || batteryStatus.product?.category;
-                        return p.category === originalCategory;
-                      })
-                      .filter(p => p.qty > 0) // Only show products with stock
-                      .map(product => (
+                        if (originalCategory) {
+                          return p.category === originalCategory;
+                        }
+                        
+                        // If no match found, show all (shouldn't happen, but safety fallback)
+                        return true;
+                      });
+                      
+                      return filteredProducts.map(product => (
                         <option key={product.id} value={product.id}>
                           {product.name} ({product.sku}) - Stock: {product.qty} - ₹{product.mrp_price || product.price || 'N/A'}
                         </option>
-                      ))}
+                      ));
+                    })()}
                   </select>
-                  {products.filter(p => {
-                    const originalProductType = batteryStatus.product?.product_type_id || batteryStatus.product?.category;
-                    if (p.product_type_id) {
-                      return p.product_type_id === (batteryStatus.product?.product_type_id || 1);
-                    }
-                    const categoryMap = {
-                      1: 'car-truck-tractor',
-                      2: 'bike',
-                      3: 'ups-inverter'
-                    };
-                    const originalCategory = categoryMap[batteryStatus.product?.product_type_id] || batteryStatus.product?.category;
-                    return p.category === originalCategory;
-                  }).filter(p => p.qty > 0).length === 0 && (
-                    <div style={{ color: '#dc3545', marginTop: '5px', fontSize: '12px' }}>
-                      ⚠️ No products available in stock for this category
-                    </div>
-                  )}
+                  {(() => {
+                    // Get product_type_id and category from batteryStatus.product (now includes these fields from API)
+                    const originalProductTypeId = batteryStatus.product?.product_type_id;
+                    const originalCategory = batteryStatus.product?.category;
+                    
+                    // Filter products by matching product_type_id (preferred) or category (fallback)
+                    const filteredProducts = products.filter(p => {
+                      // Must have stock
+                      if (!p.qty || p.qty <= 0) return false;
+                      
+                      // If original product has product_type_id, match by that
+                      if (originalProductTypeId !== undefined && originalProductTypeId !== null) {
+                        return p.product_type_id === originalProductTypeId;
+                      }
+                      
+                      // Fallback to category matching
+                      if (originalCategory) {
+                        return p.category === originalCategory;
+                      }
+                      
+                      // If no match found, show all (shouldn't happen, but safety fallback)
+                      return true;
+                    });
+                    
+                    return filteredProducts.length === 0 && (
+                      <div style={{ color: '#dc3545', marginTop: '5px', fontSize: '12px' }}>
+                        ⚠️ No products available in stock for this category
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* New Serial Number selection */}

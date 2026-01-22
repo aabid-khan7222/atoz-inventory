@@ -98,6 +98,8 @@ router.get('/battery-status/:serialNumber', requireAuth, async (req, res) => {
         p.warranty as product_warranty,
         p.name as product_name,
         p.sku,
+        p.product_type_id,
+        p.category as product_category,
         u.full_name as user_full_name,
         u.email as user_email,
         u.phone as user_phone,
@@ -189,7 +191,9 @@ router.get('/battery-status/:serialNumber', requireAuth, async (req, res) => {
       product: {
         id: saleItem.product_id,
         name: saleItem.product_name,
-        sku: saleItem.sku
+        sku: saleItem.sku,
+        product_type_id: saleItem.product_type_id,
+        category: saleItem.product_category
       },
       purchaseDate: saleItem.purchase_date,
       invoiceNumber: saleItem.invoice_number,
