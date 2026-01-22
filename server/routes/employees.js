@@ -294,29 +294,53 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
       await client.query('BEGIN');
 
       // Insert or update daily attendance
-      // Use named constraint for ON CONFLICT to avoid errors
-      const attendanceResult = await client.query(
-        `INSERT INTO daily_attendance 
-         (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by)
-         VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)
-         ON CONFLICT ON CONSTRAINT daily_attendance_employee_id_attendance_date_key
-         DO UPDATE SET
-           status = EXCLUDED.status,
-           check_in_time = EXCLUDED.check_in_time,
-           check_out_time = EXCLUDED.check_out_time,
-           notes = EXCLUDED.notes,
-           updated_at = CURRENT_TIMESTAMP
-         RETURNING *`,
-        [
-          employeeId, 
-          attendance_date, 
-          status, 
-          normalizedCheckIn ? normalizedCheckIn : null,
-          normalizedCheckOut ? normalizedCheckOut : null,
-          normalizedNotes,
-          req.user.id
-        ]
+      // First check if record exists to handle cases where constraint might not exist
+      const existingRecord = await client.query(
+        `SELECT id FROM daily_attendance 
+         WHERE employee_id = $1 AND attendance_date = $2::DATE`,
+        [employeeId, attendance_date]
       );
+
+      let attendanceResult;
+      if (existingRecord.rows.length > 0) {
+        // Update existing record
+        attendanceResult = await client.query(
+          `UPDATE daily_attendance 
+           SET 
+             status = $1,
+             check_in_time = $2,
+             check_out_time = $3,
+             notes = $4,
+             updated_at = CURRENT_TIMESTAMP
+           WHERE employee_id = $5 AND attendance_date = $6::DATE
+           RETURNING *`,
+          [
+            status,
+            normalizedCheckIn ? normalizedCheckIn : null,
+            normalizedCheckOut ? normalizedCheckOut : null,
+            normalizedNotes,
+            employeeId,
+            attendance_date
+          ]
+        );
+      } else {
+        // Insert new record
+        attendanceResult = await client.query(
+          `INSERT INTO daily_attendance 
+           (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by)
+           VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)
+           RETURNING *`,
+          [
+            employeeId, 
+            attendance_date, 
+            status, 
+            normalizedCheckIn ? normalizedCheckIn : null,
+            normalizedCheckOut ? normalizedCheckOut : null,
+            normalizedNotes,
+            req.user.id
+          ]
+        );
+      }
 
       // Update monthly attendance summary
       const monthDate = new Date(attendance_date);
@@ -405,30 +429,54 @@ router.post('/daily-attendance/bulk', requireAuth, requireSuperAdminOrAdmin, asy
         const normalizedCheckOut = (check_out_time && check_out_time.trim() !== '') ? check_out_time : null;
         const normalizedNotes = (notes && notes.trim() !== '') ? notes : null;
 
-        // Insert daily attendance
-        // Use named constraint for ON CONFLICT to avoid errors
-        const attendanceResult = await client.query(
-          `INSERT INTO daily_attendance 
-           (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by)
-           VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)
-           ON CONFLICT ON CONSTRAINT daily_attendance_employee_id_attendance_date_key
-           DO UPDATE SET
-             status = EXCLUDED.status,
-             check_in_time = EXCLUDED.check_in_time,
-             check_out_time = EXCLUDED.check_out_time,
-             notes = EXCLUDED.notes,
-             updated_at = CURRENT_TIMESTAMP
-           RETURNING *`,
-          [
-            parseInt(employee_id), 
-            attendance_date, 
-            status, 
-            normalizedCheckIn,
-            normalizedCheckOut,
-            normalizedNotes,
-            req.user.id
-          ]
+        // Insert or update daily attendance
+        // First check if record exists to handle cases where constraint might not exist
+        const existingRecord = await client.query(
+          `SELECT id FROM daily_attendance 
+           WHERE employee_id = $1 AND attendance_date = $2::DATE`,
+          [parseInt(employee_id), attendance_date]
         );
+
+        let attendanceResult;
+        if (existingRecord.rows.length > 0) {
+          // Update existing record
+          attendanceResult = await client.query(
+            `UPDATE daily_attendance 
+             SET 
+               status = $1,
+               check_in_time = $2,
+               check_out_time = $3,
+               notes = $4,
+               updated_at = CURRENT_TIMESTAMP
+             WHERE employee_id = $5 AND attendance_date = $6::DATE
+             RETURNING *`,
+            [
+              status,
+              normalizedCheckIn,
+              normalizedCheckOut,
+              normalizedNotes,
+              parseInt(employee_id),
+              attendance_date
+            ]
+          );
+        } else {
+          // Insert new record
+          attendanceResult = await client.query(
+            `INSERT INTO daily_attendance 
+             (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by)
+             VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)
+             RETURNING *`,
+            [
+              parseInt(employee_id), 
+              attendance_date, 
+              status, 
+              normalizedCheckIn,
+              normalizedCheckOut,
+              normalizedNotes,
+              req.user.id
+            ]
+          );
+        }
 
         results.push(attendanceResult.rows[0]);
 
