@@ -554,8 +554,8 @@ const UserManagement = () => {
             className="filter-select"
           >
             <option value="all">All Customers</option>
-            <option value="b2b">B2B (Has GST)</option>
-            <option value="b2c">B2C (No GST)</option>
+            <option value="b2b">B2B </option>
+            <option value="b2c">B2C </option>
           </select>
         </div>
       </div>
