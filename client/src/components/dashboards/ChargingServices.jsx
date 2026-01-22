@@ -906,55 +906,25 @@ const ChargingServices = () => {
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        {service.status === 'pending' && (
-                          <button
-                            onClick={() => handleStatusChange(service.id, 'in_progress')}
-                            style={{
-                              padding: '0.25rem 0.5rem',
-                              fontSize: '0.75rem',
-                              border: 'none',
-                              borderRadius: '4px',
-                              background: '#3b82f6',
-                              color: '#fff',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Start
-                          </button>
-                        )}
-                        {service.status === 'in_progress' && (
-                          <button
-                            onClick={() => handleStatusChange(service.id, 'completed')}
-                            style={{
-                              padding: '0.25rem 0.5rem',
-                              fontSize: '0.75rem',
-                              border: 'none',
-                              borderRadius: '4px',
-                              background: '#10b981',
-                              color: '#fff',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Complete
-                          </button>
-                        )}
-                        {service.status === 'completed' && (
-                          <button
-                            onClick={() => handleStatusChange(service.id, 'collected')}
-                            style={{
-                              padding: '0.25rem 0.5rem',
-                              fontSize: '0.75rem',
-                              border: 'none',
-                              borderRadius: '4px',
-                              background: '#059669',
-                              color: '#fff',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Collected
-                          </button>
-                        )}
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <select
+                          value={service.status || 'pending'}
+                          onChange={(e) => handleStatusChange(service.id, e.target.value)}
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            fontSize: '0.75rem',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            background: '#fff',
+                            cursor: 'pointer',
+                            minWidth: '110px',
+                          }}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                          <option value="collected">Collected</option>
+                        </select>
                         <button
                           onClick={() => handleEdit(service)}
                           style={{
