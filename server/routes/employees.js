@@ -265,10 +265,22 @@ router.get('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, async
 });
 
 // Mark daily attendance
-// FIXED VERSION: Uses check-then-insert/update pattern (NO ON CONFLICT)
+// FIXED VERSION: Uses ON CONFLICT (employee_id, attendance_date) with proper unique constraint
 router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   try {
-    console.log('[Daily Attendance API] Route called - FIXED VERSION (no ON CONFLICT)');
+    console.log('[Daily Attendance API] Route called - Using ON CONFLICT (employee_id, attendance_date)');
+    
+    // Log database connection info (without password)
+    try {
+      const dbInfo = await db.query('SELECT current_database(), current_user, inet_server_addr(), inet_server_port()');
+      console.log('[DB Info] Database:', dbInfo.rows[0]?.current_database || 'unknown');
+      console.log('[DB Info] User:', dbInfo.rows[0]?.current_user || 'unknown');
+      console.log('[DB Info] Host:', dbInfo.rows[0]?.inet_server_addr || 'unknown');
+      console.log('[DB Info] Port:', dbInfo.rows[0]?.inet_server_port || 'unknown');
+    } catch (dbInfoErr) {
+      console.log('[DB Info] Could not fetch database info:', dbInfoErr.message);
+    }
+    
     const employeeId = parseInt(req.params.id);
     if (isNaN(employeeId)) {
       return res.status(400).json({ error: 'Invalid employee ID' });
@@ -295,88 +307,30 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
     try {
       await client.query('BEGIN');
 
-      // Insert or update daily attendance
-      // First check if record exists to handle cases where constraint might not exist
-      const existingRecord = await client.query(
-        `SELECT id FROM daily_attendance 
-         WHERE employee_id = $1 AND attendance_date = $2::DATE`,
-        [employeeId, attendance_date]
+      // Insert or update daily attendance using ON CONFLICT
+      // Requires unique constraint on (employee_id, attendance_date)
+      const attendanceResult = await client.query(
+        `INSERT INTO daily_attendance 
+         (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, created_at, updated_at)
+         VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, NOW(), NOW())
+         ON CONFLICT (employee_id, attendance_date)
+         DO UPDATE SET
+           status = EXCLUDED.status,
+           check_in_time = EXCLUDED.check_in_time,
+           check_out_time = EXCLUDED.check_out_time,
+           notes = EXCLUDED.notes,
+           updated_at = NOW()
+         RETURNING *`,
+        [
+          employeeId, 
+          attendance_date, 
+          status, 
+          normalizedCheckIn,
+          normalizedCheckOut,
+          normalizedNotes,
+          req.user.id
+        ]
       );
-
-      let attendanceResult;
-      if (existingRecord.rows.length > 0) {
-        // Update existing record
-        attendanceResult = await client.query(
-          `UPDATE daily_attendance 
-           SET 
-             status = $1,
-             check_in_time = $2,
-             check_out_time = $3,
-             notes = $4,
-             updated_at = CURRENT_TIMESTAMP
-           WHERE employee_id = $5 AND attendance_date = $6::DATE
-           RETURNING *`,
-          [
-            status,
-            normalizedCheckIn ? normalizedCheckIn : null,
-            normalizedCheckOut ? normalizedCheckOut : null,
-            normalizedNotes,
-            employeeId,
-            attendance_date
-          ]
-        );
-      } else {
-        // Insert new record
-        // If duplicate key error occurs (race condition), update instead
-        try {
-          attendanceResult = await client.query(
-            `INSERT INTO daily_attendance 
-             (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by)
-             VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)
-             RETURNING *`,
-            [
-              employeeId, 
-              attendance_date, 
-              status, 
-              normalizedCheckIn ? normalizedCheckIn : null,
-              normalizedCheckOut ? normalizedCheckOut : null,
-              normalizedNotes,
-              req.user.id
-            ]
-          );
-        } catch (insertErr) {
-          // Handle duplicate key error (unique constraint violation)
-          // This can happen in race conditions where record was inserted between check and insert
-          console.log('INSERT error caught:', insertErr.code, insertErr.message);
-          if (insertErr.code === '23505' || insertErr.message.includes('unique') || insertErr.message.includes('duplicate') || insertErr.message.includes('constraint')) {
-            // Record was inserted by another request, update it instead
-            console.log('Duplicate key error - updating existing record instead');
-            attendanceResult = await client.query(
-              `UPDATE daily_attendance 
-               SET 
-                 status = $1,
-                 check_in_time = $2,
-                 check_out_time = $3,
-                 notes = $4,
-                 updated_at = CURRENT_TIMESTAMP
-               WHERE employee_id = $5 AND attendance_date = $6::DATE
-               RETURNING *`,
-              [
-                status,
-                normalizedCheckIn ? normalizedCheckIn : null,
-                normalizedCheckOut ? normalizedCheckOut : null,
-                normalizedNotes,
-                employeeId,
-                attendance_date
-              ]
-            );
-          } else {
-            // Re-throw if it's a different error
-            console.error('Unexpected INSERT error:', insertErr);
-            throw insertErr;
-          }
-        }
-      }
 
       // Update monthly attendance summary
       const monthDate = new Date(attendance_date);
@@ -465,88 +419,30 @@ router.post('/daily-attendance/bulk', requireAuth, requireSuperAdminOrAdmin, asy
         const normalizedCheckOut = (check_out_time && check_out_time.trim() !== '') ? check_out_time : null;
         const normalizedNotes = (notes && notes.trim() !== '') ? notes : null;
 
-        // Insert or update daily attendance
-        // First check if record exists to handle cases where constraint might not exist
-        const existingRecord = await client.query(
-          `SELECT id FROM daily_attendance 
-           WHERE employee_id = $1 AND attendance_date = $2::DATE`,
-          [parseInt(employee_id), attendance_date]
+        // Insert or update daily attendance using ON CONFLICT
+        // Requires unique constraint on (employee_id, attendance_date)
+        const attendanceResult = await client.query(
+          `INSERT INTO daily_attendance 
+           (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, created_at, updated_at)
+           VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, NOW(), NOW())
+           ON CONFLICT (employee_id, attendance_date)
+           DO UPDATE SET
+             status = EXCLUDED.status,
+             check_in_time = EXCLUDED.check_in_time,
+             check_out_time = EXCLUDED.check_out_time,
+             notes = EXCLUDED.notes,
+             updated_at = NOW()
+           RETURNING *`,
+          [
+            parseInt(employee_id), 
+            attendance_date, 
+            status, 
+            normalizedCheckIn,
+            normalizedCheckOut,
+            normalizedNotes,
+            req.user.id
+          ]
         );
-
-        let attendanceResult;
-        if (existingRecord.rows.length > 0) {
-          // Update existing record
-          attendanceResult = await client.query(
-            `UPDATE daily_attendance 
-             SET 
-               status = $1,
-               check_in_time = $2,
-               check_out_time = $3,
-               notes = $4,
-               updated_at = CURRENT_TIMESTAMP
-             WHERE employee_id = $5 AND attendance_date = $6::DATE
-             RETURNING *`,
-            [
-              status,
-              normalizedCheckIn,
-              normalizedCheckOut,
-              normalizedNotes,
-              parseInt(employee_id),
-              attendance_date
-            ]
-          );
-        } else {
-          // Insert new record
-          // If duplicate key error occurs (race condition), update instead
-          try {
-            attendanceResult = await client.query(
-              `INSERT INTO daily_attendance 
-               (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by)
-               VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)
-               RETURNING *`,
-              [
-                parseInt(employee_id), 
-                attendance_date, 
-                status, 
-                normalizedCheckIn,
-                normalizedCheckOut,
-                normalizedNotes,
-                req.user.id
-              ]
-            );
-          } catch (insertErr) {
-            // Handle duplicate key error (unique constraint violation)
-            // This can happen in race conditions where record was inserted between check and insert
-            console.log('Bulk INSERT error caught:', insertErr.code, insertErr.message);
-            if (insertErr.code === '23505' || insertErr.message.includes('unique') || insertErr.message.includes('duplicate') || insertErr.message.includes('constraint')) {
-              // Record was inserted by another request, update it instead
-              console.log('Bulk duplicate key error - updating existing record instead');
-              attendanceResult = await client.query(
-                `UPDATE daily_attendance 
-                 SET 
-                   status = $1,
-                   check_in_time = $2,
-                   check_out_time = $3,
-                   notes = $4,
-                   updated_at = CURRENT_TIMESTAMP
-                 WHERE employee_id = $5 AND attendance_date = $6::DATE
-                 RETURNING *`,
-                [
-                  status,
-                  normalizedCheckIn,
-                  normalizedCheckOut,
-                  normalizedNotes,
-                  parseInt(employee_id),
-                  attendance_date
-                ]
-              );
-            } else {
-              // Re-throw if it's a different error
-              console.error('Bulk unexpected INSERT error:', insertErr);
-              throw insertErr;
-            }
-          }
-        }
 
         results.push(attendanceResult.rows[0]);
 
