@@ -338,13 +338,14 @@ const GuaranteeWarranty = () => {
         <h3>Check Battery Status</h3>
         <div className="form-group">
           <label>Serial Number</label>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="serial-check-container" style={{ display: 'flex', gap: '10px' }}>
             <input
               type="text"
               value={serialNumber}
               onChange={(e) => setSerialNumber(e.target.value)}
               placeholder="Enter battery serial number"
               onKeyPress={(e) => e.key === 'Enter' && handleCheckStatus()}
+              className="serial-number-input"
               style={{ 
                 flex: 1,
                 height: '44px',
@@ -358,7 +359,7 @@ const GuaranteeWarranty = () => {
             <button 
               onClick={handleCheckStatus} 
               disabled={loading}
-              className="primary-btn"
+              className="primary-btn check-status-btn"
               style={{
                 height: '44px',
                 padding: '0 24px',
