@@ -972,9 +972,9 @@
   }
 
   .user-management-header h2 {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
     flex: 1;
     min-width: 0;
     margin: 0 !important;
@@ -982,30 +982,35 @@
   }
 
   .add-customer-btn {
-    padding: 0.5rem 0.9rem !important;
-    font-size: 0.8rem !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.75rem !important;
     white-space: nowrap;
     flex-shrink: 0;
     height: auto;
     min-height: 36px;
     max-height: 40px;
     margin: 0 !important;
+    width: auto !important;
+    min-width: fit-content !important;
   }
 
   .user-management-controls {
-    flex-wrap: wrap;
+    flex-direction: column !important;
     gap: 0.75rem;
+    align-items: stretch;
   }
 
   .user-management-search-row {
-    flex: 1;
-    min-width: 0;
+    width: 100% !important;
+    flex: none !important;
+    min-width: 0 !important;
     flex-wrap: nowrap !important;
     gap: 0.5rem;
+    display: flex !important;
   }
 
   .user-management-search-row input {
-    flex: 1;
+    flex: 1 !important;
     min-width: 0;
     height: 42px;
     min-height: 42px;
@@ -1015,10 +1020,10 @@
   }
 
   .user-management-search-row button {
-    padding: 0 1rem !important;
-    min-width: 80px !important;
-    max-width: 100px !important;
+    padding: 0 0.75rem !important;
     width: auto !important;
+    min-width: fit-content !important;
+    max-width: fit-content !important;
     height: 42px !important;
     min-height: 42px !important;
     max-height: 42px !important;
@@ -1028,7 +1033,22 @@
   }
 
   .user-management-filter {
+    width: 100% !important;
+    max-width: 30% !important;
     flex-shrink: 0;
+    align-items: flex-start;
+  }
+
+  .user-management-filter label {
+    font-size: 0.8rem;
+  }
+
+  .user-management-filter .filter-select {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 0.85rem;
+    padding: 0.65rem 0.9rem;
+    height: 42px;
   }
 }
 
@@ -1038,8 +1058,8 @@
   }
 
   .add-customer-btn {
-    padding: 0.45rem 0.8rem !important;
-    font-size: 0.75rem !important;
+    padding: 0.45rem 0.65rem !important;
+    font-size: 0.7rem !important;
     min-height: 34px;
     max-height: 38px;
   }
@@ -1053,24 +1073,32 @@
   }
 
   .user-management-search-row button {
-    padding: 0 0.9rem !important;
-    min-width: 75px !important;
-    max-width: 95px !important;
+    padding: 0 0.65rem !important;
     height: 40px !important;
     min-height: 40px !important;
     max-height: 40px !important;
     font-size: 0.8rem !important;
   }
+
+  .user-management-filter {
+    max-width: 30% !important;
+  }
+
+  .user-management-filter .filter-select {
+    padding: 0.6rem 0.85rem;
+    font-size: 0.8rem;
+    height: 40px;
+  }
 }
 
 @media (max-width: 480px) {
   .user-management-header h2 {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
 
   .add-customer-btn {
-    padding: 0.4rem 0.7rem !important;
-    font-size: 0.7rem !important;
+    padding: 0.4rem 0.6rem !important;
+    font-size: 0.65rem !important;
     min-height: 32px;
     max-height: 36px;
   }
@@ -1084,12 +1112,20 @@
   }
 
   .user-management-search-row button {
-    padding: 0 0.8rem !important;
-    min-width: 70px !important;
-    max-width: 90px !important;
+    padding: 0 0.6rem !important;
     height: 38px !important;
     min-height: 38px !important;
     max-height: 38px !important;
     font-size: 0.75rem !important;
+  }
+
+  .user-management-filter {
+    max-width: 30% !important;
+  }
+
+  .user-management-filter .filter-select {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.75rem;
+    height: 38px;
   }
 }
