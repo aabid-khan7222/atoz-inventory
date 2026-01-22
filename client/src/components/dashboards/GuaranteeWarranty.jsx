@@ -512,12 +512,12 @@ const GuaranteeWarranty = () => {
 
             {/* Replacement Form */}
             {batteryStatus.status.eligibleForReplacement && !batteryStatus.status.isReplaced && (
-              <div style={{ 
+              <div className="replacement-form-container" style={{ 
                 marginTop: '20px', 
                 padding: '20px', 
-                background: batteryStatus.status.replacementType === 'guarantee' ? '#d4edda' : '#fff3cd', 
+                background: batteryStatus.status.replacementType === 'guarantee' ? 'var(--guarantee-bg)' : 'var(--warranty-bg)', 
                 borderRadius: '8px',
-                border: `2px solid ${batteryStatus.status.replacementType === 'guarantee' ? '#28a745' : '#ffc107'}`
+                border: `2px solid ${batteryStatus.status.replacementType === 'guarantee' ? 'var(--guarantee-border)' : 'var(--warranty-border)'}`
               }}>
                 <div style={{ 
                   display: 'flex', 
@@ -525,37 +525,37 @@ const GuaranteeWarranty = () => {
                   gap: '10px', 
                   marginBottom: '15px' 
                 }}>
-                  <h4 style={{ margin: 0, color: batteryStatus.status.replacementType === 'guarantee' ? '#155724' : '#856404' }}>
+                  <h4 style={{ margin: 0, color: batteryStatus.status.replacementType === 'guarantee' ? 'var(--guarantee-text)' : 'var(--warranty-text)' }}>
                     {batteryStatus.status.replacementType === 'guarantee' ? '🛡️ Process Guarantee Replacement' : '⚡ Process Warranty Replacement'}
                   </h4>
                 </div>
                 
                 {batteryStatus.status.replacementType === 'guarantee' && (
-                  <div style={{ 
+                  <div className="guarantee-info-banner" style={{ 
                     padding: '10px', 
-                    background: '#c3e6cb', 
+                    background: 'var(--guarantee-info-bg)', 
                     borderRadius: '4px', 
                     marginBottom: '15px',
-                    color: '#155724'
+                    color: 'var(--guarantee-text)'
                   }}>
                     <strong>Free Replacement:</strong> This battery is under guarantee. The customer will receive a free replacement.
                   </div>
                 )}
 
                 {batteryStatus.status.replacementType === 'warranty' && batteryStatus.warrantySlab && (
-                  <div style={{ 
+                  <div className="warranty-info-banner" style={{ 
                     padding: '10px', 
-                    background: '#ffeaa7', 
+                    background: 'var(--warranty-info-bg)', 
                     borderRadius: '4px', 
                     marginBottom: '15px',
-                    color: '#856404'
+                    color: 'var(--warranty-text)'
                   }}>
                     <strong>Warranty Replacement:</strong> Customer is eligible for {batteryStatus.warrantySlab.discount_percentage}% discount (Slab: {batteryStatus.warrantySlab.slab_name})
                   </div>
                 )}
 
                 <div className="form-group" style={{ marginTop: '10px' }}>
-                  <label style={{ fontWeight: 'bold', marginBottom: '5px', display: 'block' }}>
+                  <label style={{ fontWeight: 'bold', marginBottom: '5px', display: 'block', color: 'var(--corp-text-primary)' }}>
                     Replacement Product <span style={{ color: 'red' }}>*</span>
                   </label>
                   <select
@@ -576,8 +576,10 @@ const GuaranteeWarranty = () => {
                       width: '100%', 
                       padding: '10px', 
                       fontSize: '14px',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px'
+                      border: '1px solid var(--corp-border)',
+                      borderRadius: '4px',
+                      background: 'var(--corp-bg-input)',
+                      color: 'var(--corp-text-primary)'
                     }}
                   >
                     <option value="">Select replacement product...</option>
@@ -625,7 +627,7 @@ const GuaranteeWarranty = () => {
 
                 {/* New Serial Number selection */}
                 <div className="form-group" style={{ marginTop: '15px' }}>
-                  <label style={{ fontWeight: 'bold', marginBottom: '5px', display: 'block' }}>
+                  <label style={{ fontWeight: 'bold', marginBottom: '5px', display: 'block', color: 'var(--corp-text-primary)' }}>
                     New Battery Serial Number <span style={{ color: 'red' }}>*</span>
                   </label>
                   <select
@@ -641,9 +643,10 @@ const GuaranteeWarranty = () => {
                       width: '100%',
                       padding: '10px',
                       fontSize: '14px',
-                      border: '1px solid #ddd',
+                      border: '1px solid var(--corp-border)',
                       borderRadius: '4px',
-                      backgroundColor: loadingSerials ? '#f8f9fa' : 'white',
+                      backgroundColor: loadingSerials ? 'var(--corp-bg-hover)' : 'var(--corp-bg-input)',
+                      color: 'var(--corp-text-primary)'
                     }}
                   >
                     {!replacementForm.newProductId && (
@@ -681,7 +684,7 @@ const GuaranteeWarranty = () => {
 
                 {batteryStatus.status.replacementType === 'warranty' && (
                   <div className="form-group" style={{ marginTop: '15px' }}>
-                    <label style={{ fontWeight: 'bold', marginBottom: '5px', display: 'block' }}>
+                    <label style={{ fontWeight: 'bold', marginBottom: '5px', display: 'block', color: 'var(--corp-text-primary)' }}>
                       Warranty Slab <span style={{ color: 'red' }}>*</span>
                     </label>
                     <select
@@ -691,8 +694,10 @@ const GuaranteeWarranty = () => {
                         width: '100%', 
                         padding: '10px',
                         fontSize: '14px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px'
+                        border: '1px solid var(--corp-border)',
+                        borderRadius: '4px',
+                        background: 'var(--corp-bg-input)',
+                        color: 'var(--corp-text-primary)'
                       }}
                     >
                       <option value="">Select warranty slab...</option>
@@ -706,7 +711,7 @@ const GuaranteeWarranty = () => {
                 )}
 
                 <div className="form-group" style={{ marginTop: '15px' }}>
-                  <label style={{ fontWeight: 'bold', marginBottom: '5px', display: 'block' }}>
+                  <label style={{ fontWeight: 'bold', marginBottom: '5px', display: 'block', color: 'var(--corp-text-primary)' }}>
                     Notes (Optional)
                   </label>
                   <textarea
@@ -718,9 +723,11 @@ const GuaranteeWarranty = () => {
                       width: '100%', 
                       padding: '10px',
                       fontSize: '14px',
-                      border: '1px solid #ddd',
+                      border: '1px solid var(--corp-border)',
                       borderRadius: '4px',
-                      resize: 'vertical'
+                      resize: 'vertical',
+                      background: 'var(--corp-bg-input)',
+                      color: 'var(--corp-text-primary)'
                     }}
                   />
                 </div>

@@ -24,6 +24,19 @@
   
   --corp-border: #e2e8f0;
   --corp-border-light: #f1f5f9;
+  --corp-bg-input: #ffffff;
+  
+  /* Guarantee & Warranty Colors */
+  --guarantee-bg: #d4edda;
+  --guarantee-border: #28a745;
+  --guarantee-text: #155724;
+  --guarantee-info-bg: #c3e6cb;
+  
+  --warranty-bg: #fff3cd;
+  --warranty-border: #ffc107;
+  --warranty-text: #856404;
+  --warranty-info-bg: #ffeaa7;
+  
   --corp-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --corp-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   --corp-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -48,6 +61,19 @@
   --corp-text-secondary: #cbd5e1;
   --corp-text-muted: #94a3b8;
   --corp-text-light: #64748b;
+  
+  --corp-bg-input: #1e293b;
+  
+  /* Guarantee & Warranty Colors - Dark Mode */
+  --guarantee-bg: #1a3a2a;
+  --guarantee-border: #28a745;
+  --guarantee-text: #90ee90;
+  --guarantee-info-bg: #2d4a3a;
+  
+  --warranty-bg: #3a3420;
+  --warranty-border: #ffc107;
+  --warranty-text: #ffd700;
+  --warranty-info-bg: #4a3f25;
   
   --corp-border: #334155;
   --corp-border-light: #475569;
