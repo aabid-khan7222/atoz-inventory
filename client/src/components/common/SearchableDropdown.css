@@ -181,6 +181,61 @@
   background: #e0f2fe;
 }
 
+/* Mobile/Tablet Optimization for Charging Service */
+@media (max-width: 1024px) {
+  .charging-service-customer-dropdown-wrapper .sd-label {
+    font-size: 0.8rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .charging-service-customer-dropdown-wrapper .sd-control {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .charging-service-customer-dropdown-wrapper .sd-value {
+    font-size: 0.85rem;
+  }
+
+  .charging-service-customer-dropdown-wrapper .sd-placeholder {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .charging-service-customer-dropdown-wrapper .sd-label {
+    font-size: 0.75rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .charging-service-customer-dropdown-wrapper .sd-control {
+    padding: 0.55rem 0.7rem;
+    font-size: 0.8rem;
+  }
+
+  .charging-service-customer-dropdown-wrapper .sd-value,
+  .charging-service-customer-dropdown-wrapper .sd-placeholder {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .charging-service-customer-dropdown-wrapper .sd-label {
+    font-size: 0.7rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .charging-service-customer-dropdown-wrapper .sd-control {
+    padding: 0.5rem 0.65rem;
+    font-size: 0.75rem;
+  }
+
+  .charging-service-customer-dropdown-wrapper .sd-value,
+  .charging-service-customer-dropdown-wrapper .sd-placeholder {
+    font-size: 0.75rem;
+  }
+}
+
 [data-theme="dark"] .sd-option-selected {
   background: rgba(59, 130, 246, 0.2);
 }

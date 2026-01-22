@@ -5099,3 +5099,80 @@
     padding-bottom: 0.45rem !important;
   }
 }
+
+/* Charging Service Customer Selection - Mobile/Tablet Optimization */
+@media (max-width: 1024px) {
+  .charging-service-customer-section {
+    padding: 0.75rem !important;
+  }
+
+  .charging-service-customer-section h4 {
+    font-size: 0.95rem;
+    margin-bottom: 0.6rem !important;
+  }
+
+  .charging-service-customer-controls {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+
+  .charging-service-customer-dropdown-wrapper {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: none !important;
+  }
+
+  .charging-service-clear-btn,
+  .charging-service-refresh-btn {
+    width: 100%;
+    margin-top: 0 !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.8rem !important;
+  }
+
+  .charging-service-customer-section small {
+    font-size: 0.7rem !important;
+    line-height: 1.4;
+  }
+}
+
+@media (max-width: 768px) {
+  .charging-service-customer-section {
+    padding: 0.6rem !important;
+  }
+
+  .charging-service-customer-section h4 {
+    font-size: 0.9rem;
+  }
+
+  .charging-service-clear-btn,
+  .charging-service-refresh-btn {
+    padding: 0.45rem 0.65rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  .charging-service-customer-section small {
+    font-size: 0.65rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .charging-service-customer-section {
+    padding: 0.5rem !important;
+  }
+
+  .charging-service-customer-section h4 {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .charging-service-clear-btn,
+  .charging-service-refresh-btn {
+    padding: 0.4rem 0.6rem !important;
+    font-size: 0.7rem !important;
+  }
+
+  .charging-service-customer-section small {
+    font-size: 0.6rem !important;
+  }
+}

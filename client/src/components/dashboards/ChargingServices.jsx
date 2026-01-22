@@ -668,10 +668,10 @@ const ChargingServices = () => {
           <h3>{editingService ? 'Edit Charging Service' : 'New Charging Service'}</h3>
           <form onSubmit={handleSubmit}>
             {/* Customer Selection Section */}
-            <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'var(--corp-bg-hover)', borderRadius: '8px', border: '1px solid var(--corp-border)' }}>
+            <div className="charging-service-customer-section" style={{ marginBottom: '1.5rem', padding: '1rem', background: 'var(--corp-bg-hover)', borderRadius: '8px', border: '1px solid var(--corp-border)' }}>
               <h4 style={{ marginBottom: '0.75rem', color: 'var(--corp-text-primary)' }}>Select Customer</h4>
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: '300px' }}>
+              <div className="charging-service-customer-controls" style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div className="charging-service-customer-dropdown-wrapper" style={{ flex: 1, minWidth: '300px' }}>
                   <SearchableDropdown
                     label="Search Existing Customer"
                     options={customers.map(customer => ({
@@ -690,6 +690,7 @@ const ChargingServices = () => {
                 {selectedCustomerId && (
                   <button
                     type="button"
+                    className="charging-service-clear-btn"
                     onClick={clearCustomerSelection}
                     style={{
                       padding: '0.5rem 1rem',
@@ -707,6 +708,7 @@ const ChargingServices = () => {
                 )}
                 <button
                   type="button"
+                  className="charging-service-refresh-btn"
                   onClick={loadCustomers}
                   disabled={customersLoading}
                     style={{
