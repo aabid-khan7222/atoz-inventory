@@ -78,12 +78,27 @@ const Login = () => {
             {loading ? t('login.loggingIn') : t('login.login')}
           </button>
 
+          <div className="login-divider">
+            <span className="divider-line"></span>
+            <span className="divider-text">OR</span>
+            <span className="divider-line"></span>
+          </div>
+
           <div className="login-footer">
-            <Link to="/signup" className="signup-link">
-              Create Account / Sign Up
+            <Link to="/signup" className="footer-button signup-button">
+              <svg className="footer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="8.5" cy="7" r="4"></circle>
+                <line x1="20" y1="8" x2="20" y2="14"></line>
+                <line x1="23" y1="11" x2="17" y2="11"></line>
+              </svg>
+              <span>Create New Account</span>
             </Link>
-            <Link to="/forgot-password" className="forgot-password-link">
-              Forgot Password?
+            <Link to="/forgot-password" className="footer-button forgot-button">
+              <svg className="footer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+              </svg>
+              <span>Reset Password</span>
             </Link>
           </div>
         </form>

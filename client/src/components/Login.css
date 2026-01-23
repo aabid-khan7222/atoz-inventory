@@ -183,37 +183,147 @@
   text-align: center;
 }
 
-.login-footer {
+.login-divider {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
+  align-items: center;
+  gap: 1rem;
+  margin: 2rem 0 1.5rem;
   text-align: center;
 }
 
-.signup-link,
-.forgot-password-link {
-  color: #e60000;
+.divider-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #e0e0e0, transparent);
+}
+
+.divider-text {
+  color: #999;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0 0.5rem;
+}
+
+[data-theme="dark"] .divider-line {
+  background: linear-gradient(to right, transparent, var(--azb-border-subtle), transparent);
+}
+
+[data-theme="dark"] .divider-text {
+  color: var(--azb-text-muted);
+}
+
+.login-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  margin-top: 0;
+}
+
+.footer-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.5rem;
+  border-radius: 8px;
   text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: color 0.3s ease;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+  min-height: 48px;
+  box-sizing: border-box;
 }
 
-.signup-link:hover,
-.forgot-password-link:hover {
+.footer-icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.5;
+  flex-shrink: 0;
+}
+
+.signup-button {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  color: #e60000;
+  border-color: #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.signup-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(230, 0, 0, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.signup-button:hover {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+  border-color: #e60000;
   color: #cc0000;
-  text-decoration: underline;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(230, 0, 0, 0.15);
 }
 
-[data-theme="dark"] .signup-link,
-[data-theme="dark"] .forgot-password-link {
+.signup-button:hover::before {
+  left: 100%;
+}
+
+.signup-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(230, 0, 0, 0.1);
+}
+
+.forgot-button {
+  background: transparent;
+  color: #666;
+  border-color: #e0e0e0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.forgot-button:hover {
+  background: #f8f9fa;
+  border-color: #d0d0d0;
+  color: #333;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+}
+
+.forgot-button:active {
+  transform: translateY(0);
+}
+
+[data-theme="dark"] .signup-button {
+  background: linear-gradient(135deg, var(--azb-bg-surface) 0%, var(--azb-bg-input) 100%);
   color: #ff4444;
+  border-color: var(--azb-border-subtle);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-[data-theme="dark"] .signup-link:hover,
-[data-theme="dark"] .forgot-password-link:hover {
+[data-theme="dark"] .signup-button:hover {
+  background: linear-gradient(135deg, rgba(255, 68, 68, 0.1) 0%, rgba(255, 68, 68, 0.05) 100%);
+  border-color: #ff4444;
   color: #ff6666;
+  box-shadow: 0 4px 12px rgba(255, 68, 68, 0.2);
+}
+
+[data-theme="dark"] .forgot-button {
+  background: transparent;
+  color: var(--azb-text-muted);
+  border-color: var(--azb-border-subtle);
+}
+
+[data-theme="dark"] .forgot-button:hover {
+  background: var(--azb-bg-input);
+  border-color: var(--azb-border);
+  color: var(--azb-text-main);
 }
 
 /* Tablet: 769px - 1024px */
@@ -245,6 +355,16 @@
   .login-subtitle {
     font-size: 0.85rem;
   }
+
+  .footer-button {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  .footer-icon {
+    width: 16px;
+    height: 16px;
+  }
 }
 
 /* Small Mobile: ≤ 480px */
@@ -274,6 +394,21 @@
   .login-button {
     padding: 0.9rem;
     font-size: 0.95rem;
+  }
+
+  .footer-button {
+    padding: 0.7rem 1rem;
+    font-size: 0.85rem;
+    min-height: 44px;
+  }
+
+  .footer-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .divider-text {
+    font-size: 0.7rem;
   }
 }
 
