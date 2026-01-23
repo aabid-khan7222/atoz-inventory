@@ -554,17 +554,32 @@ router.post("/signup/send-otp", async (req, res) => {
       attempts: 0,
     });
 
-    // Send OTP email
+    // Send OTP email with timeout wrapper
     try {
-      await sendOTPEmail(trimmedEmail, otp, "signup");
+      console.log(`[Signup] Attempting to send OTP to: ${trimmedEmail}`);
+      const emailPromise = sendOTPEmail(trimmedEmail, otp, "signup");
+      
+      // Add timeout wrapper (30 seconds max)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Email sending timeout after 30 seconds')), 30000)
+      );
+      
+      await Promise.race([emailPromise, timeoutPromise]);
+      console.log(`[Signup] OTP sent successfully to: ${trimmedEmail}`);
       return res.json({ success: true, message: "OTP sent to email" });
     } catch (emailError) {
-      console.error("Error sending OTP email:", emailError);
-      console.error("Email error stack:", emailError.stack);
+      console.error("[Signup] Error sending OTP email:", emailError);
+      console.error("[Signup] Email error stack:", emailError.stack);
       otpStore.delete(`signup:${trimmedEmail}`);
       
-      // Return the actual error message for better debugging
-      const errorMessage = emailError.message || "Failed to send OTP email. Please check email configuration.";
+      // Return user-friendly error message
+      let errorMessage = "Failed to send OTP email. Please try again.";
+      if (emailError.message && emailError.message.includes('timeout')) {
+        errorMessage = "Email sending is taking too long. Please try again in a moment.";
+      } else if (emailError.message) {
+        errorMessage = emailError.message;
+      }
+      
       return res.status(500).json({
         error: errorMessage,
         details: process.env.NODE_ENV === "development" ? emailError.stack : undefined,

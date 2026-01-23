@@ -30,7 +30,7 @@ const sendEmailViaResend = async (to, subject, htmlContent, fromEmail) => {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Length': data.length,
       },
-      timeout: 10000, // 10 seconds timeout
+      timeout: 15000, // 15 seconds timeout (increased for reliability)
     };
 
     const req = https.request(options, (res) => {
