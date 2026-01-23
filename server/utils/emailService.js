@@ -80,7 +80,7 @@ const generateOTP = () => {
 
 // Send OTP email with retry mechanism
 const sendOTPEmail = async (email, otp, purpose = 'verification', retryCount = 0) => {
-  const maxRetries = 3;
+  const maxRetries = 2; // Total 3 attempts (initial + 2 retries)
   const retryDelay = 2000; // 2 seconds between retries
 
   try {
@@ -144,8 +144,8 @@ const sendOTPEmail = async (email, otp, purpose = 'verification', retryCount = 0
     console.log('Environment:', process.env.NODE_ENV || 'development');
     console.log('SMTP Host: smtp.gmail.com:465');
 
-    // Production needs longer timeout due to network latency
-    const timeoutDuration = process.env.NODE_ENV === 'production' ? 60000 : 30000;
+    // Production timeout: 30 seconds per attempt (with retries, total max ~90 seconds)
+    const timeoutDuration = process.env.NODE_ENV === 'production' ? 30000 : 30000;
     
     // Add timeout wrapper for email sending
     const sendEmailWithTimeout = (transporter, mailOptions, timeout = timeoutDuration) => {

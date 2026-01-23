@@ -32,6 +32,16 @@ function clearInvalidAuth() {
   }
 }
 
+// Timeout wrapper for fetch requests
+function fetchWithTimeout(url, options = {}, timeout = 120000) {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Request timeout after ${timeout/1000} seconds`)), timeout)
+    )
+  ]);
+}
+
 // Generic request helper
 export async function request(path, options = {}) {
   const url = `${getApiBase()}${path}`;
@@ -51,11 +61,18 @@ export async function request(path, options = {}) {
     console.warn('[API] No auth token available for request to:', path);
   }
 
+  // Set timeout for OTP-related requests (2 minutes)
+  const isOTPRequest = path.includes('/signup/send-otp') || 
+                       path.includes('/forgot-password/send-otp') ||
+                       path.includes('/signup/verify-otp') ||
+                       path.includes('/forgot-password/verify-otp');
+  const timeout = isOTPRequest ? 120000 : 60000; // 2 minutes for OTP, 1 minute for others
+
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       ...options,
       headers,
-    });
+    }, timeout);
 
     // Parse JSON safely
     let data;
@@ -143,6 +160,10 @@ export async function sendSignupOTP(email) {
     });
   } catch (error) {
     console.error("Failed to send signup OTP:", error);
+    // Provide user-friendly error message for timeout
+    if (error.message && error.message.includes('timeout')) {
+      throw new Error('Request timed out. The email server may be slow. Please try again in a moment.');
+    }
     throw error;
   }
 }
@@ -168,6 +189,10 @@ export async function sendForgotPasswordOTP(email) {
     });
   } catch (error) {
     console.error("Failed to send forgot password OTP:", error);
+    // Provide user-friendly error message for timeout
+    if (error.message && error.message.includes('timeout')) {
+      throw new Error('Request timed out. The email server may be slow. Please try again in a moment.');
+    }
     throw error;
   }
 }
