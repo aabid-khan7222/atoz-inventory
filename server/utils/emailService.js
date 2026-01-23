@@ -10,8 +10,10 @@ const sendEmailViaResend = async (to, subject, htmlContent, fromEmail) => {
     throw new Error('RESEND_API_KEY not configured. Please set it in environment variables.');
   }
 
+  // Resend free tier allows sending to any email, but "from" must be verified domain
+  // Using Resend's default domain (no verification needed)
   const data = JSON.stringify({
-    from: fromEmail || 'AtoZ Inventory <noreply@resend.dev>',
+    from: 'AtoZ Inventory <onboarding@resend.dev>',
     to: [to],
     subject: subject,
     html: htmlContent,
@@ -185,8 +187,14 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   try {
     console.log('📧 Using Gmail SMTP (fallback)...');
     const transporter = createTransporter();
+    const gmailUser = (process.env.GMAIL_USER || process.env.EMAIL_USER)?.trim();
+    
+    if (!gmailUser) {
+      throw new Error('Gmail user not configured for fallback');
+    }
+    
     const mailOptions = {
-      from: emailUser,
+      from: gmailUser,
       to: email,
       subject: subject,
       html: htmlContent,
