@@ -301,6 +301,11 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
       `);
       console.log('Unique constraints on daily_attendance:', JSON.stringify(constraintInfo.rows, null, 2));
       
+      
+    
+
+      
+      
       // Check which columns are in the constraints
       if (constraintInfo.rows.length > 0) {
         const columnInfo = await db.query(`
@@ -356,11 +361,12 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
         check_out_time: normalizedCheckOut
       });
       
+      // Use explicit constraint name - more reliable than column names
       const attendanceResult = await client.query(
         `INSERT INTO daily_attendance 
          (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, created_at, updated_at)
          VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, NOW(), NOW())
-         ON CONFLICT (employee_id, attendance_date)
+         ON CONFLICT ON CONSTRAINT daily_attendance_employee_date_unique
          DO UPDATE SET
            status = EXCLUDED.status,
            check_in_time = EXCLUDED.check_in_time,
@@ -473,12 +479,12 @@ router.post('/daily-attendance/bulk', requireAuth, requireSuperAdminOrAdmin, asy
         const normalizedNotes = (notes && notes.trim() !== '') ? notes : null;
 
         // Insert or update daily attendance using ON CONFLICT
-        // Use column names directly (works with any constraint name)
+        // Use explicit constraint name - more reliable than column names
         const attendanceResult = await client.query(
           `INSERT INTO daily_attendance 
            (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, created_at, updated_at)
            VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, NOW(), NOW())
-           ON CONFLICT (employee_id, attendance_date)
+           ON CONFLICT ON CONSTRAINT daily_attendance_employee_date_unique
            DO UPDATE SET
              status = EXCLUDED.status,
              check_in_time = EXCLUDED.check_in_time,
