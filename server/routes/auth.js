@@ -721,8 +721,7 @@ router.post("/signup/create", async (req, res) => {
     // Commit transaction
     await client.query("COMMIT");
 
-    // Delete OTP after successful signup
-    otpStore.delete(otpKey);
+    console.log(`[Signup] Account created successfully for: ${trimmedEmail}`);
 
     return res.status(201).json({
       success: true,
@@ -742,7 +741,7 @@ router.post("/signup/create", async (req, res) => {
         console.error("Rollback error:", rollbackErr);
       }
     }
-    console.error("Signup verify OTP error:", err);
+    console.error("[Signup] Account creation error:", err);
     return res.status(500).json({
       error: "Internal server error",
       details: process.env.NODE_ENV === "production" ? undefined : err.message,

@@ -152,30 +152,14 @@ export async function getCurrentUser() {
 }
 
 // Signup API functions
-export async function sendSignupOTP(email) {
+export async function createSignup(signupData) {
   try {
-    return await request("/auth/signup/send-otp", {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    });
-  } catch (error) {
-    console.error("Failed to send signup OTP:", error);
-    // Provide user-friendly error message for timeout
-    if (error.message && error.message.includes('timeout')) {
-      throw new Error('Request timed out. The email server may be slow. Please try again in a moment.');
-    }
-    throw error;
-  }
-}
-
-export async function verifySignupOTP(signupData) {
-  try {
-    return await request("/auth/signup/verify-otp", {
+    return await request("/auth/signup/create", {
       method: "POST",
       body: JSON.stringify(signupData),
     });
   } catch (error) {
-    console.error("Failed to verify signup OTP:", error);
+    console.error("Failed to create account:", error);
     throw error;
   }
 }
