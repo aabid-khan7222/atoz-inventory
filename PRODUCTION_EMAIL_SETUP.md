@@ -32,7 +32,7 @@ Production servers (Render/Heroku) par network restrictions aur firewall setting
 
 ```bash
 GMAIL_USER=pathanaabid5152@gmail.com
-GMAIL_APP_PASSWORD=hbtvabvcsarxgujs
+GMAIL_APP_PASSWORD=xxxdoyjyxspkbcjb
 ```
 
 **Important:**

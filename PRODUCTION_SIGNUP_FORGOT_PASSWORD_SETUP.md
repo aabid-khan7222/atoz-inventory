@@ -25,8 +25,8 @@ Add the following environment variables to your production server (Render/Heroku
 
 ```bash
 # Gmail SMTP Configuration
-GMAIL_USER=your-email@gmail.com
-GMAIL_APP_PASSWORD=abcdefghijklmnop  # The 16-character app password from Step 1
+GMAIL_USER=pathanaabid5152@gmail.com
+GMAIL_APP_PASSWORD=xxxdoyjyxspkbcjb  # The 16-character app password
 
 # Alternative variable names (also supported):
 EMAIL_USER=your-email@gmail.com
