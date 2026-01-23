@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import './Login.css';
 
 const Login = () => {
@@ -77,6 +77,15 @@ const Login = () => {
           <button type="submit" className="login-button" disabled={loading}>
             {loading ? t('login.loggingIn') : t('login.login')}
           </button>
+
+          <div className="login-footer">
+            <Link to="/signup" className="signup-link">
+              Create Account / Sign Up
+            </Link>
+            <Link to="/forgot-password" className="forgot-password-link">
+              Forgot Password?
+            </Link>
+          </div>
         </form>
       </div>
     </div>

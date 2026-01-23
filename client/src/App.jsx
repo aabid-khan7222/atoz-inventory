@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext.jsx";
 import { AuthRoute, AdminRoute, SuperAdminRoute, CustomerRoute } from "./routes/ProtectedRoutes";
 import Login from "./components/Login.jsx";
+import Signup from "./components/Signup.jsx";
+import ForgotPassword from "./components/ForgotPassword.jsx";
 import ProfilePage from "./components/profile/ProfilePage.jsx";
 import SettingsPage from "./components/settings/SettingsPage.jsx";
 import SuperAdminDashboardPage from "./pages/SuperAdminDashboardPage.jsx";
@@ -71,6 +73,26 @@ function App() {
         element={
           <PublicRoute>
             <Login />
+          </PublicRoute>
+        }
+      />
+
+      {/* Signup page */}
+      <Route
+        path="/signup"
+        element={
+          <PublicRoute>
+            <Signup />
+          </PublicRoute>
+        }
+      />
+
+      {/* Forgot Password page */}
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicRoute>
+            <ForgotPassword />
           </PublicRoute>
         }
       />

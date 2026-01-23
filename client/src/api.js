@@ -134,6 +134,56 @@ export async function getCurrentUser() {
   });
 }
 
+// Signup API functions
+export async function sendSignupOTP(email) {
+  try {
+    return await request("/auth/signup/send-otp", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  } catch (error) {
+    console.error("Failed to send signup OTP:", error);
+    throw error;
+  }
+}
+
+export async function verifySignupOTP(signupData) {
+  try {
+    return await request("/auth/signup/verify-otp", {
+      method: "POST",
+      body: JSON.stringify(signupData),
+    });
+  } catch (error) {
+    console.error("Failed to verify signup OTP:", error);
+    throw error;
+  }
+}
+
+// Forgot Password API functions
+export async function sendForgotPasswordOTP(email) {
+  try {
+    return await request("/auth/forgot-password/send-otp", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  } catch (error) {
+    console.error("Failed to send forgot password OTP:", error);
+    throw error;
+  }
+}
+
+export async function verifyForgotPasswordOTP(forgotPasswordData) {
+  try {
+    return await request("/auth/forgot-password/verify-otp", {
+      method: "POST",
+      body: JSON.stringify(forgotPasswordData),
+    });
+  } catch (error) {
+    console.error("Failed to verify forgot password OTP:", error);
+    throw error;
+  }
+}
+
 // Product API functions
 export async function fetchProducts() {
   try {

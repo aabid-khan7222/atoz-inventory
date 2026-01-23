@@ -6,6 +6,7 @@ const router = express.Router();
 const db = require("../db");
 const bcrypt = require("bcrypt");
 const { signAuthToken, requireAuth, optionalAuth } = require("../middleware/auth");
+const { generateOTP, sendOTPEmail } = require("../utils/emailService");
 
 /*
 Auth/storage notes (per current schema and routes):
@@ -496,6 +497,505 @@ router.get("/me", optionalAuth, async (req, res) => {
   } catch (err) {
     console.error("Get user error:", err);
     return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// In-memory OTP storage (for production, use Redis or database)
+const otpStore = new Map();
+
+// Clean expired OTPs every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of otpStore.entries()) {
+    if (value.expiresAt < now) {
+      otpStore.delete(key);
+    }
+  }
+}, 10 * 60 * 1000);
+
+// ------------------------------------------------------
+// POST /api/auth/signup/send-otp
+//  - Send OTP to email for signup verification
+// ------------------------------------------------------
+router.post("/signup/send-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
+
+    // Check if user already exists
+    const existingUser = await db.query(
+      "SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1",
+      [trimmedEmail]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: "Email already registered" });
+    }
+
+    // Generate OTP
+    const otp = generateOTP();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    // Store OTP
+    otpStore.set(`signup:${trimmedEmail}`, {
+      otp,
+      expiresAt,
+      attempts: 0,
+    });
+
+    // Send OTP email
+    try {
+      await sendOTPEmail(trimmedEmail, otp, "signup");
+      return res.json({ success: true, message: "OTP sent to email" });
+    } catch (emailError) {
+      console.error("Error sending OTP email:", emailError);
+      otpStore.delete(`signup:${trimmedEmail}`);
+      return res.status(500).json({
+        error: "Failed to send OTP email. Please check email configuration.",
+      });
+    }
+  } catch (err) {
+    console.error("Signup send OTP error:", err);
+    return res.status(500).json({
+      error: "Internal server error",
+      details: process.env.NODE_ENV === "production" ? undefined : err.message,
+    });
+  }
+});
+
+// ------------------------------------------------------
+// POST /api/auth/signup/verify-otp
+//  - Verify OTP and create user account
+// ------------------------------------------------------
+router.post("/signup/verify-otp", async (req, res) => {
+  let client;
+  try {
+    const {
+      email,
+      otp,
+      full_name,
+      mobile_number,
+      state,
+      city,
+      city_pincode,
+      address,
+      has_gst,
+      gst_number,
+      company_name,
+      company_address,
+      password,
+      confirm_password,
+    } = req.body;
+
+    // Validate required fields
+    if (
+      !email ||
+      !otp ||
+      !full_name ||
+      !mobile_number ||
+      !state ||
+      !city ||
+      !city_pincode ||
+      !address ||
+      !password ||
+      !confirm_password
+    ) {
+      return res.status(400).json({
+        error: "All required fields must be provided",
+      });
+    }
+
+    // Validate password match
+    if (password !== confirm_password) {
+      return res.status(400).json({ error: "Passwords do not match" });
+    }
+
+    // Validate password strength (minimum 6 characters)
+    if (password.length < 6) {
+      return res.status(400).json({
+        error: "Password must be at least 6 characters long",
+      });
+    }
+
+    // Validate GST fields if has_gst is true
+    const hasGstBool = has_gst === true || has_gst === "true";
+    if (hasGstBool) {
+      if (!gst_number || !company_name || !company_address) {
+        return res.status(400).json({
+          error:
+            "GST number, company name, and company address are required when GST is enabled",
+        });
+      }
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+
+    // Verify OTP
+    const otpKey = `signup:${trimmedEmail}`;
+    const storedOtpData = otpStore.get(otpKey);
+
+    if (!storedOtpData) {
+      return res.status(400).json({ error: "OTP expired or not found" });
+    }
+
+    if (storedOtpData.expiresAt < Date.now()) {
+      otpStore.delete(otpKey);
+      return res.status(400).json({ error: "OTP has expired" });
+    }
+
+    if (storedOtpData.attempts >= 5) {
+      otpStore.delete(otpKey);
+      return res.status(400).json({
+        error: "Too many failed attempts. Please request a new OTP",
+      });
+    }
+
+    if (storedOtpData.otp !== otp) {
+      storedOtpData.attempts += 1;
+      return res.status(400).json({ error: "Invalid OTP" });
+    }
+
+    // Check if user already exists (double check)
+    const existingUser = await db.query(
+      "SELECT id FROM users WHERE LOWER(email) = $1 OR phone = $2 LIMIT 1",
+      [trimmedEmail, mobile_number.trim()]
+    );
+
+    if (existingUser.rows.length > 0) {
+      otpStore.delete(otpKey);
+      return res.status(400).json({
+        error: "Email or mobile number already registered",
+      });
+    }
+
+    // Get customer role_id
+    const roleResult = await db.query(
+      `SELECT id FROM roles WHERE LOWER(role_name) = 'customer' LIMIT 1`
+    );
+
+    if (!roleResult.rows.length) {
+      return res.status(500).json({ error: "Customer role not found" });
+    }
+
+    const customerRoleId = roleResult.rows[0].id;
+
+    // Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Start transaction
+    client = await db.pool.connect();
+    await client.query("BEGIN");
+
+    // Insert into users table
+    const userResult = await client.query(
+      `INSERT INTO users (
+        full_name, email, phone, password, role_id, is_active,
+        state, city, address, gst_number, company_name, company_address
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING id, full_name, email, phone, role_id`,
+      [
+        full_name.trim(),
+        trimmedEmail,
+        mobile_number.trim(),
+        hashedPassword,
+        customerRoleId,
+        true, // is_active
+        state.trim(),
+        city.trim(),
+        address.trim(),
+        hasGstBool ? gst_number.trim() : null,
+        hasGstBool ? company_name.trim() : null,
+        hasGstBool ? company_address.trim() : null,
+      ]
+    );
+
+    const userId = userResult.rows[0].id;
+
+    // Insert into customer_profiles table
+    try {
+      // Check if pincode column exists
+      const pincodeCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'customer_profiles' 
+        AND column_name = 'pincode'
+      `);
+
+      const hasPincodeCol = pincodeCheck.rows.length > 0;
+
+      if (hasPincodeCol) {
+        await client.query(
+          `INSERT INTO customer_profiles (
+            user_id, full_name, email, phone, state, city, address, pincode,
+            is_business_customer, company_name, gst_number, company_address
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          ON CONFLICT (user_id) DO UPDATE SET
+            full_name = EXCLUDED.full_name,
+            email = EXCLUDED.email,
+            phone = EXCLUDED.phone,
+            state = EXCLUDED.state,
+            city = EXCLUDED.city,
+            address = EXCLUDED.address,
+            pincode = EXCLUDED.pincode,
+            is_business_customer = EXCLUDED.is_business_customer,
+            company_name = EXCLUDED.company_name,
+            gst_number = EXCLUDED.gst_number,
+            company_address = EXCLUDED.company_address`,
+          [
+            userId,
+            full_name.trim(),
+            trimmedEmail,
+            mobile_number.trim(),
+            state.trim(),
+            city.trim(),
+            address.trim(),
+            city_pincode.trim(),
+            hasGstBool,
+            hasGstBool ? company_name.trim() : null,
+            hasGstBool ? gst_number.trim() : null,
+            hasGstBool ? company_address.trim() : null,
+          ]
+        );
+      } else {
+        await client.query(
+          `INSERT INTO customer_profiles (
+            user_id, full_name, email, phone, state, city, address,
+            is_business_customer, company_name, gst_number, company_address
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          ON CONFLICT (user_id) DO UPDATE SET
+            full_name = EXCLUDED.full_name,
+            email = EXCLUDED.email,
+            phone = EXCLUDED.phone,
+            state = EXCLUDED.state,
+            city = EXCLUDED.city,
+            address = EXCLUDED.address,
+            is_business_customer = EXCLUDED.is_business_customer,
+            company_name = EXCLUDED.company_name,
+            gst_number = EXCLUDED.gst_number,
+            company_address = EXCLUDED.company_address`,
+          [
+            userId,
+            full_name.trim(),
+            trimmedEmail,
+            mobile_number.trim(),
+            state.trim(),
+            city.trim(),
+            address.trim(),
+            hasGstBool,
+            hasGstBool ? company_name.trim() : null,
+            hasGstBool ? gst_number.trim() : null,
+            hasGstBool ? company_address.trim() : null,
+          ]
+        );
+      }
+    } catch (profileErr) {
+      console.error("Error creating customer profile:", profileErr);
+      // Continue even if profile creation fails
+    }
+
+    // Commit transaction
+    await client.query("COMMIT");
+
+    // Delete OTP after successful signup
+    otpStore.delete(otpKey);
+
+    return res.status(201).json({
+      success: true,
+      message: "Account created successfully",
+      user: {
+        id: userResult.rows[0].id,
+        full_name: userResult.rows[0].full_name,
+        email: userResult.rows[0].email,
+        role_id: userResult.rows[0].role_id,
+      },
+    });
+  } catch (err) {
+    if (client) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackErr) {
+        console.error("Rollback error:", rollbackErr);
+      }
+    }
+    console.error("Signup verify OTP error:", err);
+    return res.status(500).json({
+      error: "Internal server error",
+      details: process.env.NODE_ENV === "production" ? undefined : err.message,
+    });
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+});
+
+// ------------------------------------------------------
+// POST /api/auth/forgot-password/send-otp
+//  - Send OTP to email for password reset
+// ------------------------------------------------------
+router.post("/forgot-password/send-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
+
+    // Check if user exists
+    const userResult = await db.query(
+      "SELECT id, full_name FROM users WHERE LOWER(email) = $1 LIMIT 1",
+      [trimmedEmail]
+    );
+
+    if (userResult.rows.length === 0) {
+      // Don't reveal if email exists or not (security best practice)
+      return res.json({
+        success: true,
+        message: "If email exists, OTP has been sent",
+      });
+    }
+
+    // Generate OTP
+    const otp = generateOTP();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    // Store OTP
+    otpStore.set(`forgot-password:${trimmedEmail}`, {
+      otp,
+      expiresAt,
+      attempts: 0,
+    });
+
+    // Send OTP email
+    try {
+      await sendOTPEmail(trimmedEmail, otp, "forgot-password");
+      return res.json({
+        success: true,
+        message: "If email exists, OTP has been sent",
+      });
+    } catch (emailError) {
+      console.error("Error sending OTP email:", emailError);
+      otpStore.delete(`forgot-password:${trimmedEmail}`);
+      return res.status(500).json({
+        error: "Failed to send OTP email. Please check email configuration.",
+      });
+    }
+  } catch (err) {
+    console.error("Forgot password send OTP error:", err);
+    return res.status(500).json({
+      error: "Internal server error",
+      details: process.env.NODE_ENV === "production" ? undefined : err.message,
+    });
+  }
+});
+
+// ------------------------------------------------------
+// POST /api/auth/forgot-password/verify-otp
+//  - Verify OTP and reset password
+// ------------------------------------------------------
+router.post("/forgot-password/verify-otp", async (req, res) => {
+  try {
+    const { email, otp, new_password, confirm_password } = req.body;
+
+    if (!email || !otp || !new_password || !confirm_password) {
+      return res.status(400).json({
+        error: "Email, OTP, new password, and confirm password are required",
+      });
+    }
+
+    // Validate password match
+    if (new_password !== confirm_password) {
+      return res.status(400).json({ error: "Passwords do not match" });
+    }
+
+    // Validate password strength
+    if (new_password.length < 6) {
+      return res.status(400).json({
+        error: "Password must be at least 6 characters long",
+      });
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+
+    // Verify OTP
+    const otpKey = `forgot-password:${trimmedEmail}`;
+    const storedOtpData = otpStore.get(otpKey);
+
+    if (!storedOtpData) {
+      return res.status(400).json({ error: "OTP expired or not found" });
+    }
+
+    if (storedOtpData.expiresAt < Date.now()) {
+      otpStore.delete(otpKey);
+      return res.status(400).json({ error: "OTP has expired" });
+    }
+
+    if (storedOtpData.attempts >= 5) {
+      otpStore.delete(otpKey);
+      return res.status(400).json({
+        error: "Too many failed attempts. Please request a new OTP",
+      });
+    }
+
+    if (storedOtpData.otp !== otp) {
+      storedOtpData.attempts += 1;
+      return res.status(400).json({ error: "Invalid OTP" });
+    }
+
+    // Check if user exists
+    const userResult = await db.query(
+      "SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1",
+      [trimmedEmail]
+    );
+
+    if (userResult.rows.length === 0) {
+      otpStore.delete(otpKey);
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Hash new password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(new_password, saltRounds);
+
+    // Update password
+    await db.query("UPDATE users SET password = $1 WHERE LOWER(email) = $2", [
+      hashedPassword,
+      trimmedEmail,
+    ]);
+
+    // Delete OTP after successful password reset
+    otpStore.delete(otpKey);
+
+    return res.json({
+      success: true,
+      message: "Password reset successfully",
+    });
+  } catch (err) {
+    console.error("Forgot password verify OTP error:", err);
+    return res.status(500).json({
+      error: "Internal server error",
+      details: process.env.NODE_ENV === "production" ? undefined : err.message,
+    });
   }
 });
 
