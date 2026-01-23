@@ -162,18 +162,22 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
 
   console.log('📧 Attempting to send email to:', email);
   console.log('📧 Environment:', process.env.NODE_ENV || 'development');
+  console.log('📧 RESEND_API_KEY:', process.env.RESEND_API_KEY ? 'SET' : 'NOT SET');
 
   // Strategy: Try Resend API first (works on Render free tier), fallback to Gmail SMTP
-  const useResend = process.env.RESEND_API_KEY || process.env.NODE_ENV === 'production';
+  const resendApiKey = process.env.RESEND_API_KEY?.trim();
   
-  if (useResend && process.env.RESEND_API_KEY) {
+  if (resendApiKey) {
     try {
       console.log('📧 Using Resend API (works on Render free tier)...');
       return await sendEmailViaResend(email, subject, htmlContent, fromEmail);
     } catch (resendError) {
-      console.error('❌ Resend API failed, trying Gmail SMTP fallback...', resendError.message);
+      console.error('❌ Resend API failed:', resendError.message);
+      console.error('❌ Trying Gmail SMTP fallback...');
       // Fall through to Gmail SMTP
     }
+  } else {
+    console.warn('⚠️  RESEND_API_KEY not set. Using Gmail SMTP (may timeout on Render free tier)...');
   }
 
   // Fallback to Gmail SMTP (works on localhost and paid Render plans)
