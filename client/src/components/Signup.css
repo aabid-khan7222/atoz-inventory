@@ -216,13 +216,26 @@
   gap: 0.75rem;
   cursor: pointer;
   font-weight: 500;
+  line-height: 1.5;
 }
 
 .checkbox-label input[type="checkbox"] {
   width: 20px;
   height: 20px;
+  min-width: 20px;
+  min-height: 20px;
   cursor: pointer;
   accent-color: #e60000;
+  margin: 0;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.checkbox-label span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.5;
+  vertical-align: middle;
 }
 
 .signup-button,
