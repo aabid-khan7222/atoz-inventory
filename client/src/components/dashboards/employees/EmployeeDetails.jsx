@@ -20,6 +20,7 @@ const EmployeeDetails = ({ employeeId, onBack }) => {
     attendance_month: '',
     total_days: '',
     present_days: '',
+    half_days: '',
     absent_days: '',
     leave_days: '',
     notes: ''
@@ -89,6 +90,7 @@ const EmployeeDetails = ({ employeeId, onBack }) => {
         attendance_month: '',
         total_days: '',
         present_days: '',
+        half_days: '',
         absent_days: '',
         leave_days: '',
         notes: ''
@@ -389,6 +391,14 @@ const EmployeeDetails = ({ employeeId, onBack }) => {
                         type="number"
                         value={attendanceForm.present_days}
                         onChange={(e) => setAttendanceForm({ ...attendanceForm, present_days: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Half Days</label>
+                      <input
+                        type="number"
+                        value={attendanceForm.half_days}
+                        onChange={(e) => setAttendanceForm({ ...attendanceForm, half_days: e.target.value })}
                       />
                     </div>
                     <div className="form-group">
