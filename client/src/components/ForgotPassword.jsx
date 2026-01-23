@@ -116,8 +116,9 @@ const ForgotPassword = () => {
           <div className="forgot-password-header">
             <h1 className="forgot-password-title">Reset Password</h1>
             <p className="forgot-password-subtitle">
-              Enter the OTP sent to {email}
+              Enter the OTP sent to your registered email ID
             </p>
+            <p className="forgot-password-email-display">{email}</p>
           </div>
 
           <form onSubmit={handleResetPassword} className="forgot-password-form">

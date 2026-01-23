@@ -162,7 +162,8 @@ const Signup = () => {
           </button>
           <div className="signup-header">
             <h1 className="signup-title">Verify Email</h1>
-            <p className="signup-subtitle">Enter the OTP sent to {formData.email}</p>
+            <p className="signup-subtitle">Enter the OTP sent to your registered email ID</p>
+            <p className="signup-email-display">{formData.email}</p>
           </div>
 
           <form onSubmit={handleVerifyOTP} className="signup-form">

@@ -671,16 +671,16 @@ router.post("/signup/verify-otp", async (req, res) => {
       return res.status(400).json({ error: "Invalid OTP" });
     }
 
-    // Check if user already exists (double check)
+    // Check if user already exists (only check email, mobile number can be duplicate)
     const existingUser = await db.query(
-      "SELECT id FROM users WHERE LOWER(email) = $1 OR phone = $2 LIMIT 1",
-      [trimmedEmail, mobile_number.trim()]
+      "SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1",
+      [trimmedEmail]
     );
 
     if (existingUser.rows.length > 0) {
       otpStore.delete(otpKey);
       return res.status(400).json({
-        error: "Email or mobile number already registered",
+        error: "Email already registered",
       });
     }
 
