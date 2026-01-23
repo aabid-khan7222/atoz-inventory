@@ -434,6 +434,7 @@ const EmployeeDetails = ({ employeeId, onBack }) => {
                   <th>Month</th>
                   <th>Total Days</th>
                   <th>Present</th>
+                  <th>Half Day</th>
                   <th>Absent</th>
                   <th>Leave</th>
                   <th>Notes</th>
@@ -442,7 +443,7 @@ const EmployeeDetails = ({ employeeId, onBack }) => {
               <tbody>
                 {attendance.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="no-data">No attendance records</td>
+                    <td colSpan="7" className="no-data">No attendance records</td>
                   </tr>
                 ) : (
                   attendance.map((att) => (
@@ -450,6 +451,7 @@ const EmployeeDetails = ({ employeeId, onBack }) => {
                       <td>{formatDate(att.attendance_month)}</td>
                       <td>{att.total_days || 0}</td>
                       <td>{att.present_days || 0}</td>
+                      <td>{att.half_days || 0}</td>
                       <td>{att.absent_days || 0}</td>
                       <td>{att.leave_days || 0}</td>
                       <td>{att.notes || '-'}</td>

@@ -181,7 +181,7 @@ router.get('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req,
 router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { attendance_month, total_days, present_days, absent_days, leave_days, notes } = req.body;
+    const { attendance_month, total_days, present_days, half_days, absent_days, leave_days, notes } = req.body;
 
     if (!attendance_month) {
       return res.status(400).json({ error: 'Attendance month is required' });
@@ -193,24 +193,26 @@ router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req
     const monthStr = monthDate.toISOString().split('T')[0];
 
     const present = present_days || 0;
+    const half = half_days || 0;
     const absent = absent_days || 0;
     const leave = leave_days || 0;
-    const total = total_days || (present + absent + leave);
+    const total = total_days || (present + half + absent + leave);
 
     const { rows } = await db.query(
       `INSERT INTO employee_attendance 
-       (employee_id, attendance_month, total_days, present_days, absent_days, leave_days, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (employee_id, attendance_month, total_days, present_days, half_days, absent_days, leave_days, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (employee_id, attendance_month)
        DO UPDATE SET
          total_days = EXCLUDED.total_days,
          present_days = EXCLUDED.present_days,
+         half_days = EXCLUDED.half_days,
          absent_days = EXCLUDED.absent_days,
          leave_days = EXCLUDED.leave_days,
          notes = EXCLUDED.notes,
          updated_at = CURRENT_TIMESTAMP
        RETURNING *`,
-      [id, monthStr, total, present, absent, leave, notes || null]
+      [id, monthStr, total, present, half, absent, leave, notes || null]
     );
 
     // Add to history
@@ -408,7 +410,8 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
       );
 
       const stats = monthStats.rows[0];
-      const presentDays = parseInt(stats.present_count || 0) + parseInt(stats.half_day_count || 0) * 0.5;
+      const presentDays = parseInt(stats.present_count || 0);
+      const halfDays = parseInt(stats.half_day_count || 0);
       const absentDays = parseInt(stats.absent_count || 0);
       const leaveDays = parseInt(stats.leave_count || 0);
       const totalDays = parseInt(stats.total_count || 0);
@@ -427,18 +430,19 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
            SET 
              total_days = $1,
              present_days = $2,
-             absent_days = $3,
-             leave_days = $4,
+             half_days = $3,
+             absent_days = $4,
+             leave_days = $5,
              updated_at = CURRENT_TIMESTAMP
-           WHERE employee_id = $5 AND attendance_month = $6::DATE`,
-          [totalDays, Math.round(presentDays), absentDays, leaveDays, employeeId, monthStr]
+           WHERE employee_id = $6 AND attendance_month = $7::DATE`,
+          [totalDays, presentDays, halfDays, absentDays, leaveDays, employeeId, monthStr]
         );
       } else {
         await client.query(
           `INSERT INTO employee_attendance 
-           (employee_id, attendance_month, total_days, present_days, absent_days, leave_days)
-           VALUES ($1, $2::DATE, $3, $4, $5, $6)`,
-          [employeeId, monthStr, totalDays, Math.round(presentDays), absentDays, leaveDays]
+           (employee_id, attendance_month, total_days, present_days, half_days, absent_days, leave_days)
+           VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)`,
+          [employeeId, monthStr, totalDays, presentDays, halfDays, absentDays, leaveDays]
         );
       }
 

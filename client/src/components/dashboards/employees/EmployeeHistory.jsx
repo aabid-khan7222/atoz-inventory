@@ -199,6 +199,7 @@ const EmployeeHistory = () => {
                     <th>Month</th>
                     <th>Total Days</th>
                     <th>Present</th>
+                    <th>Half Day</th>
                     <th>Absent</th>
                     <th>Leave</th>
                     <th>Notes</th>
@@ -210,6 +211,7 @@ const EmployeeHistory = () => {
                       <td>{formatDate(att.attendance_month)}</td>
                       <td>{att.total_days || 0}</td>
                       <td>{att.present_days || 0}</td>
+                      <td>{att.half_days || 0}</td>
                       <td>{att.absent_days || 0}</td>
                       <td>{att.leave_days || 0}</td>
                       <td>{att.notes || '-'}</td>
