@@ -199,22 +199,42 @@ router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req
     const leave = parseInt(leave_days) || 0;
     const total = parseInt(total_days) || (present + half + absent + leave);
 
-    const { rows } = await db.query(
-      `INSERT INTO employee_attendance 
-       (employee_id, attendance_month, total_days, present_days, half_days, absent_days, leave_days, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       ON CONFLICT (employee_id, attendance_month)
-       DO UPDATE SET
-         total_days = EXCLUDED.total_days,
-         present_days = EXCLUDED.present_days,
-         half_days = EXCLUDED.half_days,
-         absent_days = EXCLUDED.absent_days,
-         leave_days = EXCLUDED.leave_days,
-         notes = EXCLUDED.notes,
-         updated_at = CURRENT_TIMESTAMP
-       RETURNING *`,
-      [id, monthStr, total, present, half, absent, leave, notes || null]
+    // Use check-then-insert/update pattern to avoid ON CONFLICT constraint issues
+    const existingAttendance = await db.query(
+      `SELECT id FROM employee_attendance 
+       WHERE employee_id = $1 AND attendance_month = $2::DATE`,
+      [id, monthStr]
     );
+
+    let rows;
+    if (existingAttendance.rows.length > 0) {
+      // Update existing record
+      const result = await db.query(
+        `UPDATE employee_attendance 
+         SET 
+           total_days = $1,
+           present_days = $2,
+           half_days = $3,
+           absent_days = $4,
+           leave_days = $5,
+           notes = $6,
+           updated_at = CURRENT_TIMESTAMP
+         WHERE employee_id = $7 AND attendance_month = $8::DATE
+         RETURNING *`,
+        [total, present, half, absent, leave, notes || null, id, monthStr]
+      );
+      rows = result;
+    } else {
+      // Insert new record
+      const result = await db.query(
+        `INSERT INTO employee_attendance 
+         (employee_id, attendance_month, total_days, present_days, half_days, absent_days, leave_days, notes)
+         VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [id, monthStr, total, present, half, absent, leave, notes || null]
+      );
+      rows = result;
+    }
 
     // Add to history
     await db.query(
