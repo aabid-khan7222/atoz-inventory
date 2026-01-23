@@ -414,19 +414,33 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
       const totalDays = parseInt(stats.total_count || 0);
 
       // Update monthly attendance
-      await client.query(
-        `INSERT INTO employee_attendance 
-         (employee_id, attendance_month, total_days, present_days, absent_days, leave_days)
-         VALUES ($1, $2::DATE, $3, $4, $5, $6)
-         ON CONFLICT (employee_id, attendance_month)
-         DO UPDATE SET
-           total_days = EXCLUDED.total_days,
-           present_days = EXCLUDED.present_days,
-           absent_days = EXCLUDED.absent_days,
-           leave_days = EXCLUDED.leave_days,
-           updated_at = CURRENT_TIMESTAMP`,
-        [employeeId, monthStr, totalDays, Math.round(presentDays), absentDays, leaveDays]
+      // Use check-then-insert/update pattern to avoid ON CONFLICT constraint issues
+      const existingMonthly = await client.query(
+        `SELECT id FROM employee_attendance 
+         WHERE employee_id = $1 AND attendance_month = $2::DATE`,
+        [employeeId, monthStr]
       );
+      
+      if (existingMonthly.rows.length > 0) {
+        await client.query(
+          `UPDATE employee_attendance 
+           SET 
+             total_days = $1,
+             present_days = $2,
+             absent_days = $3,
+             leave_days = $4,
+             updated_at = CURRENT_TIMESTAMP
+           WHERE employee_id = $5 AND attendance_month = $6::DATE`,
+          [totalDays, Math.round(presentDays), absentDays, leaveDays, employeeId, monthStr]
+        );
+      } else {
+        await client.query(
+          `INSERT INTO employee_attendance 
+           (employee_id, attendance_month, total_days, present_days, absent_days, leave_days)
+           VALUES ($1, $2::DATE, $3, $4, $5, $6)`,
+          [employeeId, monthStr, totalDays, Math.round(presentDays), absentDays, leaveDays]
+        );
+      }
 
       // Add to history
       const historyDescription = `Daily attendance marked: ${status} on ${new Date(attendance_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
@@ -530,19 +544,33 @@ router.post('/daily-attendance/bulk', requireAuth, requireSuperAdminOrAdmin, asy
         const leaveDays = parseInt(stats.leave_count || 0);
         const totalDays = parseInt(stats.total_count || 0);
 
-        await client.query(
-          `INSERT INTO employee_attendance 
-           (employee_id, attendance_month, total_days, present_days, absent_days, leave_days)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           ON CONFLICT (employee_id, attendance_month)
-           DO UPDATE SET
-             total_days = EXCLUDED.total_days,
-             present_days = EXCLUDED.present_days,
-             absent_days = EXCLUDED.absent_days,
-             leave_days = EXCLUDED.leave_days,
-             updated_at = CURRENT_TIMESTAMP`,
-          [employee_id, monthStr, totalDays, Math.round(presentDays), absentDays, leaveDays]
+        // Use check-then-insert/update pattern to avoid ON CONFLICT constraint issues
+        const existingMonthly = await client.query(
+          `SELECT id FROM employee_attendance 
+           WHERE employee_id = $1 AND attendance_month = $2::DATE`,
+          [employee_id, monthStr]
         );
+        
+        if (existingMonthly.rows.length > 0) {
+          await client.query(
+            `UPDATE employee_attendance 
+             SET 
+               total_days = $1,
+               present_days = $2,
+               absent_days = $3,
+               leave_days = $4,
+               updated_at = CURRENT_TIMESTAMP
+             WHERE employee_id = $5 AND attendance_month = $6::DATE`,
+            [totalDays, Math.round(presentDays), absentDays, leaveDays, employee_id, monthStr]
+          );
+        } else {
+          await client.query(
+            `INSERT INTO employee_attendance 
+             (employee_id, attendance_month, total_days, present_days, absent_days, leave_days)
+             VALUES ($1, $2::DATE, $3, $4, $5, $6)`,
+            [employee_id, monthStr, totalDays, Math.round(presentDays), absentDays, leaveDays]
+          );
+        }
       }
 
       await client.query('COMMIT');
