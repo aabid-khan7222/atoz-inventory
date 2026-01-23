@@ -1034,4 +1034,45 @@ router.get("/test-email", async (req, res) => {
   }
 });
 
+// ------------------------------------------------------
+// POST /api/auth/test-email-send (Development only)
+//  - Actually send a test email to verify SMTP works
+// ------------------------------------------------------
+router.post("/test-email-send", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({ error: "This endpoint is only available in development" });
+  }
+
+  try {
+    const { testEmail } = req.body;
+    
+    if (!testEmail) {
+      return res.status(400).json({ error: "testEmail is required in request body" });
+    }
+
+    // Generate test OTP
+    const testOTP = generateOTP();
+    
+    console.log('Attempting to send test email to:', testEmail);
+    
+    // Try to send email
+    await sendOTPEmail(testEmail, testOTP, "signup");
+    
+    return res.json({
+      success: true,
+      message: "Test email sent successfully!",
+      testEmail: testEmail,
+      testOTP: testOTP,
+      note: "Check your email inbox for the OTP",
+    });
+  } catch (err) {
+    console.error("Test email send error:", err);
+    return res.status(500).json({
+      error: "Failed to send test email",
+      message: err.message,
+      details: process.env.NODE_ENV === "development" ? err.stack : undefined,
+    });
+  }
+});
+
 module.exports = router;
