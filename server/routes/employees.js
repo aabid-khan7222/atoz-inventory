@@ -192,11 +192,12 @@ router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req
     monthDate.setDate(1);
     const monthStr = monthDate.toISOString().split('T')[0];
 
-    const present = present_days || 0;
-    const half = half_days || 0;
-    const absent = absent_days || 0;
-    const leave = leave_days || 0;
-    const total = total_days || (present + half + absent + leave);
+    // Convert to integers to avoid string concatenation issues
+    const present = parseInt(present_days) || 0;
+    const half = parseInt(half_days) || 0;
+    const absent = parseInt(absent_days) || 0;
+    const leave = parseInt(leave_days) || 0;
+    const total = parseInt(total_days) || (present + half + absent + leave);
 
     const { rows } = await db.query(
       `INSERT INTO employee_attendance 
@@ -219,8 +220,8 @@ router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req
     await db.query(
       `INSERT INTO employee_history (employee_id, history_type, description, created_by)
        VALUES ($1, 'attendance', 
-       CONCAT('Attendance updated for ', TO_CHAR($2::date, 'Month YYYY'), ': ', $3, ' present, ', $4, ' absent, ', $5, ' leave'), $6)`,
-      [id, monthStr, present, absent, leave, req.user.id]
+       CONCAT('Attendance updated for ', TO_CHAR($2::date, 'Month YYYY'), ': ', $3, ' present, ', $4, ' half day, ', $5, ' absent, ', $6, ' leave'), $7)`,
+      [id, monthStr, present, half, absent, leave, req.user.id]
     );
 
     res.json(rows[0]);
