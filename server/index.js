@@ -5,38 +5,28 @@ require("dotenv").config();
 console.log('\n📧 Email Configuration Check:');
 const emailUser = (process.env.GMAIL_USER || process.env.EMAIL_USER)?.trim();
 const emailPassword = (process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASSWORD)?.replace(/\s/g, '').trim();
-const resendApiKey = process.env.RESEND_API_KEY?.trim();
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Check Resend API Key (REQUIRED for production on Render free tier)
-if (isProduction) {
-  if (resendApiKey) {
-    console.log('✅ Resend API Key: SET (will use Resend API for emails)');
-    console.log('   Key starts with:', resendApiKey.substring(0, 5) + '...');
-  } else {
-    console.error('❌ RESEND_API_KEY: NOT SET (REQUIRED for production!)');
-    console.error('   ⚠️  Render free tier blocks SMTP ports. Gmail SMTP will timeout!');
-    console.error('   📝 Get free API key from: https://resend.com/api-keys');
-    console.error('   📝 Add to Render environment variables: RESEND_API_KEY=re_...');
-  }
-}
-
-// Check Gmail SMTP (optional, for localhost or fallback)
 if (emailUser && emailPassword) {
   console.log('✅ Gmail SMTP configuration found:');
   console.log('   User:', emailUser);
   console.log('   Password length:', emailPassword.length, 'characters');
   if (emailPassword.length !== 16) {
-    console.warn('⚠️  Warning: Gmail App Password should be 16 characters');
+    console.warn('⚠️  Warning: Gmail App Password should be 16 characters. Current length:', emailPassword.length);
+    console.warn('   Make sure there are NO SPACES in GMAIL_APP_PASSWORD');
   }
-  if (isProduction && !resendApiKey) {
-    console.warn('⚠️  WARNING: Using Gmail SMTP in production will fail on Render free tier!');
+  if (isProduction) {
+    console.warn('⚠️  NOTE: Render free tier blocks SMTP ports (25, 465, 587)');
+    console.warn('   Gmail SMTP may timeout on Render free tier. Consider:');
+    console.warn('   - Upgrading to Render paid plan, OR');
+    console.warn('   - Using a VPS (DigitalOcean, AWS EC2, etc.)');
   }
 } else {
-  console.log('ℹ️  Gmail SMTP: Not configured (optional)');
-  if (!isProduction) {
-    console.warn('⚠️  Warning: No email configuration found. Set GMAIL_USER and GMAIL_APP_PASSWORD for localhost.');
-  }
+  console.error('❌ Gmail SMTP configuration missing:');
+  console.error('   GMAIL_USER:', emailUser ? 'SET' : 'NOT SET');
+  console.error('   GMAIL_APP_PASSWORD:', emailPassword ? 'SET' : 'NOT SET');
+  console.error('   Please set GMAIL_USER and GMAIL_APP_PASSWORD in environment variables');
+  console.error('   Get App Password from: https://myaccount.google.com/apppasswords');
 }
 console.log('');
 
