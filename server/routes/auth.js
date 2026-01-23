@@ -554,17 +554,10 @@ router.post("/signup/send-otp", async (req, res) => {
       attempts: 0,
     });
 
-    // Send OTP email with timeout wrapper
+    // Send OTP email
     try {
       console.log(`[Signup] Attempting to send OTP to: ${trimmedEmail}`);
-      const emailPromise = sendOTPEmail(trimmedEmail, otp, "signup");
-      
-      // Add timeout wrapper (30 seconds max)
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Email sending timeout after 30 seconds')), 30000)
-      );
-      
-      await Promise.race([emailPromise, timeoutPromise]);
+      await sendOTPEmail(trimmedEmail, otp, "signup");
       console.log(`[Signup] OTP sent successfully to: ${trimmedEmail}`);
       return res.json({ success: true, message: "OTP sent to email" });
     } catch (emailError) {
@@ -572,16 +565,8 @@ router.post("/signup/send-otp", async (req, res) => {
       console.error("[Signup] Email error stack:", emailError.stack);
       otpStore.delete(`signup:${trimmedEmail}`);
       
-      // Return user-friendly error message
-      let errorMessage = "Failed to send OTP email. Please try again.";
-      if (emailError.message && emailError.message.includes('timeout')) {
-        errorMessage = "Email sending is taking too long. Please try again in a moment.";
-      } else if (emailError.message) {
-        errorMessage = emailError.message;
-      }
-      
       return res.status(500).json({
-        error: errorMessage,
+        error: emailError.message || "Failed to send OTP email. Please try again.",
         details: process.env.NODE_ENV === "development" ? emailError.stack : undefined,
       });
     }
@@ -905,16 +890,20 @@ router.post("/forgot-password/send-otp", async (req, res) => {
 
     // Send OTP email
     try {
+      console.log(`[Forgot Password] Attempting to send OTP to: ${trimmedEmail}`);
       await sendOTPEmail(trimmedEmail, otp, "forgot-password");
+      console.log(`[Forgot Password] OTP sent successfully to: ${trimmedEmail}`);
       return res.json({
         success: true,
         message: "If email exists, OTP has been sent",
       });
     } catch (emailError) {
-      console.error("Error sending OTP email:", emailError);
+      console.error("[Forgot Password] Error sending OTP email:", emailError);
+      console.error("[Forgot Password] Email error stack:", emailError.stack);
       otpStore.delete(`forgot-password:${trimmedEmail}`);
       return res.status(500).json({
-        error: "Failed to send OTP email. Please check email configuration.",
+        error: emailError.message || "Failed to send OTP email. Please check email configuration.",
+        details: process.env.NODE_ENV === "development" ? emailError.stack : undefined,
       });
     }
   } catch (err) {
@@ -1047,39 +1036,52 @@ router.get("/test-email", async (req, res) => {
 });
 
 // ------------------------------------------------------
-// POST /api/auth/test-email-send (Development only)
-//  - Actually send a test email to verify SMTP works
+// GET /api/auth/test-email?to=email@example.com
+//  - Test email sending endpoint (works in all environments)
 // ------------------------------------------------------
-router.post("/test-email-send", async (req, res) => {
-  if (process.env.NODE_ENV === "production") {
-    return res.status(403).json({ error: "This endpoint is only available in development" });
-  }
-
+router.get("/test-email", async (req, res) => {
   try {
-    const { testEmail } = req.body;
+    const { to } = req.query;
     
-    if (!testEmail) {
-      return res.status(400).json({ error: "testEmail is required in request body" });
+    if (!to) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: "Email address required. Use: /api/auth/test-email?to=your@email.com" 
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(to.trim())) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: "Invalid email format" 
+      });
     }
 
     // Generate test OTP
     const testOTP = generateOTP();
     
-    console.log('Attempting to send test email to:', testEmail);
+    console.log('🧪 [TEST] Attempting to send test email to:', to);
     
     // Try to send email
-    await sendOTPEmail(testEmail, testOTP, "signup");
+    const result = await sendOTPEmail(to.trim(), testOTP, "verification");
+    
+    console.log('✅ [TEST] Test email sent successfully!');
     
     return res.json({
+      ok: true,
       success: true,
       message: "Test email sent successfully!",
-      testEmail: testEmail,
+      testEmail: to,
       testOTP: testOTP,
+      messageId: result.messageId,
       note: "Check your email inbox for the OTP",
     });
   } catch (err) {
-    console.error("Test email send error:", err);
+    console.error("❌ [TEST] Test email send error:", err);
     return res.status(500).json({
+      ok: false,
       error: "Failed to send test email",
       message: err.message,
       details: process.env.NODE_ENV === "development" ? err.stack : undefined,

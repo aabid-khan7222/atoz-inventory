@@ -1,122 +1,150 @@
 // server/utils/emailService.js
+// Gmail SMTP Email Service - Production Ready
 const nodemailer = require('nodemailer');
-const https = require('https');
 
-// Send email using Resend API (works on Render free tier - no SMTP port blocking)
-const sendEmailViaResend = async (to, subject, htmlContent, fromEmail) => {
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  
-  if (!RESEND_API_KEY) {
-    throw new Error('RESEND_API_KEY not configured. Please set it in environment variables.');
+// ============================================
+// CONFIGURATION VALIDATION
+// ============================================
+const GMAIL_USER = (process.env.GMAIL_USER || process.env.EMAIL_USER)?.trim();
+const GMAIL_APP_PASSWORD = (process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASSWORD)?.replace(/\s/g, '').trim();
+
+if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+  console.error('❌ EMAIL CONFIGURATION ERROR:');
+  console.error('   GMAIL_USER:', GMAIL_USER ? 'SET' : 'NOT SET');
+  console.error('   GMAIL_APP_PASSWORD:', GMAIL_APP_PASSWORD ? 'SET' : 'NOT SET');
+  console.error('   Please set GMAIL_USER and GMAIL_APP_PASSWORD in environment variables');
+}
+
+// Validate App Password format (should be 16 characters, no spaces)
+if (GMAIL_APP_PASSWORD && GMAIL_APP_PASSWORD.length !== 16) {
+  console.warn('⚠️  WARNING: Gmail App Password should be 16 characters');
+  console.warn('   Current length:', GMAIL_APP_PASSWORD.length);
+  console.warn('   Make sure there are NO SPACES in the password');
+}
+
+// ============================================
+// CREATE TRANSPORTER (Singleton Pattern)
+// ============================================
+let transporter = null;
+
+function createTransporter() {
+  // Return existing transporter if already created
+  if (transporter) {
+    return transporter;
   }
 
-  // Resend free tier allows sending to any email, but "from" must be verified domain
-  // Using Resend's default domain (no verification needed)
-  const data = JSON.stringify({
-    from: 'AtoZ Inventory <onboarding@resend.dev>',
-    to: [to],
-    subject: subject,
-    html: htmlContent,
-  });
-
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'api.resend.com',
-      port: 443,
-      path: '/emails',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Length': data.length,
-      },
-      timeout: 15000, // 15 seconds timeout (increased for reliability)
-    };
-
-    const req = https.request(options, (res) => {
-      let responseData = '';
-
-      res.on('data', (chunk) => {
-        responseData += chunk;
-      });
-
-      res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          const result = JSON.parse(responseData);
-          console.log('✅ Email sent via Resend:', result.id);
-          resolve({ success: true, messageId: result.id });
-        } else {
-          const error = JSON.parse(responseData);
-          console.error('❌ Resend API error:', error);
-          reject(new Error(error.message || 'Failed to send email via Resend'));
-        }
-      });
-    });
-
-    req.on('error', (error) => {
-      console.error('❌ Resend request error:', error);
-      reject(new Error(`Network error: ${error.message}`));
-    });
-
-    req.on('timeout', () => {
-      req.destroy();
-      reject(new Error('Resend API request timeout'));
-    });
-
-    req.write(data);
-    req.end();
-  });
-};
-
-// Create reusable transporter object using Gmail SMTP (fallback for localhost/paid plans)
-const createTransporter = () => {
-  const emailUser = (process.env.GMAIL_USER || process.env.EMAIL_USER)?.trim();
-  const emailPassword = (process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASSWORD)?.replace(/\s/g, '').trim();
-
-  if (!emailUser || !emailPassword) {
-    throw new Error('Gmail configuration not found');
+  // Validate configuration
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+    throw new Error('Gmail configuration missing. Please set GMAIL_USER and GMAIL_APP_PASSWORD environment variables.');
   }
 
-  console.log('Email service configured with user:', emailUser);
+  console.log('📧 Creating Gmail SMTP transporter...');
+  console.log('   User:', GMAIL_USER);
+  console.log('   Password length:', GMAIL_APP_PASSWORD.length, 'characters');
+  console.log('   Environment:', process.env.NODE_ENV || 'development');
 
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
+  // Production: Use explicit SMTP settings (better for cloud servers)
+  // Development: Use service shortcut
   if (isProduction) {
-    return nodemailer.createTransport({
+    transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 465,
-      secure: true,
+      secure: true, // true for 465, false for other ports
       auth: {
-        user: emailUser,
-        pass: emailPassword,
+        user: GMAIL_USER,
+        pass: GMAIL_APP_PASSWORD,
       },
-      connectionTimeout: 10000, // 10 seconds
-      socketTimeout: 10000,
-      greetingTimeout: 5000,
+      // Timeout settings for production (cloud servers may have latency)
+      connectionTimeout: 30000, // 30 seconds
+      socketTimeout: 30000, // 30 seconds
+      greetingTimeout: 10000, // 10 seconds
+      // Additional options for cloud servers
+      tls: {
+        rejectUnauthorized: false, // Some cloud providers need this
+      },
     });
+    console.log('✅ Gmail SMTP transporter created (Production mode)');
   } else {
-    return nodemailer.createTransport({
+    transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: emailUser,
-        pass: emailPassword,
+        user: GMAIL_USER,
+        pass: GMAIL_APP_PASSWORD,
       },
-      connectionTimeout: 10000,
-      socketTimeout: 10000,
-      greetingTimeout: 5000,
+      connectionTimeout: 20000, // 20 seconds
+      socketTimeout: 20000,
+      greetingTimeout: 10000,
     });
+    console.log('✅ Gmail SMTP transporter created (Development mode)');
   }
-};
 
-// Generate 6-digit OTP
-const generateOTP = () => {
+  // Verify transporter connection (optional, but recommended)
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error('❌ Gmail SMTP transporter verification failed:', error.message);
+      console.error('   Check your GMAIL_USER and GMAIL_APP_PASSWORD');
+      console.error('   Make sure 2-Step Verification is enabled and App Password is correct');
+    } else {
+      console.log('✅ Gmail SMTP transporter verified successfully');
+    }
+  });
+
+  return transporter;
+}
+
+// ============================================
+// GENERATE OTP
+// ============================================
+function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
-};
+}
 
-// Send OTP email - Uses Resend API (works on Render free tier) with Gmail SMTP fallback
-const sendOTPEmail = async (email, otp, purpose = 'verification') => {
+// ============================================
+// SEND OTP EMAIL
+// ============================================
+/**
+ * Send OTP email to user
+ * @param {string} toEmail - Recipient email address
+ * @param {string} otp - 6-digit OTP code
+ * @param {string} purpose - 'signup' | 'forgot-password' | 'verification'
+ * @returns {Promise<Object>} - { success: true, messageId: string }
+ */
+async function sendOTPEmail(toEmail, otp, purpose = 'verification') {
+  // Input validation
+  if (!toEmail || typeof toEmail !== 'string') {
+    throw new Error('Invalid email address: toEmail is required and must be a string');
+  }
+
+  const trimmedEmail = toEmail.trim().toLowerCase();
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(trimmedEmail)) {
+    throw new Error(`Invalid email format: ${trimmedEmail}`);
+  }
+
+  if (!otp || otp.length !== 6) {
+    throw new Error('Invalid OTP: must be 6 digits');
+  }
+
+  // Validate configuration
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+    throw new Error('Email configuration missing. Please set GMAIL_USER and GMAIL_APP_PASSWORD environment variables.');
+  }
+
+  console.log(`📧 [${purpose.toUpperCase()}] Attempting to send OTP email...`);
+  console.log('   To:', trimmedEmail);
+  console.log('   OTP:', otp);
+  console.log('   Environment:', process.env.NODE_ENV || 'development');
+
+  // Create transporter
+  const emailTransporter = createTransporter();
+
+  // Email content based on purpose
   let subject, htmlContent;
-  
+
   if (purpose === 'signup') {
     subject = 'Verify Your Email - AtoZ Inventory';
     htmlContent = `
@@ -159,64 +187,51 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
     `;
   }
 
-  // Use Resend's default domain (no verification needed)
-  // Can't use Gmail address directly - requires domain verification
-  const fromEmail = 'AtoZ Inventory <onboarding@resend.dev>';
+  // Mail options
+  const mailOptions = {
+    from: `"AtoZ Inventory" <${GMAIL_USER}>`,
+    to: trimmedEmail,
+    subject: subject,
+    html: htmlContent,
+  };
 
-  console.log('📧 Attempting to send email to:', email);
-  console.log('📧 Environment:', process.env.NODE_ENV || 'development');
-  console.log('📧 RESEND_API_KEY:', process.env.RESEND_API_KEY ? 'SET' : 'NOT SET');
-
-  // Strategy: Try Resend API first (works on Render free tier), fallback to Gmail SMTP
-  const resendApiKey = process.env.RESEND_API_KEY?.trim();
-  
-  if (resendApiKey) {
-    try {
-      console.log('📧 Using Resend API (works on Render free tier)...');
-      return await sendEmailViaResend(email, subject, htmlContent, fromEmail);
-    } catch (resendError) {
-      console.error('❌ Resend API failed:', resendError.message);
-      console.error('❌ Trying Gmail SMTP fallback...');
-      // Fall through to Gmail SMTP
-    }
-  } else {
-    console.warn('⚠️  RESEND_API_KEY not set. Using Gmail SMTP (may timeout on Render free tier)...');
-  }
-
-  // Fallback to Gmail SMTP (works on localhost and paid Render plans)
   try {
-    console.log('📧 Using Gmail SMTP (fallback)...');
-    const transporter = createTransporter();
-    const gmailUser = (process.env.GMAIL_USER || process.env.EMAIL_USER)?.trim();
+    console.log('📧 Sending email via Gmail SMTP...');
+    const info = await emailTransporter.sendMail(mailOptions);
     
-    if (!gmailUser) {
-      throw new Error('Gmail user not configured for fallback');
-    }
+    console.log('✅ Email sent successfully!');
+    console.log('   Message ID:', info.messageId);
+    console.log('   Response:', info.response);
     
-    const mailOptions = {
-      from: gmailUser,
-      to: email,
-      subject: subject,
-      html: htmlContent,
+    return {
+      success: true,
+      messageId: info.messageId,
+      response: info.response,
     };
+  } catch (error) {
+    console.error('❌ EMAIL SEND ERROR:');
+    console.error('   Error code:', error.code);
+    console.error('   Error message:', error.message);
+    console.error('   Command:', error.command);
+    console.error('   Response:', error.response);
+    console.error('   Full error:', error);
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully via Gmail SMTP:', info.messageId);
-    return { success: true, messageId: info.messageId };
-  } catch (gmailError) {
-    console.error('❌ Gmail SMTP also failed:', gmailError.message);
-    
-    // Provide helpful error message
-    if (process.env.NODE_ENV === 'production' && !process.env.RESEND_API_KEY) {
-      throw new Error('Email sending failed. Please configure RESEND_API_KEY for production. Render free tier blocks SMTP ports. Get free API key from: https://resend.com/api-keys');
-    } else if (gmailError.code === 'ETIMEDOUT' || gmailError.code === 'ECONNECTION') {
-      throw new Error('Connection timeout. Render free tier blocks SMTP ports. Please configure RESEND_API_KEY. Get free API key from: https://resend.com/api-keys');
+    // Provide specific error messages
+    if (error.code === 'EAUTH') {
+      throw new Error('Gmail authentication failed. Please check GMAIL_USER and GMAIL_APP_PASSWORD. Make sure 2-Step Verification is enabled and App Password is correct.');
+    } else if (error.code === 'ECONNECTION' || error.code === 'ETIMEDOUT') {
+      throw new Error('Connection timeout. This may happen on Render free tier (SMTP ports blocked). Consider upgrading to paid plan or using a VPS. Error: ' + error.message);
+    } else if (error.code === 'EENVELOPE') {
+      throw new Error('Invalid email address: ' + error.message);
     } else {
-      throw new Error(`Failed to send email: ${gmailError.message}`);
+      throw new Error(`Failed to send email: ${error.message}`);
     }
   }
-};
+}
 
+// ============================================
+// EXPORTS
+// ============================================
 module.exports = {
   generateOTP,
   sendOTPEmail,
