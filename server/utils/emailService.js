@@ -32,6 +32,14 @@ const createTransporter = () => {
       user: emailUser,
       pass: emailPassword,
     },
+    // Increase timeout settings to prevent connection timeout
+    connectionTimeout: 60000, // 60 seconds
+    socketTimeout: 60000, // 60 seconds
+    greetingTimeout: 30000, // 30 seconds
+    // Retry configuration
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 3,
   });
 };
 
@@ -99,10 +107,21 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
     };
 
     console.log('Attempting to send email to:', email);
+    console.log('Email service: Starting SMTP connection...');
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent successfully:', info.messageId);
-    console.log('Email sent to:', email);
+    // Add timeout wrapper for email sending
+    const sendEmailWithTimeout = (transporter, mailOptions, timeout = 30000) => {
+      return Promise.race([
+        transporter.sendMail(mailOptions),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Email send timeout after 30 seconds')), timeout)
+        )
+      ]);
+    };
+
+    const info = await sendEmailWithTimeout(transporter, mailOptions, 30000);
+    console.log('✅ Email sent successfully:', info.messageId);
+    console.log('✅ Email sent to:', email);
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('Error sending email:', error);
@@ -114,10 +133,12 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
     });
 
     // Provide more specific error messages
-    if (error.code === 'EAUTH') {
+    if (error.message && error.message.includes('timeout')) {
+      throw new Error('Connection timeout. Please check your internet connection and try again. If the problem persists, the email server may be temporarily unavailable.');
+    } else if (error.code === 'EAUTH') {
       throw new Error('Email authentication failed. Please check GMAIL_USER and GMAIL_APP_PASSWORD.');
-    } else if (error.code === 'ECONNECTION') {
-      throw new Error('Failed to connect to email server. Please check your internet connection.');
+    } else if (error.code === 'ECONNECTION' || error.code === 'ETIMEDOUT') {
+      throw new Error('Failed to connect to email server. Please check your internet connection and firewall settings.');
     } else if (!process.env.GMAIL_USER && !process.env.EMAIL_USER) {
       throw new Error('Email configuration not found. Please set GMAIL_USER and GMAIL_APP_PASSWORD environment variables.');
     } else {
