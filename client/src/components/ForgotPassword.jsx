@@ -106,6 +106,13 @@ const ForgotPassword = () => {
     return (
       <div className="forgot-password-container">
         <div className="forgot-password-card">
+          <button 
+            className="close-button" 
+            onClick={() => navigate('/login')}
+            title="Close"
+          >
+            ×
+          </button>
           <div className="forgot-password-header">
             <h1 className="forgot-password-title">Reset Password</h1>
             <p className="forgot-password-subtitle">
@@ -205,6 +212,13 @@ const ForgotPassword = () => {
   return (
     <div className="forgot-password-container">
       <div className="forgot-password-card">
+        <button 
+          className="close-button" 
+          onClick={() => navigate('/login')}
+          title="Close"
+        >
+          ×
+        </button>
         <div className="forgot-password-header">
           <h1 className="forgot-password-title">Forgot Password</h1>
           <p className="forgot-password-subtitle">

@@ -153,6 +153,13 @@ const Signup = () => {
     return (
       <div className="signup-container">
         <div className="signup-card">
+          <button 
+            className="close-button" 
+            onClick={() => navigate('/login')}
+            title="Close"
+          >
+            ×
+          </button>
           <div className="signup-header">
             <h1 className="signup-title">Verify Email</h1>
             <p className="signup-subtitle">Enter the OTP sent to {formData.email}</p>
@@ -196,6 +203,13 @@ const Signup = () => {
   return (
     <div className="signup-container">
       <div className="signup-card">
+        <button 
+          className="close-button" 
+          onClick={() => navigate('/login')}
+          title="Close"
+        >
+          ×
+        </button>
         <div className="signup-header">
           <h1 className="signup-title">Create Account</h1>
           <p className="signup-subtitle">Sign up to get started</p>
