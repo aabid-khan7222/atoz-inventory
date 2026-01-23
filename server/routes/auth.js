@@ -703,12 +703,12 @@ router.post("/signup/verify-otp", async (req, res) => {
     client = await db.pool.connect();
     await client.query("BEGIN");
 
-    // Insert into users table
+    // Insert into users table (GST details NOT in users table, only in customer_profiles)
     const userResult = await client.query(
       `INSERT INTO users (
         full_name, email, phone, password, role_id, is_active,
-        state, city, address, gst_number, company_name, company_address
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        state, city, address
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id, full_name, email, phone, role_id`,
       [
         full_name.trim(),
@@ -720,9 +720,6 @@ router.post("/signup/verify-otp", async (req, res) => {
         state.trim(),
         city.trim(),
         address.trim(),
-        hasGstBool ? gst_number.trim() : null,
-        hasGstBool ? company_name.trim() : null,
-        hasGstBool ? company_address.trim() : null,
       ]
     );
 
