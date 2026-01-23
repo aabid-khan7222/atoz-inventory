@@ -8,6 +8,9 @@ import api from '../api';
 
 
 const DashboardHeader = ({ onMenuToggle, isSidebarOpen }) => {
+  // NOTE: isSidebarOpen prop is received but currently unused.
+  // It's kept for potential future use (e.g., showing sidebar state in header).
+  // If you need to display sidebar state in the header, uncomment and use this prop.
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [showMenu, setShowMenu] = useState(false);
