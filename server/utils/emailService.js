@@ -157,8 +157,9 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
     `;
   }
 
-  const emailUser = (process.env.GMAIL_USER || process.env.EMAIL_USER)?.trim();
-  const fromEmail = emailUser ? `${emailUser.split('@')[0]} <${emailUser}>` : 'AtoZ Inventory <noreply@resend.dev>';
+  // Use Resend's default domain (no verification needed)
+  // Can't use Gmail address directly - requires domain verification
+  const fromEmail = 'AtoZ Inventory <onboarding@resend.dev>';
 
   console.log('📧 Attempting to send email to:', email);
   console.log('📧 Environment:', process.env.NODE_ENV || 'development');
