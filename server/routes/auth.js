@@ -560,9 +560,14 @@ router.post("/signup/send-otp", async (req, res) => {
       return res.json({ success: true, message: "OTP sent to email" });
     } catch (emailError) {
       console.error("Error sending OTP email:", emailError);
+      console.error("Email error stack:", emailError.stack);
       otpStore.delete(`signup:${trimmedEmail}`);
+      
+      // Return the actual error message for better debugging
+      const errorMessage = emailError.message || "Failed to send OTP email. Please check email configuration.";
       return res.status(500).json({
-        error: "Failed to send OTP email. Please check email configuration.",
+        error: errorMessage,
+        details: process.env.NODE_ENV === "development" ? emailError.stack : undefined,
       });
     }
   } catch (err) {
@@ -995,6 +1000,36 @@ router.post("/forgot-password/verify-otp", async (req, res) => {
     return res.status(500).json({
       error: "Internal server error",
       details: process.env.NODE_ENV === "production" ? undefined : err.message,
+    });
+  }
+});
+
+// ------------------------------------------------------
+// GET /api/auth/test-email (Development only)
+//  - Test email configuration
+// ------------------------------------------------------
+router.get("/test-email", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({ error: "This endpoint is only available in development" });
+  }
+
+  try {
+    const emailUser = (process.env.GMAIL_USER || process.env.EMAIL_USER)?.trim();
+    const emailPassword = (process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASSWORD)?.replace(/\s/g, '').trim();
+
+    return res.json({
+      emailConfigured: !!(emailUser && emailPassword),
+      emailUser: emailUser || "NOT SET",
+      emailPasswordLength: emailPassword ? emailPassword.length : 0,
+      emailPasswordSet: !!emailPassword,
+      message: emailUser && emailPassword 
+        ? "Email configuration found. Try sending an OTP to test." 
+        : "Email configuration missing. Please set GMAIL_USER and GMAIL_APP_PASSWORD.",
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: "Error checking email configuration",
+      details: err.message,
     });
   }
 });
