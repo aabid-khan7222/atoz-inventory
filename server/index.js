@@ -1,6 +1,26 @@
 // index.js
 require("dotenv").config();
 
+// Check email configuration on startup
+console.log('\n📧 Email Configuration Check:');
+const emailUser = (process.env.GMAIL_USER || process.env.EMAIL_USER)?.trim();
+const emailPassword = (process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASSWORD)?.replace(/\s/g, '').trim();
+
+if (emailUser && emailPassword) {
+  console.log('✅ Email configuration found:');
+  console.log('   User:', emailUser);
+  console.log('   Password length:', emailPassword.length, 'characters');
+  if (emailPassword.length !== 16) {
+    console.warn('⚠️  Warning: Gmail App Password should be 16 characters');
+  }
+} else {
+  console.error('❌ Email configuration missing:');
+  console.error('   GMAIL_USER:', emailUser ? 'Set' : 'NOT SET');
+  console.error('   GMAIL_APP_PASSWORD:', emailPassword ? 'Set' : 'NOT SET');
+  console.error('   Please set GMAIL_USER and GMAIL_APP_PASSWORD in .env file');
+}
+console.log('');
+
 const express = require("express");
 const cors = require("cors");
 
