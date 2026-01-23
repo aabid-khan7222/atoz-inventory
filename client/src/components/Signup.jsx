@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { sendSignupOTP, verifySignupOTP } from '../api';
+import { createSignup } from '../api';
 import Swal from 'sweetalert2';
 import './Signup.css';
 
 const Signup = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1); // 1: form, 2: OTP verification
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
@@ -23,7 +22,6 @@ const Signup = () => {
     password: '',
     confirm_password: '',
   });
-  const [otp, setOtp] = useState('');
   const [errors, setErrors] = useState({});
 
   const handleInputChange = (e) => {
@@ -73,7 +71,7 @@ const Signup = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSendOTP = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -88,52 +86,23 @@ const Signup = () => {
 
     setLoading(true);
     try {
-      await sendSignupOTP(formData.email);
-      setStep(2);
-      await Swal.fire({
-        icon: 'success',
-        title: 'OTP Sent!',
-        text: 'Please check your email for the verification code',
-        confirmButtonColor: '#e60000',
-      });
-    } catch (error) {
-      await Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: error.message || 'Failed to send OTP. Please try again.',
-        confirmButtonColor: '#e60000',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async (e) => {
-    e.preventDefault();
-
-    if (!otp || otp.length !== 6) {
-      await Swal.fire({
-        icon: 'error',
-        title: 'Invalid OTP',
-        text: 'Please enter a valid 6-digit OTP',
-        confirmButtonColor: '#e60000',
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const result = await verifySignupOTP({
-        ...formData,
-        otp,
-      });
+      const result = await createSignup(formData);
 
       if (result.success) {
         await Swal.fire({
           icon: 'success',
-          title: 'Account Created!',
-          text: 'Your account has been created successfully. Please login.',
+          title: '🎉 Congratulations!',
+          html: `
+            <div style="text-align: center;">
+              <h3 style="color: #e60000; margin-bottom: 15px;">Your Account Has Been Created Successfully!</h3>
+              <p style="font-size: 16px; margin-bottom: 10px;">Welcome to <strong>AtoZ Inventory</strong></p>
+              <p style="font-size: 14px; color: #666;">You can now login and start managing your inventory.</p>
+            </div>
+          `,
           confirmButtonColor: '#e60000',
+          confirmButtonText: 'Go to Login',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
         });
         navigate('/login');
       }
@@ -148,58 +117,6 @@ const Signup = () => {
       setLoading(false);
     }
   };
-
-  if (step === 2) {
-    return (
-      <div className="signup-container">
-        <div className="signup-card">
-          <button 
-            className="close-button" 
-            onClick={() => navigate('/login')}
-            title="Close"
-          >
-            ×
-          </button>
-          <div className="signup-header">
-            <h1 className="signup-title">Verify Email</h1>
-            <p className="signup-subtitle">Enter the OTP sent to your registered email ID</p>
-            <p className="signup-email-display">{formData.email}</p>
-          </div>
-
-          <form onSubmit={handleVerifyOTP} className="signup-form">
-            <div className="form-group">
-              <label htmlFor="otp">Enter OTP</label>
-              <input
-                type="text"
-                id="otp"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="Enter 6-digit OTP"
-                maxLength="6"
-                required
-                autoFocus
-                className={errors.otp ? 'error' : ''}
-              />
-              {errors.otp && <span className="error-text">{errors.otp}</span>}
-            </div>
-
-            <button type="submit" className="signup-button" disabled={loading}>
-              {loading ? 'Verifying...' : 'Verify & Create Account'}
-            </button>
-
-            <button
-              type="button"
-              className="back-button"
-              onClick={() => setStep(1)}
-              disabled={loading}
-            >
-              Back to Form
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="signup-container">
@@ -216,7 +133,7 @@ const Signup = () => {
           <p className="signup-subtitle">Sign up to get started</p>
         </div>
 
-        <form onSubmit={handleSendOTP} className="signup-form">
+        <form onSubmit={handleSubmit} className="signup-form">
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="full_name">Full Name *</label>
@@ -421,7 +338,7 @@ const Signup = () => {
           </div>
 
           <button type="submit" className="signup-button" disabled={loading}>
-            {loading ? 'Sending OTP...' : 'Send OTP & Continue'}
+            {loading ? 'Creating Account...' : 'Create Account'}
           </button>
 
           <div className="signup-footer">

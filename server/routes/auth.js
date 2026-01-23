@@ -514,81 +514,14 @@ setInterval(() => {
 }, 10 * 60 * 1000);
 
 // ------------------------------------------------------
-// POST /api/auth/signup/send-otp
-//  - Send OTP to email for signup verification
+// POST /api/auth/signup/create
+//  - Create user account directly (no OTP verification)
 // ------------------------------------------------------
-router.post("/signup/send-otp", async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
-
-    const trimmedEmail = email.trim().toLowerCase();
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      return res.status(400).json({ error: "Invalid email format" });
-    }
-
-    // Check if user already exists
-    const existingUser = await db.query(
-      "SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1",
-      [trimmedEmail]
-    );
-
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: "Email already registered" });
-    }
-
-    // Generate OTP
-    const otp = generateOTP();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    // Store OTP
-    otpStore.set(`signup:${trimmedEmail}`, {
-      otp,
-      expiresAt,
-      attempts: 0,
-    });
-
-    // Send OTP email
-    try {
-      console.log(`[Signup] Attempting to send OTP to: ${trimmedEmail}`);
-      await sendOTPEmail(trimmedEmail, otp, "signup");
-      console.log(`[Signup] OTP sent successfully to: ${trimmedEmail}`);
-      return res.json({ success: true, message: "OTP sent to email" });
-    } catch (emailError) {
-      console.error("[Signup] Error sending OTP email:", emailError);
-      console.error("[Signup] Email error stack:", emailError.stack);
-      otpStore.delete(`signup:${trimmedEmail}`);
-      
-      return res.status(500).json({
-        error: emailError.message || "Failed to send OTP email. Please try again.",
-        details: process.env.NODE_ENV === "development" ? emailError.stack : undefined,
-      });
-    }
-  } catch (err) {
-    console.error("Signup send OTP error:", err);
-    return res.status(500).json({
-      error: "Internal server error",
-      details: process.env.NODE_ENV === "production" ? undefined : err.message,
-    });
-  }
-});
-
-// ------------------------------------------------------
-// POST /api/auth/signup/verify-otp
-//  - Verify OTP and create user account
-// ------------------------------------------------------
-router.post("/signup/verify-otp", async (req, res) => {
+router.post("/signup/create", async (req, res) => {
   let client;
   try {
     const {
       email,
-      otp,
       full_name,
       mobile_number,
       state,
@@ -606,7 +539,6 @@ router.post("/signup/verify-otp", async (req, res) => {
     // Validate required fields
     if (
       !email ||
-      !otp ||
       !full_name ||
       !mobile_number ||
       !state ||
@@ -619,6 +551,13 @@ router.post("/signup/verify-otp", async (req, res) => {
       return res.status(400).json({
         error: "All required fields must be provided",
       });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({ error: "Invalid email format" });
     }
 
     // Validate password match
@@ -644,33 +583,6 @@ router.post("/signup/verify-otp", async (req, res) => {
       }
     }
 
-    const trimmedEmail = email.trim().toLowerCase();
-
-    // Verify OTP
-    const otpKey = `signup:${trimmedEmail}`;
-    const storedOtpData = otpStore.get(otpKey);
-
-    if (!storedOtpData) {
-      return res.status(400).json({ error: "OTP expired or not found" });
-    }
-
-    if (storedOtpData.expiresAt < Date.now()) {
-      otpStore.delete(otpKey);
-      return res.status(400).json({ error: "OTP has expired" });
-    }
-
-    if (storedOtpData.attempts >= 5) {
-      otpStore.delete(otpKey);
-      return res.status(400).json({
-        error: "Too many failed attempts. Please request a new OTP",
-      });
-    }
-
-    if (storedOtpData.otp !== otp) {
-      storedOtpData.attempts += 1;
-      return res.status(400).json({ error: "Invalid OTP" });
-    }
-
     // Check if user already exists (only check email, mobile number can be duplicate)
     const existingUser = await db.query(
       "SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1",
@@ -678,7 +590,6 @@ router.post("/signup/verify-otp", async (req, res) => {
     );
 
     if (existingUser.rows.length > 0) {
-      otpStore.delete(otpKey);
       return res.status(400).json({
         error: "Email already registered",
       });
