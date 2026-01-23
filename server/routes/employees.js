@@ -193,11 +193,20 @@ router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req
     const monthStr = monthDate.toISOString().split('T')[0];
 
     // Convert to integers to avoid string concatenation issues
-    const present = parseInt(present_days) || 0;
-    const half = parseInt(half_days) || 0;
-    const absent = parseInt(absent_days) || 0;
-    const leave = parseInt(leave_days) || 0;
-    const total = parseInt(total_days) || (present + half + absent + leave);
+    // Use Number() and ensure no NaN values
+    const present = Number(present_days) || 0;
+    const half = Number(half_days) || 0;
+    const absent = Number(absent_days) || 0;
+    const leave = Number(leave_days) || 0;
+    const totalDaysValue = Number(total_days);
+    const total = (!isNaN(totalDaysValue) && totalDaysValue > 0) ? totalDaysValue : (present + half + absent + leave);
+    
+    // Ensure all values are valid integers (not NaN)
+    const finalTotal = Math.max(0, Math.floor(total));
+    const finalPresent = Math.max(0, Math.floor(present));
+    const finalHalf = Math.max(0, Math.floor(half));
+    const finalAbsent = Math.max(0, Math.floor(absent));
+    const finalLeave = Math.max(0, Math.floor(leave));
 
     // Use check-then-insert/update pattern to avoid ON CONFLICT constraint issues
     const existingAttendance = await db.query(
@@ -221,7 +230,7 @@ router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req
            updated_at = CURRENT_TIMESTAMP
          WHERE employee_id = $7 AND attendance_month = $8::DATE
          RETURNING *`,
-        [total, present, half, absent, leave, notes || null, id, monthStr]
+        [finalTotal, finalPresent, finalHalf, finalAbsent, finalLeave, notes || null, id, monthStr]
       );
       rows = result;
     } else {
@@ -231,7 +240,7 @@ router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req
          (employee_id, attendance_month, total_days, present_days, half_days, absent_days, leave_days, notes)
          VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [id, monthStr, total, present, half, absent, leave, notes || null]
+        [id, monthStr, finalTotal, finalPresent, finalHalf, finalAbsent, finalLeave, notes || null]
       );
       rows = result;
     }
@@ -241,7 +250,7 @@ router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req
       `INSERT INTO employee_history (employee_id, history_type, description, created_by)
        VALUES ($1, 'attendance', 
        CONCAT('Attendance updated for ', TO_CHAR($2::date, 'Month YYYY'), ': ', $3, ' present, ', $4, ' half day, ', $5, ' absent, ', $6, ' leave'), $7)`,
-      [id, monthStr, present, half, absent, leave, req.user.id]
+      [id, monthStr, finalPresent, finalHalf, finalAbsent, finalLeave, req.user.id]
     );
 
     res.json(rows[0]);
