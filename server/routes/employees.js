@@ -543,7 +543,8 @@ router.post('/daily-attendance/bulk', requireAuth, requireSuperAdminOrAdmin, asy
         );
 
         const stats = monthStats.rows[0];
-        const presentDays = parseInt(stats.present_count || 0) + parseInt(stats.half_day_count || 0) * 0.5;
+        const presentDays = parseInt(stats.present_count || 0);
+        const halfDays = parseInt(stats.half_day_count || 0);
         const absentDays = parseInt(stats.absent_count || 0);
         const leaveDays = parseInt(stats.leave_count || 0);
         const totalDays = parseInt(stats.total_count || 0);
@@ -561,18 +562,19 @@ router.post('/daily-attendance/bulk', requireAuth, requireSuperAdminOrAdmin, asy
              SET 
                total_days = $1,
                present_days = $2,
-               absent_days = $3,
-               leave_days = $4,
+               half_days = $3,
+               absent_days = $4,
+               leave_days = $5,
                updated_at = CURRENT_TIMESTAMP
-             WHERE employee_id = $5 AND attendance_month = $6::DATE`,
-            [totalDays, Math.round(presentDays), absentDays, leaveDays, employee_id, monthStr]
+             WHERE employee_id = $6 AND attendance_month = $7::DATE`,
+            [totalDays, presentDays, halfDays, absentDays, leaveDays, employee_id, monthStr]
           );
         } else {
           await client.query(
             `INSERT INTO employee_attendance 
-             (employee_id, attendance_month, total_days, present_days, absent_days, leave_days)
-             VALUES ($1, $2::DATE, $3, $4, $5, $6)`,
-            [employee_id, monthStr, totalDays, Math.round(presentDays), absentDays, leaveDays]
+             (employee_id, attendance_month, total_days, present_days, half_days, absent_days, leave_days)
+             VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)`,
+            [employee_id, monthStr, totalDays, presentDays, halfDays, absentDays, leaveDays]
           );
         }
       }
