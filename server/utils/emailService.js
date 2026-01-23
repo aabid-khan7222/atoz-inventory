@@ -78,8 +78,11 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Send OTP email
-const sendOTPEmail = async (email, otp, purpose = 'verification') => {
+// Send OTP email with retry mechanism
+const sendOTPEmail = async (email, otp, purpose = 'verification', retryCount = 0) => {
+  const maxRetries = 3;
+  const retryDelay = 2000; // 2 seconds between retries
+
   try {
     const transporter = createTransporter();
 
@@ -159,13 +162,29 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
     console.log('✅ Email sent to:', email);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error(`Error sending email (attempt ${retryCount + 1}/${maxRetries + 1}):`, error);
     console.error('Error details:', {
       code: error.code,
       command: error.command,
       response: error.response,
       responseCode: error.responseCode,
+      message: error.message,
     });
+
+    // Retry logic for timeout and connection errors
+    if (retryCount < maxRetries) {
+      const isTimeoutError = error.message && (
+        error.message.includes('timeout') || 
+        error.code === 'ETIMEDOUT' || 
+        error.code === 'ECONNECTION'
+      );
+
+      if (isTimeoutError) {
+        console.log(`⏳ Retrying email send (attempt ${retryCount + 2}/${maxRetries + 1}) after ${retryDelay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return sendOTPEmail(email, otp, purpose, retryCount + 1);
+      }
+    }
 
     // Provide more specific error messages
     if (error.message && error.message.includes('timeout')) {
