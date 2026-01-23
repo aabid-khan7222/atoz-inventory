@@ -26,21 +26,51 @@ const createTransporter = () => {
 
   console.log('Email service configured with user:', emailUser);
 
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: emailUser,
-      pass: emailPassword,
-    },
-    // Increase timeout settings to prevent connection timeout
-    connectionTimeout: 60000, // 60 seconds
-    socketTimeout: 60000, // 60 seconds
-    greetingTimeout: 30000, // 30 seconds
-    // Retry configuration
-    pool: true,
-    maxConnections: 1,
-    maxMessages: 3,
-  });
+  // Production servers (Render/Heroku) often have network restrictions
+  // Use explicit SMTP configuration instead of 'service: gmail'
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  if (isProduction) {
+    // Explicit SMTP configuration for production (better for cloud servers)
+    return nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true, // true for 465, false for other ports
+      auth: {
+        user: emailUser,
+        pass: emailPassword,
+      },
+      // Increased timeouts for production network latency
+      connectionTimeout: 90000, // 90 seconds
+      socketTimeout: 90000, // 90 seconds
+      greetingTimeout: 30000, // 30 seconds
+      // Retry configuration
+      pool: true,
+      maxConnections: 1,
+      maxMessages: 3,
+      // Additional options for production
+      tls: {
+        rejectUnauthorized: false, // Some cloud providers need this
+      },
+    });
+  } else {
+    // Development: use service shortcut
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: emailUser,
+        pass: emailPassword,
+      },
+      // Increase timeout settings to prevent connection timeout
+      connectionTimeout: 60000, // 60 seconds
+      socketTimeout: 60000, // 60 seconds
+      greetingTimeout: 30000, // 30 seconds
+      // Retry configuration
+      pool: true,
+      maxConnections: 1,
+      maxMessages: 3,
+    });
+  }
 };
 
 // Generate 6-digit OTP
@@ -108,18 +138,23 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
 
     console.log('Attempting to send email to:', email);
     console.log('Email service: Starting SMTP connection...');
+    console.log('Environment:', process.env.NODE_ENV || 'development');
+    console.log('SMTP Host: smtp.gmail.com:465');
 
+    // Production needs longer timeout due to network latency
+    const timeoutDuration = process.env.NODE_ENV === 'production' ? 60000 : 30000;
+    
     // Add timeout wrapper for email sending
-    const sendEmailWithTimeout = (transporter, mailOptions, timeout = 30000) => {
+    const sendEmailWithTimeout = (transporter, mailOptions, timeout = timeoutDuration) => {
       return Promise.race([
         transporter.sendMail(mailOptions),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Email send timeout after 30 seconds')), timeout)
+          setTimeout(() => reject(new Error(`Email send timeout after ${timeout/1000} seconds`)), timeout)
         )
       ]);
     };
 
-    const info = await sendEmailWithTimeout(transporter, mailOptions, 30000);
+    const info = await sendEmailWithTimeout(transporter, mailOptions, timeoutDuration);
     console.log('✅ Email sent successfully:', info.messageId);
     console.log('✅ Email sent to:', email);
     return { success: true, messageId: info.messageId };
