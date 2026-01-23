@@ -6,11 +6,31 @@ const createTransporter = () => {
   // Gmail SMTP configuration
   // Note: For production, use App Password instead of regular password
   // Generate App Password from: https://myaccount.google.com/apppasswords
+  
+  const emailUser = (process.env.GMAIL_USER || process.env.EMAIL_USER)?.trim();
+  // Remove spaces from App Password (Gmail App Passwords sometimes have spaces when copied)
+  const emailPassword = (process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASSWORD)?.replace(/\s/g, '').trim();
+
+  // Check if email configuration is set
+  if (!emailUser || !emailPassword) {
+    console.error('Email configuration missing:');
+    console.error('GMAIL_USER:', emailUser ? 'Set' : 'NOT SET');
+    console.error('GMAIL_APP_PASSWORD:', emailPassword ? 'Set (length: ' + emailPassword.length + ')' : 'NOT SET');
+    throw new Error('Email configuration not found. Please set GMAIL_USER and GMAIL_APP_PASSWORD environment variables.');
+  }
+
+  // Validate App Password length (should be 16 characters)
+  if (emailPassword.length !== 16) {
+    console.warn('Warning: Gmail App Password should be 16 characters. Current length:', emailPassword.length);
+  }
+
+  console.log('Email service configured with user:', emailUser);
+
   return nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: process.env.GMAIL_USER || process.env.EMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASSWORD,
+      user: emailUser,
+      pass: emailPassword,
     },
   });
 };
@@ -69,19 +89,40 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
       `;
     }
 
+    const emailUser = (process.env.GMAIL_USER || process.env.EMAIL_USER)?.trim();
+    
     const mailOptions = {
-      from: process.env.GMAIL_USER || process.env.EMAIL_USER,
+      from: emailUser,
       to: email,
       subject: subject,
       html: htmlContent,
     };
 
+    console.log('Attempting to send email to:', email);
+
     const info = await transporter.sendMail(mailOptions);
     console.log('Email sent successfully:', info.messageId);
+    console.log('Email sent to:', email);
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('Error sending email:', error);
-    throw new Error('Failed to send email. Please check email configuration.');
+    console.error('Error details:', {
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      responseCode: error.responseCode,
+    });
+
+    // Provide more specific error messages
+    if (error.code === 'EAUTH') {
+      throw new Error('Email authentication failed. Please check GMAIL_USER and GMAIL_APP_PASSWORD.');
+    } else if (error.code === 'ECONNECTION') {
+      throw new Error('Failed to connect to email server. Please check your internet connection.');
+    } else if (!process.env.GMAIL_USER && !process.env.EMAIL_USER) {
+      throw new Error('Email configuration not found. Please set GMAIL_USER and GMAIL_APP_PASSWORD environment variables.');
+    } else {
+      throw new Error(`Failed to send email: ${error.message || 'Unknown error'}`);
+    }
   }
 };
 
