@@ -180,7 +180,10 @@ router.get('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req,
 // Add/Update attendance
 router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid employee ID' });
+    }
     const { attendance_month, total_days, present_days, half_days, absent_days, leave_days, notes } = req.body;
 
     if (!attendance_month) {
@@ -221,14 +224,14 @@ router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req
       const result = await db.query(
         `UPDATE employee_attendance 
          SET 
-           total_days = $1,
-           present_days = $2,
-           half_days = $3,
-           absent_days = $4,
-           leave_days = $5,
+           total_days = $1::INTEGER,
+           present_days = $2::INTEGER,
+           half_days = $3::INTEGER,
+           absent_days = $4::INTEGER,
+           leave_days = $5::INTEGER,
            notes = $6,
            updated_at = CURRENT_TIMESTAMP
-         WHERE employee_id = $7 AND attendance_month = $8::DATE
+         WHERE employee_id = $7::INTEGER AND attendance_month = $8::DATE
          RETURNING *`,
         [finalTotal, finalPresent, finalHalf, finalAbsent, finalLeave, notes || null, id, monthStr]
       );
@@ -238,19 +241,20 @@ router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req
       const result = await db.query(
         `INSERT INTO employee_attendance 
          (employee_id, attendance_month, total_days, present_days, half_days, absent_days, leave_days, notes)
-         VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, $8)
+         VALUES ($1::INTEGER, $2::DATE, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8)
          RETURNING *`,
         [id, monthStr, finalTotal, finalPresent, finalHalf, finalAbsent, finalLeave, notes || null]
       );
       rows = result;
     }
 
-    // Add to history
+    // Add to history - build description in JS to avoid PostgreSQL parameter type inference issues
+    const monthFormatted = new Date(monthStr + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+    const historyDesc = `Attendance updated for ${monthFormatted}: ${finalPresent} present, ${finalHalf} half day, ${finalAbsent} absent, ${finalLeave} leave`;
     await db.query(
       `INSERT INTO employee_history (employee_id, history_type, description, created_by)
-       VALUES ($1, 'attendance', 
-       CONCAT('Attendance updated for ', TO_CHAR($2::date, 'Month YYYY'), ': ', $3, ' present, ', $4, ' half day, ', $5, ' absent, ', $6, ' leave'), $7)`,
-      [id, monthStr, finalPresent, finalHalf, finalAbsent, finalLeave, req.user.id]
+       VALUES ($1, 'attendance', $2, $3)`,
+      [id, historyDesc, req.user.id]
     );
 
     res.json(rows[0]);
