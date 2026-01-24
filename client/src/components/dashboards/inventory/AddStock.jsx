@@ -262,83 +262,19 @@ const AddStock = ({ onBack }) => {
     setSerialNumbers(updated);
   };
 
-  // Find first empty field index
-  const findFirstEmptyField = () => {
-    for (let i = 0; i < serialNumbers.length; i++) {
-      if (!serialNumbers[i] || serialNumbers[i].trim() === '') {
-        return i;
-      }
-    }
-    return null; // All fields filled
-  };
-
-  const handleScanClick = () => {
-    // Find first empty field or start from beginning
-    const firstEmpty = findFirstEmptyField();
-    if (firstEmpty !== null) {
-      setScanningIndex(firstEmpty);
-      setIsScannerOpen(true);
-    } else {
-      // All filled, start from first field
-      setScanningIndex(0);
-      setIsScannerOpen(true);
-    }
+  const handleScanClick = (index) => {
+    setScanningIndex(index);
+    setIsScannerOpen(true);
   };
 
   const handleScanSuccess = (scannedText) => {
     if (scanningIndex !== null && scanningIndex < serialNumbers.length) {
-      // Update the serial number at the current scanning index
-      const updated = [...serialNumbers];
-      updated[scanningIndex] = scannedText.trim();
-      setSerialNumbers(updated);
-      
-      // Find next empty field based on UPDATED array
-      let nextIndex = scanningIndex + 1;
-      
-      // Skip filled fields and find next empty one
-      while (nextIndex < updated.length && updated[nextIndex] && updated[nextIndex].trim() !== '') {
-        nextIndex++;
-      }
-      
-      // Update scanningIndex to next field (this will trigger re-render with new currentFieldIndex)
-      if (nextIndex < updated.length) {
-        setScanningIndex(nextIndex);
-        
-        // Focus and scroll to the next input field (important for mobile)
-        setTimeout(() => {
-          const nextInput = serialInputRefs.current[nextIndex];
-          if (nextInput) {
-            // Scroll into view first (important for mobile)
-            nextInput.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'center',
-              inline: 'nearest'
-            });
-            
-            // Then focus after a small delay
-            setTimeout(() => {
-              nextInput.focus();
-              // For mobile, also try click to ensure focus
-              if (nextInput.click) {
-                nextInput.click();
-              }
-            }, 300);
-          }
-        }, 200);
-      } else {
-        // All fields filled, close scanner
-        setTimeout(() => {
-          setIsScannerOpen(false);
-          setScanningIndex(null);
-        }, 500);
-      }
+      // Update the serial number at the scanning index
+      handleSerialNumberChange(scanningIndex, scannedText.trim());
     }
-  };
-
-  const handleNextField = () => {
-    // This callback is called by QRScanner after scan success
-    // The actual logic is handled in handleScanSuccess above
-    // This is just a placeholder to satisfy the callback requirement
+    // Close scanner after scan
+    setIsScannerOpen(false);
+    setScanningIndex(null);
   };
 
   const handleScanClose = () => {
@@ -735,30 +671,7 @@ const AddStock = ({ onBack }) => {
           {/* Serial Numbers - Hidden for water products */}
           {selectedCategory !== 'water' && (
             <div className="form-group">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <label style={{ margin: 0 }}>
-                  Serial Numbers * ({serialNumbers.filter(sn => sn.trim() !== '').length} of {quantity || 0})
-                </label>
-                <button
-                  type="button"
-                  className="qr-scan-button"
-                  onClick={handleScanClick}
-                  title="Start Scanning QR Codes"
-                  aria-label="Start Scanning QR Codes"
-                  style={{ 
-                    minWidth: 'auto',
-                    padding: '0.5rem 1rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem'
-                  }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M3 7V5C3 3.89543 3.89543 3 5 3H7M21 7V5C21 3.89543 20.1046 3 19 3H17M17 21H19C20.1046 21 21 20.1046 21 19V17M7 21H5C3.89543 21 3 20.1046 3 19V17M9 9H15V15H9V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span>Start Scanning</span>
-                </button>
-              </div>
+              <label>Serial Numbers * ({serialNumbers.filter(sn => sn.trim() !== '').length} of {quantity || 0})</label>
               <div className="serial-numbers-container">
                 {serialNumbers.map((serial, index) => (
                   <div 
@@ -773,13 +686,18 @@ const AddStock = ({ onBack }) => {
                       className="form-input"
                       placeholder={`Serial Number ${index + 1} *`}
                       required
-                      readOnly={scanningIndex === index}
-                      style={scanningIndex === index ? {
-                        borderColor: '#3b82f6',
-                        boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)',
-                        backgroundColor: '#eff6ff'
-                      } : {}}
                     />
+                    <button
+                      type="button"
+                      className="qr-scan-button"
+                      onClick={() => handleScanClick(index)}
+                      title="Scan QR Code"
+                      aria-label="Scan QR Code"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 7V5C3 3.89543 3.89543 3 5 3H7M21 7V5C21 3.89543 20.1046 3 19 3H17M17 21H19C20.1046 21 21 20.1046 21 19V17M7 21H5C3.89543 21 3 20.1046 3 19V17M9 9H15V15H9V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -807,10 +725,6 @@ const AddStock = ({ onBack }) => {
             isOpen={isScannerOpen}
             onClose={handleScanClose}
             onScan={handleScanSuccess}
-            onNextField={handleNextField}
-            continuousMode={true}
-            currentFieldIndex={scanningIndex}
-            totalFields={quantity || serialNumbers.length}
             onError={(err) => {
               setError(err.message || 'Failed to scan QR code');
             }}

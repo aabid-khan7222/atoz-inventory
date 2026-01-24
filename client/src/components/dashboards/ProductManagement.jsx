@@ -573,83 +573,20 @@ await fetchProducts();
     }
   };
 
-  // Find first empty field index
-  const findFirstEmptyField = () => {
-    const serials = newProduct.serial_numbers || [];
-    for (let i = 0; i < serials.length; i++) {
-      if (!serials[i] || serials[i].trim() === '') {
-        return i;
-      }
-    }
-    return null; // All fields filled
-  };
-
-  const handleScanClick = () => {
-    // Find first empty field or start from beginning
-    const firstEmpty = findFirstEmptyField();
-    if (firstEmpty !== null) {
-      setScanningIndex(firstEmpty);
-      setIsScannerOpen(true);
-    } else {
-      // All filled, start from first field
-      setScanningIndex(0);
-      setIsScannerOpen(true);
-    }
+  const handleScanClick = (index) => {
+    setScanningIndex(index);
+    setIsScannerOpen(true);
   };
 
   const handleScanSuccess = (scannedText) => {
     if (scanningIndex !== null && newProduct.serial_numbers && scanningIndex < newProduct.serial_numbers.length) {
-      // Update the serial number at the current scanning index
       const updated = [...(newProduct.serial_numbers || [])];
       updated[scanningIndex] = scannedText.trim();
       setNewProduct({ ...newProduct, serial_numbers: updated });
-      
-      // Find next empty field based on UPDATED array
-      let nextIndex = scanningIndex + 1;
-      
-      // Skip filled fields and find next empty one
-      while (nextIndex < updated.length && updated[nextIndex] && updated[nextIndex].trim() !== '') {
-        nextIndex++;
-      }
-      
-      // Update scanningIndex to next field
-      if (nextIndex < updated.length) {
-        setScanningIndex(nextIndex);
-        
-        // Focus and scroll to the next input field (important for mobile)
-        setTimeout(() => {
-          const nextInput = serialInputRefs.current[nextIndex];
-          if (nextInput) {
-            // Scroll into view first (important for mobile)
-            nextInput.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'center',
-              inline: 'nearest'
-            });
-            
-            // Then focus after a small delay
-            setTimeout(() => {
-              nextInput.focus();
-              // For mobile, also try click to ensure focus
-              if (nextInput.click) {
-                nextInput.click();
-              }
-            }, 300);
-          }
-        }, 200);
-      } else {
-        // All fields filled, close scanner
-        setTimeout(() => {
-          setIsScannerOpen(false);
-          setScanningIndex(null);
-        }, 500);
-      }
     }
-  };
-
-  const handleNextField = () => {
-    // This callback is called by QRScanner after scan success
-    // The actual logic is handled in handleScanSuccess above
+    // Close scanner after scan
+    setIsScannerOpen(false);
+    setScanningIndex(null);
   };
 
   const handleScanClose = () => {
@@ -2006,31 +1943,9 @@ await fetchProducts();
 
                     {parseInt(newProduct.qty) > 0 && (
                       <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                          <label style={{ margin: 0, fontWeight: 500, color: 'var(--azb-text-secondary, #475569)' }}>
-                            Serial Numbers ({newProduct.serial_numbers?.filter(sn => sn.trim() !== '').length || 0} of {newProduct.qty})
-                          </label>
-                          <button
-                            type="button"
-                            className="qr-scan-button"
-                            onClick={handleScanClick}
-                            title="Start Scanning QR Codes"
-                            aria-label="Start Scanning QR Codes"
-                            style={{ 
-                              minWidth: 'auto',
-                              padding: '0.5rem 1rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              height: 'auto'
-                            }}
-                          >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M3 7V5C3 3.89543 3.89543 3 5 3H7M21 7V5C21 3.89543 20.1046 3 19 3H17M17 21H19C20.1046 21 21 20.1046 21 19V17M7 21H5C3.89543 21 3 20.1046 3 19V17M9 9H15V15H9V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                            <span>Start Scanning</span>
-                          </button>
-                        </div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--azb-text-secondary, #475569)' }}>
+                          Serial Numbers ({newProduct.serial_numbers?.filter(sn => sn.trim() !== '').length || 0} of {newProduct.qty})
+                        </label>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto', padding: '0.5rem', border: '1px solid var(--azb-border-subtle, #cbd5e1)', borderRadius: '0.375rem', background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))' }}>
                           {(newProduct.serial_numbers || []).map((serial, index) => (
                             <div 
@@ -2042,23 +1957,6 @@ await fetchProducts();
                                 position: 'relative'
                               }}
                             >
-                              {scanningIndex === index && (
-                                <span style={{
-                                  position: 'absolute',
-                                  top: '-1.5rem',
-                                  left: 0,
-                                  fontSize: '0.75rem',
-                                  color: '#3b82f6',
-                                  fontWeight: 600,
-                                  background: 'white',
-                                  padding: '0.25rem 0.5rem',
-                                  borderRadius: '4px',
-                                  zIndex: 10,
-                                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                                }}>
-                                  📷 Scanning...
-                                </span>
-                              )}
                               <input
                                 ref={(el) => (serialInputRefs.current[index] = el)}
                                 type="text"
@@ -2071,23 +1969,26 @@ await fetchProducts();
                                 style={{
                                   flex: 1,
                                   padding: '0.5rem',
-                                  border: scanningIndex === index 
-                                    ? '2px solid #3b82f6' 
-                                    : '1px solid var(--azb-border-subtle, #cbd5e1)',
+                                  border: '1px solid var(--azb-border-subtle, #cbd5e1)',
                                   borderRadius: '0.25rem',
                                   fontSize: '0.875rem',
-                                  background: scanningIndex === index 
-                                    ? '#eff6ff' 
-                                    : 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
-                                  color: 'var(--azb-text-main)',
-                                  boxShadow: scanningIndex === index 
-                                    ? '0 0 0 3px rgba(59, 130, 246, 0.1)' 
-                                    : 'none',
-                                  transition: 'border-color 0.3s, box-shadow 0.3s, background-color 0.3s'
+                                  background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
+                                  color: 'var(--azb-text-main)'
                                 }}
                                 placeholder={`Serial Number ${index + 1}${parseInt(newProduct.qty) > 0 ? ' *' : ''}`}
-                                readOnly={scanningIndex === index}
                               />
+                              <button
+                                type="button"
+                                className="qr-scan-button"
+                                onClick={() => handleScanClick(index)}
+                                title="Scan QR Code"
+                                aria-label="Scan QR Code"
+                                style={{ minWidth: '44px', height: '44px', padding: '0.625rem' }}
+                              >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M3 7V5C3 3.89543 3.89543 3 5 3H7M21 7V5C21 3.89543 20.1046 3 19 3H17M17 21H19C20.1046 21 21 20.1046 21 19V17M7 21H5C3.89543 21 3 20.1046 3 19V17M9 9H15V15H9V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -2202,10 +2103,6 @@ await fetchProducts();
         isOpen={isScannerOpen}
         onClose={handleScanClose}
         onScan={handleScanSuccess}
-        onNextField={handleNextField}
-        continuousMode={true}
-        currentFieldIndex={scanningIndex}
-        totalFields={newProduct.qty || newProduct.serial_numbers?.length || 0}
         onError={(err) => {
           setError(err.message || 'Failed to scan QR code');
           setTimeout(() => setError(''), 5000);
