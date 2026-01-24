@@ -743,6 +743,8 @@ const AddStock = ({ onBack }) => {
             onScan={handleScanSuccess}
             onNextField={handleNextField}
             continuousMode={true}
+            currentFieldIndex={scanningIndex}
+            totalFields={serialNumbers.length}
             onError={(err) => {
               setError(err.message || 'Failed to scan QR code');
             }}

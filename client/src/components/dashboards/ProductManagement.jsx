@@ -2116,6 +2116,8 @@ await fetchProducts();
         onScan={handleScanSuccess}
         onNextField={handleNextField}
         continuousMode={true}
+        currentFieldIndex={scanningIndex}
+        totalFields={newProduct.serial_numbers?.length || 0}
         onError={(err) => {
           setError(err.message || 'Failed to scan QR code');
           setTimeout(() => setError(''), 5000);

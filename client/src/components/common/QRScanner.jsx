@@ -4,7 +4,7 @@ import './QRScanner.css';
 // Dynamic import for html5-qrcode to ensure it loads correctly
 let Html5Qrcode = null;
 
-const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, onNextField }) => {
+const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, onNextField, currentFieldIndex, totalFields }) => {
   const scannerRef = useRef(null);
   const html5QrCodeRef = useRef(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -14,6 +14,8 @@ const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, o
   const [currentCameraId, setCurrentCameraId] = useState(null);
   const [libraryLoaded, setLibraryLoaded] = useState(false);
   const scanCooldownRef = useRef(false);
+  const [scanSuccessMessage, setScanSuccessMessage] = useState('');
+  const successTimeoutRef = useRef(null);
 
   // Load the library when component mounts
   useEffect(() => {
@@ -115,15 +117,17 @@ const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, o
             fps: 10,
             qrbox: { width: 250, height: 250 },
             aspectRatio: 1.0,
+            disableFlip: false,
           },
           (decodedText) => {
-            // Successfully scanned
+            // Successfully scanned - handle it
             handleScanSuccess(decodedText);
+            // In continuous mode, scanner keeps running - don't stop it
           },
           (errorMessage) => {
             // Ignore scanning errors (they're frequent while looking for QR codes)
             // Only show errors if they're not "NotFoundException" (which is normal)
-            if (errorMessage && !errorMessage.includes('NotFoundException')) {
+            if (errorMessage && !errorMessage.includes('NotFoundException') && !errorMessage.includes('No QR code found')) {
               // Don't show every error, just log it
               console.debug('QR scan error:', errorMessage);
             }
@@ -179,6 +183,30 @@ const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, o
     }
   };
 
+  // Play success sound
+  const playSuccessSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.15);
+    } catch (err) {
+      console.debug('Could not play success sound:', err);
+    }
+  };
+
   const handleScanSuccess = (decodedText) => {
     // Prevent multiple rapid scans
     if (scanCooldownRef.current) {
@@ -186,6 +214,24 @@ const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, o
     }
     
     scanCooldownRef.current = true;
+    
+    // Play success sound
+    playSuccessSound();
+    
+    // Show success message
+    const fieldNum = currentFieldIndex !== null && currentFieldIndex !== undefined 
+      ? currentFieldIndex + 1 
+      : '';
+    const totalNum = totalFields || '';
+    setScanSuccessMessage(`✓ Serial number ${fieldNum}${totalNum ? ` of ${totalNum}` : ''} scanned!`);
+    
+    // Clear success message after 1.5 seconds
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+    }
+    successTimeoutRef.current = setTimeout(() => {
+      setScanSuccessMessage('');
+    }, 1500);
     
     // Call the onScan callback with the scanned text
     if (onScan) {
@@ -196,19 +242,19 @@ const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, o
       // In continuous mode, keep scanner open and move to next field
       // Don't stop scanning or close scanner
       if (onNextField) {
-        // Small delay to allow current scan to process
+        // Small delay to allow current scan to process and show feedback
         setTimeout(() => {
           onNextField();
-          // Reset cooldown after a short delay to allow next scan
+          // Reset cooldown after a longer delay to allow next scan
           setTimeout(() => {
             scanCooldownRef.current = false;
-          }, 500);
-        }, 200);
+          }, 800);
+        }, 300);
       } else {
         // Reset cooldown if no next field callback
         setTimeout(() => {
           scanCooldownRef.current = false;
-        }, 500);
+        }, 800);
       }
     } else {
       // Normal mode: stop scanning and close
@@ -222,10 +268,23 @@ const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, o
 
   const handleClose = () => {
     stopScanning();
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+    }
+    setScanSuccessMessage('');
     if (onClose) {
       onClose();
     }
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (!isOpen) {
     return null;
@@ -265,11 +324,18 @@ const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, o
           ) : (
             <>
               <div id="qr-reader" className="qr-reader-container"></div>
+              {scanSuccessMessage && (
+                <div className="qr-scanner-success-message">
+                  {scanSuccessMessage}
+                </div>
+              )}
               {isScanning && (
                 <>
                   <p className="qr-scanner-hint">
                     {continuousMode 
-                      ? 'Scan QR codes continuously. Scanner will move to next field automatically.'
+                      ? (currentFieldIndex !== null && currentFieldIndex !== undefined && totalFields
+                          ? `Scanning field ${currentFieldIndex + 1} of ${totalFields}. Scanner will move to next field automatically.`
+                          : 'Scan QR codes continuously. Scanner will move to next field automatically.')
                       : 'Point your camera at the QR code'}
                   </p>
                   {availableCameras.length > 1 && (
