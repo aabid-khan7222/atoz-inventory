@@ -683,21 +683,40 @@ router.post('/:id/payments', requireAuth, requireSuperAdminOrAdmin, async (req, 
     monthDate.setDate(1);
     const monthStr = monthDate.toISOString().split('T')[0];
 
-    // Insert payment
+    // Convert amount to number and validate
+    const paymentAmount = Number(amount) || 0;
+    if (paymentAmount <= 0) {
+      return res.status(400).json({ error: 'Payment amount must be greater than 0' });
+    }
+
+    // Parse employee id
+    const employeeId = parseInt(id, 10);
+    if (isNaN(employeeId)) {
+      return res.status(400).json({ error: 'Invalid employee ID' });
+    }
+
+    // Insert payment with explicit type casts
     const paymentResult = await db.query(
       `INSERT INTO employee_payments 
        (employee_id, payment_month, amount, payment_date, payment_method, notes, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       VALUES ($1::INTEGER, $2::DATE, $3::DECIMAL, $4::DATE, $5, $6, $7::INTEGER)
        RETURNING *`,
-      [id, monthStr, amount, payment_date, payment_method || null, notes || null, req.user.id]
+      [employeeId, monthStr, paymentAmount, payment_date, payment_method || null, notes || null, req.user.id]
     );
 
-    // Add to history
-    await db.query(
-      `INSERT INTO employee_history (employee_id, history_type, description, amount, reference_id, created_by)
-       VALUES ($1, 'payment', CONCAT('Payment of ₹', $2, ' for ', TO_CHAR($3::date, 'Month YYYY')), $2, $4, $5)`,
-      [id, amount, monthStr, paymentResult.rows[0].id, req.user.id]
-    );
+    // Add to history - build description in JS to avoid PostgreSQL parameter type inference issues
+    try {
+      const monthFormatted = new Date(monthStr + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+      const historyDesc = `Payment of ₹${paymentAmount} for ${monthFormatted}`;
+      await db.query(
+        `INSERT INTO employee_history (employee_id, history_type, description, amount, reference_id, created_by)
+         VALUES ($1::INTEGER, $2, $3, $4::DECIMAL, $5::INTEGER, $6::INTEGER)`,
+        [employeeId, 'payment', historyDesc, paymentAmount, paymentResult.rows[0].id, req.user.id]
+      );
+    } catch (historyErr) {
+      console.error('Failed to add payment history (non-critical):', historyErr.message);
+      // Don't throw - history is optional, main payment save is what matters
+    }
 
     res.status(201).json(paymentResult.rows[0]);
   } catch (err) {
