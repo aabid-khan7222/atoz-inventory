@@ -311,8 +311,17 @@
   justify-content: flex-start;
 }
 
+.employee-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .edit-button,
-.delete-button {
+.delete-button,
+.activate-button,
+.deactivate-button {
   padding: 6px 12px;
   border: none;
   border-radius: 4px;
@@ -333,6 +342,28 @@
   background: #0056b3;
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+.activate-button {
+  background: #28a745;
+  color: white;
+}
+
+.activate-button:hover {
+  background: #218838;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.deactivate-button {
+  background: #ffc107;
+  color: #212529;
+}
+
+.deactivate-button:hover {
+  background: #e0a800;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
 }
 
 .delete-button {

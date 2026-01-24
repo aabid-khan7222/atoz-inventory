@@ -1196,6 +1196,17 @@ export async function updateEmployee(id, employeeData) {
   }
 }
 
+export async function activateEmployee(id) {
+  try {
+    return await request(`/employees/${id}/activate`, {
+      method: 'PATCH',
+    });
+  } catch (error) {
+    console.error('Failed to activate employee:', error);
+    throw error;
+  }
+}
+
 export async function deleteEmployee(id) {
   try {
     return await request(`/employees/${id}`, {
@@ -1203,6 +1214,17 @@ export async function deleteEmployee(id) {
     });
   } catch (error) {
     console.error('Failed to delete employee:', error);
+    throw error;
+  }
+}
+
+export async function permanentDeleteEmployee(id) {
+  try {
+    return await request(`/employees/${id}/permanent`, {
+      method: 'DELETE',
+    });
+  } catch (error) {
+    console.error('Failed to permanently delete employee:', error);
     throw error;
   }
 }
@@ -1710,6 +1732,8 @@ const api = {
   createEmployee,
   updateEmployee,
   deleteEmployee,
+  activateEmployee,
+  permanentDeleteEmployee,
   getEmployeeAttendance,
   addEmployeeAttendance,
   getDailyAttendance,

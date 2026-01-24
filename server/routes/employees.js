@@ -120,13 +120,16 @@ router.put('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   }
 });
 
-// Delete employee (soft delete by setting is_active to false)
+// Deactivate employee (soft delete by setting is_active to false)
 router.delete('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid employee ID' });
+    }
 
     const { rows } = await db.query(
-      `UPDATE employees SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
+      `UPDATE employees SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1::INTEGER RETURNING *`,
       [id]
     );
 
@@ -135,16 +138,105 @@ router.delete('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) =>
     }
 
     // Add to history
-    await db.query(
-      `INSERT INTO employee_history (employee_id, history_type, description, created_by)
-       VALUES ($1, 'update', 'Employee deactivated', $2)`,
-      [id, req.user.id]
-    );
+    try {
+      await db.query(
+        `INSERT INTO employee_history (employee_id, history_type, description, created_by)
+         VALUES ($1::INTEGER, 'update', 'Employee deactivated', $2::INTEGER)`,
+        [id, req.user.id]
+      );
+    } catch (historyErr) {
+      console.error('Failed to add deactivation history (non-critical):', historyErr.message);
+    }
 
     res.json({ message: 'Employee deactivated successfully', employee: rows[0] });
   } catch (err) {
     console.error('DELETE /employees/:id error:', err);
     res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+});
+
+// Activate employee (set is_active to true)
+router.patch('/:id/activate', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid employee ID' });
+    }
+
+    const { rows } = await db.query(
+      `UPDATE employees SET is_active = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1::INTEGER RETURNING *`,
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    // Add to history
+    try {
+      await db.query(
+        `INSERT INTO employee_history (employee_id, history_type, description, created_by)
+         VALUES ($1::INTEGER, 'update', 'Employee activated', $2::INTEGER)`,
+        [id, req.user.id]
+      );
+    } catch (historyErr) {
+      console.error('Failed to add activation history (non-critical):', historyErr.message);
+    }
+
+    res.json({ message: 'Employee activated successfully', employee: rows[0] });
+  } catch (err) {
+    console.error('PATCH /employees/:id/activate error:', err);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+});
+
+// Permanently delete employee and all related data
+router.delete('/:id/permanent', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Invalid employee ID' });
+    }
+
+    // Check if employee exists
+    const employeeCheck = await client.query(
+      `SELECT id, full_name FROM employees WHERE id = $1::INTEGER`,
+      [id]
+    );
+
+    if (employeeCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    // Delete all related data (CASCADE will handle most, but we'll be explicit)
+    // Delete employee history
+    await client.query(`DELETE FROM employee_history WHERE employee_id = $1::INTEGER`, [id]);
+    
+    // Delete employee payments
+    await client.query(`DELETE FROM employee_payments WHERE employee_id = $1::INTEGER`, [id]);
+    
+    // Delete employee attendance (monthly)
+    await client.query(`DELETE FROM employee_attendance WHERE employee_id = $1::INTEGER`, [id]);
+    
+    // Delete daily attendance
+    await client.query(`DELETE FROM daily_attendance WHERE employee_id = $1::INTEGER`, [id]);
+    
+    // Finally delete the employee
+    await client.query(`DELETE FROM employees WHERE id = $1::INTEGER`, [id]);
+
+    await client.query('COMMIT');
+    res.json({ message: 'Employee and all related data deleted permanently', employee: employeeCheck.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('DELETE /employees/:id/permanent error:', err);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  } finally {
+    client.release();
   }
 });
 

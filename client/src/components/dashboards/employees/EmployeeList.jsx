@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../api';
+import Swal from 'sweetalert2';
 import './EmployeeList.css';
 
 const EmployeeList = ({ onEmployeeSelect, selectedEmployee }) => {
@@ -125,16 +126,124 @@ const EmployeeList = ({ onEmployeeSelect, selectedEmployee }) => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to deactivate this employee?')) {
+  const handleDeactivate = async (id, employeeName) => {
+    const result = await Swal.fire({
+      title: 'Deactivate Employee?',
+      html: `Are you sure you want to deactivate <strong>${employeeName}</strong>?<br><br>They will be marked as inactive but their data will be preserved.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Yes, Deactivate',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true
+    });
+
+    if (!result.isConfirmed) {
       return;
     }
+
     try {
       await api.deleteEmployee(id);
+      await Swal.fire({
+        title: 'Deactivated!',
+        text: 'Employee has been deactivated successfully.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      });
       fetchEmployees();
     } catch (err) {
-      setError(err.message || 'Failed to delete employee');
+      console.error('Failed to deactivate employee:', err);
+      await Swal.fire({
+        title: 'Error!',
+        text: err.message || 'Failed to deactivate employee',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+    }
+  };
+
+  const handleActivate = async (id, employeeName) => {
+    const result = await Swal.fire({
+      title: 'Activate Employee?',
+      html: `Are you sure you want to activate <strong>${employeeName}</strong>?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#28a745',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Yes, Activate',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      await api.activateEmployee(id);
+      await Swal.fire({
+        title: 'Activated!',
+        text: 'Employee has been activated successfully.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      });
+      fetchEmployees();
+    } catch (err) {
+      console.error('Failed to activate employee:', err);
+      await Swal.fire({
+        title: 'Error!',
+        text: err.message || 'Failed to activate employee',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+    }
+  };
+
+  const handlePermanentDelete = async (id, employeeName) => {
+    const result = await Swal.fire({
+      title: 'Delete Employee Permanently?',
+      html: `⚠️ <strong>WARNING!</strong><br><br>Are you sure you want to permanently delete <strong>${employeeName}</strong>?<br><br>This will delete:<br>• All attendance records<br>• All payment records<br>• All history<br><br><strong style="color: #dc3545;">This action cannot be undone!</strong>`,
+      icon: 'error',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Yes, Delete Permanently',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true,
+      input: 'text',
+      inputPlaceholder: 'Type "DELETE" to confirm',
+      inputValidator: (value) => {
+        if (value !== 'DELETE') {
+          return 'You must type DELETE to confirm';
+        }
+      }
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      await api.permanentDeleteEmployee(id);
+      await Swal.fire({
+        title: 'Deleted!',
+        text: 'Employee and all related data have been permanently deleted.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      });
+      fetchEmployees();
+    } catch (err) {
       console.error('Failed to delete employee:', err);
+      await Swal.fire({
+        title: 'Error!',
+        text: err.message || 'Failed to delete employee',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
     }
   };
 
@@ -345,18 +454,36 @@ const EmployeeList = ({ onEmployeeSelect, selectedEmployee }) => {
                       </span>
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => handleEdit(employee)}
-                        className="edit-button"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(employee.id)}
-                        className="delete-button"
-                      >
-                        Deactivate
-                      </button>
+                      <div className="employee-actions">
+                        <button
+                          onClick={() => handleEdit(employee)}
+                          className="edit-button"
+                        >
+                          Edit
+                        </button>
+                        {employee.is_active ? (
+                          <button
+                            onClick={() => handleDeactivate(employee.id, employee.full_name)}
+                            className="deactivate-button"
+                          >
+                            Deactivate
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleActivate(employee.id, employee.full_name)}
+                            className="activate-button"
+                          >
+                            Activate
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handlePermanentDelete(employee.id, employee.full_name)}
+                          className="delete-button"
+                          title="Permanently delete employee and all related data"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
