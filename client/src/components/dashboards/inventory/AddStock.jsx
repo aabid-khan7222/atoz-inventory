@@ -262,26 +262,50 @@ const AddStock = ({ onBack }) => {
     setSerialNumbers(updated);
   };
 
-  const handleScanClick = (index) => {
-    setScanningIndex(index);
-    setIsScannerOpen(true);
+  // Find first empty field index
+  const findFirstEmptyField = () => {
+    for (let i = 0; i < serialNumbers.length; i++) {
+      if (!serialNumbers[i] || serialNumbers[i].trim() === '') {
+        return i;
+      }
+    }
+    return null; // All fields filled
+  };
+
+  const handleScanClick = () => {
+    // Find first empty field or start from beginning
+    const firstEmpty = findFirstEmptyField();
+    if (firstEmpty !== null) {
+      setScanningIndex(firstEmpty);
+      setIsScannerOpen(true);
+    } else {
+      // All filled, start from first field
+      setScanningIndex(0);
+      setIsScannerOpen(true);
+    }
   };
 
   const handleScanSuccess = (scannedText) => {
-    if (scanningIndex !== null) {
-      // Update the serial number at the scanning index
-      handleSerialNumberChange(scanningIndex, scannedText);
+    if (scanningIndex !== null && scanningIndex < serialNumbers.length) {
+      // Update the serial number at the current scanning index
+      handleSerialNumberChange(scanningIndex, scannedText.trim());
     }
     // Don't close scanner in continuous mode - it will stay open
   };
 
   const handleNextField = () => {
     if (scanningIndex !== null) {
-      const nextIndex = scanningIndex + 1;
+      // Find next empty field
+      let nextIndex = scanningIndex + 1;
       
-      // Check if there are more fields to scan
+      // Skip filled fields and find next empty one
+      while (nextIndex < serialNumbers.length && serialNumbers[nextIndex] && serialNumbers[nextIndex].trim() !== '') {
+        nextIndex++;
+      }
+      
+      // Check if there are more empty fields to scan
       if (nextIndex < serialNumbers.length) {
-        // Move to next field
+        // Move to next empty field
         setScanningIndex(nextIndex);
         
         // Focus and scroll to the next input field (important for mobile)
@@ -707,7 +731,30 @@ const AddStock = ({ onBack }) => {
           {/* Serial Numbers - Hidden for water products */}
           {selectedCategory !== 'water' && (
             <div className="form-group">
-              <label>Serial Numbers * ({serialNumbers.filter(sn => sn.trim() !== '').length} of {quantity || 0})</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <label style={{ margin: 0 }}>
+                  Serial Numbers * ({serialNumbers.filter(sn => sn.trim() !== '').length} of {quantity || 0})
+                </label>
+                <button
+                  type="button"
+                  className="qr-scan-button"
+                  onClick={handleScanClick}
+                  title="Start Scanning QR Codes"
+                  aria-label="Start Scanning QR Codes"
+                  style={{ 
+                    minWidth: 'auto',
+                    padding: '0.5rem 1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 7V5C3 3.89543 3.89543 3 5 3H7M21 7V5C21 3.89543 20.1046 3 19 3H17M17 21H19C20.1046 21 21 20.1046 21 19V17M7 21H5C3.89543 21 3 20.1046 3 19V17M9 9H15V15H9V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span>Start Scanning</span>
+                </button>
+              </div>
               <div className="serial-numbers-container">
                 {serialNumbers.map((serial, index) => (
                   <div 
@@ -729,17 +776,6 @@ const AddStock = ({ onBack }) => {
                         backgroundColor: '#eff6ff'
                       } : {}}
                     />
-                    <button
-                      type="button"
-                      className="qr-scan-button"
-                      onClick={() => handleScanClick(index)}
-                      title="Scan QR Code"
-                      aria-label="Scan QR Code"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M3 7V5C3 3.89543 3.89543 3 5 3H7M21 7V5C21 3.89543 20.1046 3 19 3H17M17 21H19C20.1046 21 21 20.1046 21 19V17M7 21H5C3.89543 21 3 20.1046 3 19V17M9 9H15V15H9V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
                   </div>
                 ))}
               </div>

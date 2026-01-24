@@ -334,7 +334,7 @@ const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, o
                   <p className="qr-scanner-hint">
                     {continuousMode 
                       ? (currentFieldIndex !== null && currentFieldIndex !== undefined && totalFields
-                          ? `Scanning field ${currentFieldIndex + 1} of ${totalFields}. Scanner will move to next field automatically.`
+                          ? `Scanning serial number ${currentFieldIndex + 1} of ${totalFields}. Scanner will move to next field automatically.`
                           : 'Scan QR codes continuously. Scanner will move to next field automatically.')
                       : 'Point your camera at the QR code'}
                   </p>
