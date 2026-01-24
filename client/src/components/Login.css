@@ -53,10 +53,13 @@
 
 .login-title {
   color: #e60000;
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-size: 2.25rem;
+  font-weight: 900;
+  font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  letter-spacing: 0.12em;
   margin-bottom: 0.5rem;
+  text-shadow: 0 2px 8px rgba(230, 0, 0, 0.2);
+  line-height: 1.2;
 }
 
 .login-subtitle {
@@ -353,7 +356,7 @@
   }
 
   .login-title {
-    font-size: 1.75rem;
+    font-size: 2rem;
     margin-bottom: 0.4rem;
   }
 
@@ -408,7 +411,7 @@
   }
 
   .login-title {
-    font-size: 1.5rem;
+    font-size: 1.75rem;
     margin-bottom: 0.25rem;
   }
 
@@ -499,7 +502,7 @@
   }
 
   .login-title {
-    font-size: 1.35rem;
+    font-size: 1.5rem;
     margin-bottom: 0.2rem;
   }
 
