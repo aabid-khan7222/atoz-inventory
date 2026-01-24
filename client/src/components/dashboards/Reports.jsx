@@ -1122,6 +1122,9 @@ const Reports = () => {
             <div>
               <strong>Commission Agents:</strong> {summaryData.commission?.unique_agents || 0}
             </div>
+            <div>
+              <strong>Employee Payments:</strong> {formatCurrency(summaryData.balance?.total_employee_payments || 0)}
+            </div>
           </div>
         </div>
       </div>
@@ -1175,6 +1178,9 @@ const Reports = () => {
                       )}
                       {totals.total_profit !== undefined && (
                         <span style={{ color: 'var(--corp-success)', fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '0.875rem' }}><strong>Total Profit:</strong> {formatCurrency(totals.total_profit || 0)}</span>
+                      )}
+                      {summaryData.balance?.balance !== undefined && (
+                        <span style={{ color: summaryData.balance.balance >= 0 ? 'var(--corp-success)' : 'var(--corp-danger)', fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '0.875rem' }}><strong>Balance:</strong> {formatCurrency(summaryData.balance.balance || 0)}</span>
                       )}
                       {totals.total_commission_paid !== undefined && (
                         <span style={{ whiteSpace: 'nowrap', fontSize: '0.875rem' }}><strong>Total Commission:</strong> {formatCurrency(totals.total_commission_paid)}</span>

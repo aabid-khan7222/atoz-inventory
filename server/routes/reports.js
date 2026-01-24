@@ -1316,6 +1316,40 @@ router.get('/summary', requireAuth, requireSuperAdminOrAdmin, async (req, res) =
     // Total profit (sales + charging services + services)
     const totalProfit = totalSalesProfit + chargingProfit + servicesProfit;
 
+    // Calculate total employee payments (within date range if specified)
+    let totalEmployeePayments = 0;
+    try {
+      let employeePaymentsDateFilter = '';
+      let employeePaymentsParams = [];
+      
+      if (dateFrom && dateTo) {
+        employeePaymentsDateFilter = ' AND ep.payment_date >= $1::DATE AND ep.payment_date <= $2::DATE';
+        employeePaymentsParams = [dateFrom, dateTo];
+      } else if (period && period !== 'all') {
+        if (period === 'today') {
+          employeePaymentsDateFilter = ' AND ep.payment_date = CURRENT_DATE';
+        } else {
+          const dateRange = getDateRangeFromPeriod(period);
+          employeePaymentsDateFilter = ' AND ep.payment_date >= $1::DATE AND ep.payment_date <= $2::DATE';
+          employeePaymentsParams = [dateRange.startDate, dateRange.endDate];
+        }
+      }
+
+      const employeePaymentsQuery = `
+        SELECT COALESCE(SUM(ep.amount), 0) as total_payments
+        FROM employee_payments ep
+        WHERE 1=1 ${employeePaymentsDateFilter}
+      `;
+      const employeePaymentsResult = await db.query(employeePaymentsQuery, employeePaymentsParams);
+      totalEmployeePayments = parseFloat(employeePaymentsResult.rows[0]?.total_payments || 0);
+    } catch (err) {
+      console.error('Error calculating employee payments:', err);
+      totalEmployeePayments = 0;
+    }
+
+    // Calculate balance = total profit - employee payments
+    const balance = totalProfit - totalEmployeePayments;
+
     res.json({
       sales: salesSummary.rows[0],
       commission: commissionSummary.rows[0],
@@ -1325,6 +1359,11 @@ router.get('/summary', requireAuth, requireSuperAdminOrAdmin, async (req, res) =
         charging_profit: parseFloat(chargingProfit.toFixed(2)),
         services_profit: parseFloat(servicesProfit.toFixed(2)),
         total_profit: parseFloat(totalProfit.toFixed(2))
+      },
+      balance: {
+        total_profit: parseFloat(totalProfit.toFixed(2)),
+        total_employee_payments: parseFloat(totalEmployeePayments.toFixed(2)),
+        balance: parseFloat(balance.toFixed(2))
       },
       period: {
         dateFrom: dateFrom || (period !== 'all' ? getDateRangeFromPeriod(period).startDate : null),
