@@ -306,15 +306,18 @@
 .serial-number-input-group {
   display: flex;
   gap: 0.5rem;
-  align-items: center;
+  align-items: stretch;
 }
 
 .serial-number-input-group .form-input {
   flex: 1;
+  height: auto;
+  min-height: 48px;
+  box-sizing: border-box;
 }
 
 .qr-scan-button {
-  padding: 0.625rem;
+  padding: 0;
   background: #3b82f6;
   color: white;
   border: none;
@@ -324,9 +327,11 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  min-width: 44px;
-  height: 44px;
+  min-width: 48px;
+  width: 48px;
+  height: 48px;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .qr-scan-button:hover {
@@ -368,18 +373,20 @@
 @media (max-width: 1024px) {
   .serial-number-input-group {
     gap: 0.5rem;
+    align-items: stretch;
   }
 
   .serial-number-input-group .form-input {
     flex: 1;
     min-width: 0;
+    min-height: 44px;
   }
 
   .qr-scan-button {
-    min-width: 40px;
-    width: 40px;
-    height: 40px;
-    padding: 0.5rem;
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
     flex-shrink: 0;
   }
 
@@ -392,18 +399,20 @@
 @media (max-width: 768px) {
   .serial-number-input-group {
     gap: 0.4rem;
+    align-items: stretch;
   }
 
   .serial-number-input-group .form-input {
     flex: 1;
     min-width: 0;
+    min-height: 42px;
   }
 
   .qr-scan-button {
-    min-width: 36px;
-    width: 36px;
-    height: 36px;
-    padding: 0.4rem;
+    min-width: 42px;
+    width: 42px;
+    height: 42px;
+    padding: 0;
     flex-shrink: 0;
   }
 
@@ -416,19 +425,21 @@
 @media (max-width: 480px) {
   .serial-number-input-group {
     gap: 0.35rem;
+    align-items: stretch;
   }
 
   .serial-number-input-group .form-input {
     flex: 1;
     min-width: 0;
     font-size: 0.9rem;
+    min-height: 40px;
   }
 
   .qr-scan-button {
-    min-width: 36px;
-    width: 36px;
-    height: 36px;
-    padding: 0.4rem;
+    min-width: 40px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
     flex-shrink: 0;
   }
 
