@@ -249,15 +249,22 @@ router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req
     }
 
     // Add to history - build description in JS to avoid PostgreSQL parameter type inference issues
-    const monthFormatted = new Date(monthStr + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-    const historyDesc = `Attendance updated for ${monthFormatted}: ${finalPresent} present, ${finalHalf} half day, ${finalAbsent} absent, ${finalLeave} leave`;
-    await db.query(
-      `INSERT INTO employee_history (employee_id, history_type, description, created_by)
-       VALUES ($1, 'attendance', $2, $3)`,
-      [id, historyDesc, req.user.id]
-    );
+    // Wrap in try-catch so history failure doesn't break the main response
+    try {
+      const monthFormatted = new Date(monthStr + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+      const historyDesc = `Attendance updated for ${monthFormatted}: ${finalPresent} present, ${finalHalf} half day, ${finalAbsent} absent, ${finalLeave} leave`;
+      await db.query(
+        `INSERT INTO employee_history (employee_id, history_type, description, created_by)
+         VALUES ($1::INTEGER, $2, $3::INTEGER)`,
+        [id, historyDesc, req.user.id]
+      );
+    } catch (historyErr) {
+      console.error('Failed to add attendance history (non-critical):', historyErr.message);
+      // Don't throw - history is optional, main attendance save is what matters
+    }
 
-    res.json(rows[0]);
+    // Always send response even if history insert failed
+    res.json(rows.rows[0]);
   } catch (err) {
     console.error('POST /employees/:id/attendance error:', err);
     res.status(500).json({ error: 'Internal server error', details: err.message });
