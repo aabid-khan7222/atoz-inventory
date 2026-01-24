@@ -25,29 +25,12 @@
   animation: slideUp 0.5s ease;
   box-sizing: border-box;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  position: relative;
-  overflow: hidden;
-}
-
-.login-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #e60000 0%, #ff3333 50%, #e60000 100%);
-  border-radius: 20px 20px 0 0;
 }
 
 [data-theme="dark"] .login-card {
   background: var(--azb-bg-surface);
   box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4), 0 5px 15px rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .login-card::before {
-  background: linear-gradient(90deg, #ff4444 0%, #ff6666 50%, #ff4444 100%);
 }
 
 @keyframes slideUp {
@@ -364,10 +347,6 @@
     box-shadow: 0 12px 45px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.08);
   }
 
-  .login-card::before {
-    border-radius: 18px 18px 0 0;
-  }
-
   .login-header {
     margin-bottom: 2rem;
     padding-bottom: 1.25rem;
@@ -421,11 +400,6 @@
     margin: 0;
     border-radius: 16px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2), 0 4px 10px rgba(0, 0, 0, 0.1);
-  }
-
-  .login-card::before {
-    border-radius: 16px 16px 0 0;
-    height: 3px;
   }
 
   .login-header {
@@ -517,11 +491,6 @@
     border-radius: 16px;
     margin: 0;
     box-shadow: 0 8px 35px rgba(0, 0, 0, 0.2), 0 3px 8px rgba(0, 0, 0, 0.1);
-  }
-
-  .login-card::before {
-    border-radius: 16px 16px 0 0;
-    height: 3px;
   }
 
   .login-header {
