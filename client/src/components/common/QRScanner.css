@@ -83,6 +83,42 @@
   text-align: center;
 }
 
+.qr-scanner-flip-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin-top: 0.5rem;
+}
+
+.qr-scanner-flip-button:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+
+.qr-scanner-flip-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px -1px rgba(59, 130, 246, 0.2);
+}
+
+.qr-scanner-flip-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.qr-scanner-flip-button span {
+  font-size: 0.875rem;
+}
+
 .qr-scanner-error {
   text-align: center;
   padding: 2rem;
@@ -125,6 +161,16 @@
 [data-theme="dark"] .qr-scanner-hint,
 .dark .qr-scanner-hint {
   color: #cbd5e1;
+}
+
+[data-theme="dark"] .qr-scanner-flip-button,
+.dark .qr-scanner-flip-button {
+  background: #2563eb;
+}
+
+[data-theme="dark"] .qr-scanner-flip-button:hover,
+.dark .qr-scanner-flip-button:hover {
+  background: #1d4ed8;
 }
 
 /* Responsive */

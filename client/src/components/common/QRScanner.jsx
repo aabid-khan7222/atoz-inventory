@@ -7,6 +7,9 @@ const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
   const html5QrCodeRef = useRef(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState('');
+  const [availableCameras, setAvailableCameras] = useState([]);
+  const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
+  const [currentCameraId, setCurrentCameraId] = useState(null);
 
   useEffect(() => {
     if (isOpen && !html5QrCodeRef.current) {
@@ -22,20 +25,52 @@ const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
     };
   }, [isOpen]);
 
-  const startScanning = async () => {
+  // Find back camera (preferred for QR scanning)
+  const findBackCamera = (devices) => {
+    if (!devices || devices.length === 0) return 0;
+    
+    // Try to find back camera by label
+    const backCameraIndex = devices.findIndex(device => {
+      const label = device.label.toLowerCase();
+      return label.includes('back') || 
+             label.includes('rear') || 
+             label.includes('environment') ||
+             (device.facingMode && device.facingMode === 'environment');
+    });
+    
+    // If back camera found, use it; otherwise use first camera
+    return backCameraIndex >= 0 ? backCameraIndex : 0;
+  };
+
+  const startScanning = async (cameraIndex = null) => {
     try {
       setError('');
       setIsScanning(true);
 
-      const html5QrCode = new Html5Qrcode('qr-reader');
+      const html5QrCode = new Html5QrCode('qr-reader');
       html5QrCodeRef.current = html5QrCode;
 
       // Get available cameras
       const devices = await Html5Qrcode.getCameras();
       
       if (devices && devices.length > 0) {
-        // Use the first available camera (usually the back camera on mobile)
-        const cameraId = devices[0].id;
+        setAvailableCameras(devices);
+        
+        // Determine which camera to use
+        let selectedIndex;
+        if (cameraIndex !== null) {
+          selectedIndex = cameraIndex;
+        } else {
+          // First time: try to find back camera
+          selectedIndex = findBackCamera(devices);
+        }
+        
+        // Ensure index is valid
+        selectedIndex = Math.min(selectedIndex, devices.length - 1);
+        setCurrentCameraIndex(selectedIndex);
+        
+        const cameraId = devices[selectedIndex].id;
+        setCurrentCameraId(cameraId);
         
         await html5QrCode.start(
           cameraId,
@@ -70,6 +105,28 @@ const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
     }
   };
 
+  const switchCamera = async () => {
+    if (availableCameras.length <= 1) {
+      return; // Can't switch if only one camera
+    }
+    
+    try {
+      // Stop current camera
+      await stopScanning();
+      
+      // Switch to next camera
+      const nextIndex = (currentCameraIndex + 1) % availableCameras.length;
+      
+      // Small delay to ensure camera is fully stopped
+      setTimeout(() => {
+        startScanning(nextIndex);
+      }, 300);
+    } catch (err) {
+      console.error('Error switching camera:', err);
+      setError('Failed to switch camera. Please try again.');
+    }
+  };
+
   const stopScanning = async () => {
     try {
       if (html5QrCodeRef.current) {
@@ -79,6 +136,7 @@ const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
       }
       setIsScanning(false);
       setError('');
+      // Don't clear cameras list, keep it for switching
     } catch (err) {
       console.error('Error stopping QR scanner:', err);
     }
@@ -132,7 +190,7 @@ const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
               <button
                 type="button"
                 className="btn-primary"
-                onClick={startScanning}
+                onClick={() => startScanning()}
               >
                 Retry
               </button>
@@ -141,9 +199,30 @@ const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
             <>
               <div id="qr-reader" className="qr-reader-container"></div>
               {isScanning && (
-                <p className="qr-scanner-hint">
-                  Point your camera at the QR code
-                </p>
+                <>
+                  <p className="qr-scanner-hint">
+                    Point your camera at the QR code
+                  </p>
+                  {availableCameras.length > 1 && (
+                    <button
+                      type="button"
+                      className="qr-scanner-flip-button"
+                      onClick={switchCamera}
+                      title="Switch Camera"
+                      aria-label="Switch between front and back camera"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M16 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M14 7H21C22.1046 7 23 7.89543 23 9V20C23 21.1046 22.1046 22 21 22H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M16 1L20 5L16 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M20 5H10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                        <path d="M8 15L4 19L8 23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M4 19H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                      </svg>
+                      <span>Flip Camera</span>
+                    </button>
+                  )}
+                </>
               )}
             </>
           )}
