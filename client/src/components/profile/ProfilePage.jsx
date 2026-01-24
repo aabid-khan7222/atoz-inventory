@@ -45,13 +45,13 @@ const ProfilePage = () => {
 
   useEffect(() => {
     if (user) {
-      const userGstDetails = {
-        gstNumber:
-          user.gstDetails?.gstNumber || user.gst_number || user.company_gst || "",
-        companyName: user.gstDetails?.companyName || user.company || "",
-        companyAddress:
-          user.gstDetails?.companyAddress || user.company_address || "",
-      };
+      // Use the primary fields from the API response (gst_number, company_name, company_address)
+      // Only fallback to old fields if primary fields are not available
+      // If primary fields are null/undefined, treat as empty (cleared)
+      const gstNumber = user.gst_number || user.gstDetails?.gstNumber || "";
+      const companyName = user.company_name || user.gstDetails?.companyName || "";
+      const companyAddress = user.company_address || user.gstDetails?.companyAddress || "";
+      
       setFormData({
         fullName: user.full_name || "",
         email: user.email || "",
@@ -59,16 +59,16 @@ const ProfilePage = () => {
         state: user.state || "",
         city: user.city || "",
         pincode: user.pincode || "",
-        gstNumber: user.gst_number || userGstDetails.gstNumber || "",
+        gstNumber: gstNumber,
         address: user.address || "",
-        companyName: userGstDetails.companyName || "",
-        companyAddress: userGstDetails.companyAddress || "",
+        companyName: companyName,
+        companyAddress: companyAddress,
       });
       setShowGstDetails(
         Boolean(
-          userGstDetails.gstNumber ||
-            userGstDetails.companyName ||
-            userGstDetails.companyAddress
+          gstNumber ||
+            companyName ||
+            companyAddress
         )
       );
       setAvatarPreview(user.avatar_url || user.avatar || user.profileImage || user.profile_image_url || "");
@@ -115,30 +115,28 @@ const ProfilePage = () => {
 
   const handleCancel = () => {
     if (!user) return;
-    const userGstDetails = {
-      gstNumber:
-        user.gstDetails?.gstNumber || user.gst_number || user.company_gst || "",
-      companyName: user.gstDetails?.companyName || user.company || "",
-      companyAddress:
-        user.gstDetails?.companyAddress || user.company_address || "",
-    };
+    // Use primary fields, fallback to old fields only if primary are not available
+    const gstNumber = user.gst_number || user.gstDetails?.gstNumber || "";
+    const companyName = user.company_name || user.gstDetails?.companyName || "";
+    const companyAddress = user.company_address || user.gstDetails?.companyAddress || "";
+    
     setFormData({
       fullName: user.full_name || "",
       email: user.email || "",
       phone: user.phone || "",
       state: user.state || "",
       city: user.city || "",
-        pincode: user.pincode || "",
-      gstNumber: user.gst_number || userGstDetails.gstNumber || "",
+      pincode: user.pincode || "",
+      gstNumber: gstNumber,
       address: user.address || "",
-      companyName: userGstDetails.companyName || "",
-      companyAddress: userGstDetails.companyAddress || "",
+      companyName: companyName,
+      companyAddress: companyAddress,
     });
     setShowGstDetails(
       Boolean(
-        userGstDetails.gstNumber ||
-          userGstDetails.companyName ||
-          userGstDetails.companyAddress
+        gstNumber ||
+          companyName ||
+          companyAddress
       )
     );
     setIsEditing(false);
@@ -183,6 +181,11 @@ const ProfilePage = () => {
 
       // Update local state with the response from server
       if (response.user) {
+        // Clear all GST-related fields if they're null/empty
+        const gstNumber = response.user.gst_number || null;
+        const companyName = response.user.company_name || null;
+        const companyAddress = response.user.company_address || null;
+        
         updateUser({
           full_name: response.user.full_name,
           email: response.user.email,
@@ -191,11 +194,28 @@ const ProfilePage = () => {
           city: response.user.city,
           pincode: response.user.pincode,
           address: response.user.address,
-          gst_number: response.user.gst_number,
-          company_name: response.user.company_name,
-          company_address: response.user.company_address,
-          company: response.user.company_name,
+          gst_number: gstNumber,
+          company_name: companyName,
+          company_address: companyAddress,
+          company: companyName, // Clear old company field too
+          company_gst: null, // Clear old company_gst field
+          gstDetails: gstNumber || companyName || companyAddress ? {
+            gstNumber: gstNumber || "",
+            companyName: companyName || "",
+            companyAddress: companyAddress || ""
+          } : null, // Clear gstDetails object if all fields are empty
         });
+        
+        // Also update formData immediately to reflect cleared GST fields
+        setFormData(prev => ({
+          ...prev,
+          gstNumber: gstNumber || "",
+          companyName: companyName || "",
+          companyAddress: companyAddress || "",
+        }));
+        
+        // Update showGstDetails based on whether any GST field has value
+        setShowGstDetails(Boolean(gstNumber || companyName || companyAddress));
       }
 
       setStatus({ type: "success", message: "Profile updated successfully." });
