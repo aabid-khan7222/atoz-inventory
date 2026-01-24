@@ -24,22 +24,9 @@ const CustomerProductListing = () => {
   const [searchQuery, setSearchQuery] = useState(() => savedState?.searchQuery || '');
   const [selectedSeries, setSelectedSeries] = useState(() => savedState?.selectedSeries || 'all');
   const [paymentModal, setPaymentModal] = useState(null);
-  const [isMobileTablet, setIsMobileTablet] = useState(false);
   
   const [isInitialMount, setIsInitialMount] = useState(true);
   
-  // Check if mobile/tablet
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobileTablet(window.innerWidth <= 1024);
-    };
-    
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
   // Save state to sessionStorage
   useEffect(() => {
     if (isInitialMount) {
@@ -354,7 +341,7 @@ const CustomerProductListing = () => {
             <input
               type="text"
               className="search-input"
-              placeholder={isMobileTablet ? '' : t('products.searchPlaceholder')}
+              placeholder="Search here"
               value={searchQuery}
               onChange={handleSearchChange}
             />
