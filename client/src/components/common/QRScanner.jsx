@@ -16,6 +16,12 @@ const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, o
   const scanCooldownRef = useRef(false);
   const [scanSuccessMessage, setScanSuccessMessage] = useState('');
   const successTimeoutRef = useRef(null);
+  const currentFieldIndexRef = useRef(currentFieldIndex);
+  
+  // Keep ref in sync with prop
+  useEffect(() => {
+    currentFieldIndexRef.current = currentFieldIndex;
+  }, [currentFieldIndex]);
 
   // Load the library when component mounts
   useEffect(() => {
@@ -218,9 +224,10 @@ const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, o
     // Play success sound
     playSuccessSound();
     
-    // Show success message
-    const fieldNum = currentFieldIndex !== null && currentFieldIndex !== undefined 
-      ? currentFieldIndex + 1 
+    // Show success message - use ref to get latest value
+    const currentIndex = currentFieldIndexRef.current;
+    const fieldNum = currentIndex !== null && currentIndex !== undefined 
+      ? currentIndex + 1 
       : '';
     const totalNum = totalFields || '';
     setScanSuccessMessage(`✓ Serial number ${fieldNum}${totalNum ? ` of ${totalNum}` : ''} scanned!`);
@@ -242,19 +249,20 @@ const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, o
       // In continuous mode, keep scanner open and move to next field
       // Don't stop scanning or close scanner
       if (onNextField) {
+        // Call onNextField immediately - the parent will handle state updates
         // Small delay to allow current scan to process and show feedback
         setTimeout(() => {
           onNextField();
           // Reset cooldown after a longer delay to allow next scan
           setTimeout(() => {
             scanCooldownRef.current = false;
-          }, 800);
-        }, 300);
+          }, 1000);
+        }, 400);
       } else {
         // Reset cooldown if no next field callback
         setTimeout(() => {
           scanCooldownRef.current = false;
-        }, 800);
+        }, 1000);
       }
     } else {
       // Normal mode: stop scanning and close
@@ -333,8 +341,8 @@ const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, o
                 <>
                   <p className="qr-scanner-hint">
                     {continuousMode 
-                      ? (currentFieldIndex !== null && currentFieldIndex !== undefined && totalFields
-                          ? `Scanning serial number ${currentFieldIndex + 1} of ${totalFields}. Scanner will move to next field automatically.`
+                      ? (currentFieldIndexRef.current !== null && currentFieldIndexRef.current !== undefined && totalFields
+                          ? `Scanning serial number ${currentFieldIndexRef.current + 1} of ${totalFields}. Scanner will move to next field automatically.`
                           : 'Scan QR codes continuously. Scanner will move to next field automatically.')
                       : 'Point your camera at the QR code'}
                   </p>

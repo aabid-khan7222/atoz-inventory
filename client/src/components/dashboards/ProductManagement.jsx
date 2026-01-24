@@ -599,27 +599,21 @@ await fetchProducts();
 
   const handleScanSuccess = (scannedText) => {
     if (scanningIndex !== null && newProduct.serial_numbers && scanningIndex < newProduct.serial_numbers.length) {
+      // Update the serial number at the current scanning index
       const updated = [...(newProduct.serial_numbers || [])];
       updated[scanningIndex] = scannedText.trim();
       setNewProduct({ ...newProduct, serial_numbers: updated });
-    }
-    // Don't close scanner in continuous mode - it will stay open
-  };
-
-  const handleNextField = () => {
-    if (scanningIndex !== null) {
-      const serials = newProduct.serial_numbers || [];
-      // Find next empty field
+      
+      // Find next empty field based on UPDATED array
       let nextIndex = scanningIndex + 1;
       
       // Skip filled fields and find next empty one
-      while (nextIndex < serials.length && serials[nextIndex] && serials[nextIndex].trim() !== '') {
+      while (nextIndex < updated.length && updated[nextIndex] && updated[nextIndex].trim() !== '') {
         nextIndex++;
       }
       
-      // Check if there are more empty fields to scan
-      if (nextIndex < serials.length) {
-        // Move to next empty field
+      // Update scanningIndex to next field
+      if (nextIndex < updated.length) {
         setScanningIndex(nextIndex);
         
         // Focus and scroll to the next input field (important for mobile)
@@ -645,10 +639,17 @@ await fetchProducts();
         }, 200);
       } else {
         // All fields filled, close scanner
-        setIsScannerOpen(false);
-        setScanningIndex(null);
+        setTimeout(() => {
+          setIsScannerOpen(false);
+          setScanningIndex(null);
+        }, 500);
       }
     }
+  };
+
+  const handleNextField = () => {
+    // This callback is called by QRScanner after scan success
+    // The actual logic is handled in handleScanSuccess above
   };
 
   const handleScanClose = () => {
@@ -2204,7 +2205,7 @@ await fetchProducts();
         onNextField={handleNextField}
         continuousMode={true}
         currentFieldIndex={scanningIndex}
-        totalFields={newProduct.serial_numbers?.length || 0}
+        totalFields={newProduct.qty || newProduct.serial_numbers?.length || 0}
         onError={(err) => {
           setError(err.message || 'Failed to scan QR code');
           setTimeout(() => setError(''), 5000);

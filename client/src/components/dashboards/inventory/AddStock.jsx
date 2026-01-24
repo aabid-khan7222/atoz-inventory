@@ -288,24 +288,20 @@ const AddStock = ({ onBack }) => {
   const handleScanSuccess = (scannedText) => {
     if (scanningIndex !== null && scanningIndex < serialNumbers.length) {
       // Update the serial number at the current scanning index
-      handleSerialNumberChange(scanningIndex, scannedText.trim());
-    }
-    // Don't close scanner in continuous mode - it will stay open
-  };
-
-  const handleNextField = () => {
-    if (scanningIndex !== null) {
-      // Find next empty field
+      const updated = [...serialNumbers];
+      updated[scanningIndex] = scannedText.trim();
+      setSerialNumbers(updated);
+      
+      // Find next empty field based on UPDATED array
       let nextIndex = scanningIndex + 1;
       
       // Skip filled fields and find next empty one
-      while (nextIndex < serialNumbers.length && serialNumbers[nextIndex] && serialNumbers[nextIndex].trim() !== '') {
+      while (nextIndex < updated.length && updated[nextIndex] && updated[nextIndex].trim() !== '') {
         nextIndex++;
       }
       
-      // Check if there are more empty fields to scan
-      if (nextIndex < serialNumbers.length) {
-        // Move to next empty field
+      // Update scanningIndex to next field (this will trigger re-render with new currentFieldIndex)
+      if (nextIndex < updated.length) {
         setScanningIndex(nextIndex);
         
         // Focus and scroll to the next input field (important for mobile)
@@ -331,10 +327,18 @@ const AddStock = ({ onBack }) => {
         }, 200);
       } else {
         // All fields filled, close scanner
-        setIsScannerOpen(false);
-        setScanningIndex(null);
+        setTimeout(() => {
+          setIsScannerOpen(false);
+          setScanningIndex(null);
+        }, 500);
       }
     }
+  };
+
+  const handleNextField = () => {
+    // This callback is called by QRScanner after scan success
+    // The actual logic is handled in handleScanSuccess above
+    // This is just a placeholder to satisfy the callback requirement
   };
 
   const handleScanClose = () => {
@@ -806,7 +810,7 @@ const AddStock = ({ onBack }) => {
             onNextField={handleNextField}
             continuousMode={true}
             currentFieldIndex={scanningIndex}
-            totalFields={serialNumbers.length}
+            totalFields={quantity || serialNumbers.length}
             onError={(err) => {
               setError(err.message || 'Failed to scan QR code');
             }}
