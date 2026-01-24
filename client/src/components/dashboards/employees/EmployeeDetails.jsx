@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import api from '../../../api';
 import './EmployeeDetails.css';
 
@@ -14,6 +14,61 @@ const EmployeeDetails = ({ employeeId, onBack }) => {
   const [showAttendanceForm, setShowAttendanceForm] = useState(false);
   const [showDailyAttendanceForm, setShowDailyAttendanceForm] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+
+  // Prevent body scroll when any modal is open
+  useLayoutEffect(() => {
+    if (showAttendanceForm || showDailyAttendanceForm || showPaymentForm) {
+      // Store original body styles
+      const originalOverflow = document.body.style.overflow;
+      const originalPosition = document.body.style.position;
+      const originalTop = document.body.style.top;
+      const originalWidth = document.body.style.width;
+      
+      // Get current scroll position
+      const scrollY = window.scrollY;
+      
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      
+      // Prevent scroll on overlay
+      const preventScroll = (e) => {
+        // Allow scrolling inside modal content
+        const modalContent = e.target.closest('.form-content');
+        if (!modalContent) {
+          e.preventDefault();
+        }
+      };
+      
+      // Prevent touchmove on overlay (mobile)
+      const preventTouchMove = (e) => {
+        const modalContent = e.target.closest('.form-content');
+        if (!modalContent) {
+          e.preventDefault();
+        }
+      };
+      
+      document.addEventListener('wheel', preventScroll, { passive: false });
+      document.addEventListener('touchmove', preventTouchMove, { passive: false });
+      
+      return () => {
+        // Restore original body styles
+        document.body.style.overflow = originalOverflow;
+        document.body.style.position = originalPosition;
+        document.body.style.top = originalTop;
+        document.body.style.width = originalWidth;
+        
+        // Restore scroll position
+        window.scrollTo(0, scrollY);
+        
+        // Remove event listeners
+        document.removeEventListener('wheel', preventScroll);
+        document.removeEventListener('touchmove', preventTouchMove);
+      };
+    }
+  }, [showAttendanceForm, showDailyAttendanceForm, showPaymentForm]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [attendanceForm, setAttendanceForm] = useState({
