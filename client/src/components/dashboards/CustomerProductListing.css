@@ -558,13 +558,17 @@
 /* Hide placeholder on mobile/tablet */
 @media (max-width: 1024px) {
   .search-input::placeholder {
-    color: transparent;
-    opacity: 0;
+    color: transparent !important;
+    opacity: 0 !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
   }
 
   [data-theme="dark"] .search-input::placeholder {
-    color: transparent;
-    opacity: 0;
+    color: transparent !important;
+    opacity: 0 !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
   }
 }
 
