@@ -314,6 +314,26 @@
   height: auto;
   min-height: 48px;
   box-sizing: border-box;
+  transition: border-color 0.3s, box-shadow 0.3s, background-color 0.3s;
+}
+
+.serial-number-input-group.scanning-active {
+  position: relative;
+}
+
+.serial-number-input-group.scanning-active::before {
+  content: '📷 Scanning...';
+  position: absolute;
+  top: -1.5rem;
+  left: 0;
+  font-size: 0.75rem;
+  color: #3b82f6;
+  font-weight: 600;
+  background: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .qr-scan-button {

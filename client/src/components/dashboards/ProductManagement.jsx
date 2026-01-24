@@ -596,10 +596,27 @@ await fetchProducts();
         // Move to next field
         setScanningIndex(nextIndex);
         
-        // Focus the next input field
+        // Focus and scroll to the next input field (important for mobile)
         setTimeout(() => {
-          serialInputRefs.current[nextIndex]?.focus();
-        }, 100);
+          const nextInput = serialInputRefs.current[nextIndex];
+          if (nextInput) {
+            // Scroll into view first (important for mobile)
+            nextInput.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center',
+              inline: 'nearest'
+            });
+            
+            // Then focus after a small delay
+            setTimeout(() => {
+              nextInput.focus();
+              // For mobile, also try click to ensure focus
+              if (nextInput.click) {
+                nextInput.click();
+              }
+            }, 300);
+          }
+        }, 200);
       } else {
         // All fields filled, close scanner
         setIsScannerOpen(false);
@@ -1967,7 +1984,32 @@ await fetchProducts();
                         </label>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto', padding: '0.5rem', border: '1px solid var(--azb-border-subtle, #cbd5e1)', borderRadius: '0.375rem', background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))' }}>
                           {(newProduct.serial_numbers || []).map((serial, index) => (
-                            <div key={index} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <div 
+                              key={index} 
+                              style={{ 
+                                display: 'flex', 
+                                gap: '0.5rem', 
+                                alignItems: 'center',
+                                position: 'relative'
+                              }}
+                            >
+                              {scanningIndex === index && (
+                                <span style={{
+                                  position: 'absolute',
+                                  top: '-1.5rem',
+                                  left: 0,
+                                  fontSize: '0.75rem',
+                                  color: '#3b82f6',
+                                  fontWeight: 600,
+                                  background: 'white',
+                                  padding: '0.25rem 0.5rem',
+                                  borderRadius: '4px',
+                                  zIndex: 10,
+                                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                                }}>
+                                  📷 Scanning...
+                                </span>
+                              )}
                               <input
                                 ref={(el) => (serialInputRefs.current[index] = el)}
                                 type="text"
@@ -1980,13 +2022,23 @@ await fetchProducts();
                                 style={{
                                   flex: 1,
                                   padding: '0.5rem',
-                                  border: '1px solid var(--azb-border-subtle, #cbd5e1)',
+                                  border: scanningIndex === index 
+                                    ? '2px solid #3b82f6' 
+                                    : '1px solid var(--azb-border-subtle, #cbd5e1)',
                                   borderRadius: '0.25rem',
                                   fontSize: '0.875rem',
-                                  background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
-                                  color: 'var(--azb-text-main)'
+                                  background: scanningIndex === index 
+                                    ? '#eff6ff' 
+                                    : 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
+                                  color: 'var(--azb-text-main)',
+                                  boxShadow: scanningIndex === index 
+                                    ? '0 0 0 3px rgba(59, 130, 246, 0.1)' 
+                                    : 'none',
+                                  transition: 'border-color 0.3s, box-shadow 0.3s, background-color 0.3s',
+                                  readOnly: scanningIndex === index
                                 }}
                                 placeholder={`Serial Number ${index + 1}${parseInt(newProduct.qty) > 0 ? ' *' : ''}`}
+                                readOnly={scanningIndex === index}
                               />
                               <button
                                 type="button"

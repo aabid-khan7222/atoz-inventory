@@ -284,10 +284,27 @@ const AddStock = ({ onBack }) => {
         // Move to next field
         setScanningIndex(nextIndex);
         
-        // Focus the next input field
+        // Focus and scroll to the next input field (important for mobile)
         setTimeout(() => {
-          serialInputRefs.current[nextIndex]?.focus();
-        }, 100);
+          const nextInput = serialInputRefs.current[nextIndex];
+          if (nextInput) {
+            // Scroll into view first (important for mobile)
+            nextInput.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center',
+              inline: 'nearest'
+            });
+            
+            // Then focus after a small delay
+            setTimeout(() => {
+              nextInput.focus();
+              // For mobile, also try click to ensure focus
+              if (nextInput.click) {
+                nextInput.click();
+              }
+            }, 300);
+          }
+        }, 200);
       } else {
         // All fields filled, close scanner
         setIsScannerOpen(false);
@@ -693,7 +710,10 @@ const AddStock = ({ onBack }) => {
               <label>Serial Numbers * ({serialNumbers.filter(sn => sn.trim() !== '').length} of {quantity || 0})</label>
               <div className="serial-numbers-container">
                 {serialNumbers.map((serial, index) => (
-                  <div key={index} className="serial-number-input-group">
+                  <div 
+                    key={index} 
+                    className={`serial-number-input-group ${scanningIndex === index ? 'scanning-active' : ''}`}
+                  >
                     <input
                       ref={(el) => (serialInputRefs.current[index] = el)}
                       type="text"
@@ -702,6 +722,12 @@ const AddStock = ({ onBack }) => {
                       className="form-input"
                       placeholder={`Serial Number ${index + 1} *`}
                       required
+                      readOnly={scanningIndex === index}
+                      style={scanningIndex === index ? {
+                        borderColor: '#3b82f6',
+                        boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)',
+                        backgroundColor: '#eff6ff'
+                      } : {}}
                     />
                     <button
                       type="button"
