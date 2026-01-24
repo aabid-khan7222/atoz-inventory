@@ -612,9 +612,21 @@ router.put('/profile', requireAuth, async (req, res) => {
             address = EXCLUDED.address,
             pincode = EXCLUDED.pincode,
             is_business_customer = customer_profiles.is_business_customer,
-            company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), customer_profiles.company_name),
-            gst_number = COALESCE(NULLIF(EXCLUDED.gst_number, ''), customer_profiles.gst_number),
-            company_address = COALESCE(NULLIF(EXCLUDED.company_address, ''), customer_profiles.company_address)
+            company_name = CASE 
+              WHEN EXCLUDED.company_name IS NULL THEN NULL
+              WHEN EXCLUDED.company_name = '' THEN NULL
+              ELSE EXCLUDED.company_name
+            END,
+            gst_number = CASE 
+              WHEN EXCLUDED.gst_number IS NULL THEN NULL
+              WHEN EXCLUDED.gst_number = '' THEN NULL
+              ELSE EXCLUDED.gst_number
+            END,
+            company_address = CASE 
+              WHEN EXCLUDED.company_address IS NULL THEN NULL
+              WHEN EXCLUDED.company_address = '' THEN NULL
+              ELSE EXCLUDED.company_address
+            END
         `, [
           userId,
           full_name.trim(),
@@ -643,9 +655,21 @@ router.put('/profile', requireAuth, async (req, res) => {
             city = EXCLUDED.city,
             address = EXCLUDED.address,
             is_business_customer = customer_profiles.is_business_customer,
-            company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), customer_profiles.company_name),
-            gst_number = COALESCE(NULLIF(EXCLUDED.gst_number, ''), customer_profiles.gst_number),
-            company_address = COALESCE(NULLIF(EXCLUDED.company_address, ''), customer_profiles.company_address)
+            company_name = CASE 
+              WHEN EXCLUDED.company_name IS NULL THEN NULL
+              WHEN EXCLUDED.company_name = '' THEN NULL
+              ELSE EXCLUDED.company_name
+            END,
+            gst_number = CASE 
+              WHEN EXCLUDED.gst_number IS NULL THEN NULL
+              WHEN EXCLUDED.gst_number = '' THEN NULL
+              ELSE EXCLUDED.gst_number
+            END,
+            company_address = CASE 
+              WHEN EXCLUDED.company_address IS NULL THEN NULL
+              WHEN EXCLUDED.company_address = '' THEN NULL
+              ELSE EXCLUDED.company_address
+            END
         `, [
           userId,
           full_name.trim(),
@@ -676,8 +700,16 @@ router.put('/profile', requireAuth, async (req, res) => {
             address = EXCLUDED.address,
             pincode = EXCLUDED.pincode,
             is_business_customer = customer_profiles.is_business_customer,
-            company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), customer_profiles.company_name),
-            gst_number = COALESCE(NULLIF(EXCLUDED.gst_number, ''), customer_profiles.gst_number)
+            company_name = CASE 
+              WHEN EXCLUDED.company_name IS NULL THEN NULL
+              WHEN EXCLUDED.company_name = '' THEN NULL
+              ELSE EXCLUDED.company_name
+            END,
+            gst_number = CASE 
+              WHEN EXCLUDED.gst_number IS NULL THEN NULL
+              WHEN EXCLUDED.gst_number = '' THEN NULL
+              ELSE EXCLUDED.gst_number
+            END
         `, [
           userId,
           full_name.trim(),
@@ -705,8 +737,16 @@ router.put('/profile', requireAuth, async (req, res) => {
             city = EXCLUDED.city,
             address = EXCLUDED.address,
             is_business_customer = customer_profiles.is_business_customer,
-            company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), customer_profiles.company_name),
-            gst_number = COALESCE(NULLIF(EXCLUDED.gst_number, ''), customer_profiles.gst_number)
+            company_name = CASE 
+              WHEN EXCLUDED.company_name IS NULL THEN NULL
+              WHEN EXCLUDED.company_name = '' THEN NULL
+              ELSE EXCLUDED.company_name
+            END,
+            gst_number = CASE 
+              WHEN EXCLUDED.gst_number IS NULL THEN NULL
+              WHEN EXCLUDED.gst_number = '' THEN NULL
+              ELSE EXCLUDED.gst_number
+            END
         `, [
           userId,
           full_name.trim(),
