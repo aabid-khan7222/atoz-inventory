@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../../../api';
 import { useAuth } from '../../../contexts/AuthContext';
 import SearchableDropdown from '../../common/SearchableDropdown';
+import QRScanner from '../../common/QRScanner';
 import { getFormState, saveFormState, markFormSubmitted } from '../../../utils/formStateManager';
 import './InventorySection.css';
 import '../InventoryManagement.css';
@@ -57,6 +58,11 @@ const AddStock = ({ onBack }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isInitialMount, setIsInitialMount] = useState(true);
+  
+  // QR Scanner state
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scanningIndex, setScanningIndex] = useState(null);
+  const serialInputRefs = useRef({});
   
   // Track previous quantity to detect user changes (not restoration) - initialize with saved value
   const prevQuantityRef = React.useRef(savedState?.quantity || '');
@@ -254,6 +260,34 @@ const AddStock = ({ onBack }) => {
     const updated = [...serialNumbers];
     updated[index] = value;
     setSerialNumbers(updated);
+  };
+
+  const handleScanClick = (index) => {
+    setScanningIndex(index);
+    setIsScannerOpen(true);
+  };
+
+  const handleScanSuccess = (scannedText) => {
+    if (scanningIndex !== null) {
+      // Update the serial number at the scanning index
+      handleSerialNumberChange(scanningIndex, scannedText);
+      
+      // Auto-focus to next field
+      const nextIndex = scanningIndex + 1;
+      if (nextIndex < serialNumbers.length && serialInputRefs.current[nextIndex]) {
+        // Small delay to ensure DOM is updated
+        setTimeout(() => {
+          serialInputRefs.current[nextIndex]?.focus();
+        }, 100);
+      }
+    }
+    setIsScannerOpen(false);
+    setScanningIndex(null);
+  };
+
+  const handleScanClose = () => {
+    setIsScannerOpen(false);
+    setScanningIndex(null);
   };
 
   const handleRemoveSerialNumber = (index) => {
@@ -650,6 +684,7 @@ const AddStock = ({ onBack }) => {
                 {serialNumbers.map((serial, index) => (
                   <div key={index} className="serial-number-input-group">
                     <input
+                      ref={(el) => (serialInputRefs.current[index] = el)}
                       type="text"
                       value={serial}
                       onChange={(e) => handleSerialNumberChange(index, e.target.value)}
@@ -657,6 +692,17 @@ const AddStock = ({ onBack }) => {
                       placeholder={`Serial Number ${index + 1} *`}
                       required
                     />
+                    <button
+                      type="button"
+                      className="qr-scan-button"
+                      onClick={() => handleScanClick(index)}
+                      title="Scan QR Code"
+                      aria-label="Scan QR Code"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 7V5C3 3.89543 3.89543 3 5 3H7M21 7V5C21 3.89543 20.1046 3 19 3H17M17 21H19C20.1046 21 21 20.1046 21 19V17M7 21H5C3.89543 21 3 20.1046 3 19V17M9 9H15V15H9V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -678,6 +724,16 @@ const AddStock = ({ onBack }) => {
 
           {error && <div className="error-message">{error}</div>}
           {success && <div className="success-message">{success}</div>}
+
+          {/* QR Scanner Modal */}
+          <QRScanner
+            isOpen={isScannerOpen}
+            onClose={handleScanClose}
+            onScan={handleScanSuccess}
+            onError={(err) => {
+              setError(err.message || 'Failed to scan QR code');
+            }}
+          />
 
           <div className="form-actions">
             <button type="button" className="btn-secondary" onClick={onBack}>

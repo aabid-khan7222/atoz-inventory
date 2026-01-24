@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useTheme } from '../../../contexts/ThemeContext';
 import SearchableDropdown from '../../common/SearchableDropdown';
 import MultiSelectSearchableDropdown from '../../common/MultiSelectSearchableDropdown';
+import QRScanner from '../../common/QRScanner';
 import Swal from 'sweetalert2';
 import { getFormState, saveFormState, markFormSubmitted } from '../../../utils/formStateManager';
 import './InventorySection.css';
@@ -84,6 +85,9 @@ const SellStock = ({ onBack }) => {
   const [cart, setCart] = useState(() => savedState?.cart || []);
   
   const [isInitialMount, setIsInitialMount] = useState(true);
+  
+  // QR Scanner state
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   
   // Save form state to sessionStorage whenever it changes
   useEffect(() => {
@@ -356,6 +360,46 @@ const SellStock = ({ onBack }) => {
     } catch (err) {
       setError(err.message || 'Failed to load serial numbers');
     }
+  };
+
+  const handleScanClick = () => {
+    setIsScannerOpen(true);
+  };
+
+  const handleScanSuccess = (scannedText) => {
+    const scannedSerial = scannedText.trim();
+    
+    // Check if scanned serial is in available serials
+    if (!availableSerials.includes(scannedSerial)) {
+      setError(`Serial number "${scannedSerial}" is not available for this product.`);
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
+    
+    // Check if already selected
+    if (selectedSerials.includes(scannedSerial)) {
+      setError(`Serial number "${scannedSerial}" is already selected.`);
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    
+    // Check if we've reached the quantity limit
+    if (selectedSerials.length >= quantity) {
+      setError(`You can only select ${quantity} serial number(s). Please remove one first.`);
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    
+    // Add to selected serials
+    setSelectedSerials([...selectedSerials, scannedSerial]);
+    setSuccess(`Serial number "${scannedSerial}" added successfully!`);
+    setTimeout(() => setSuccess(''), 2000);
+    
+    setIsScannerOpen(false);
+  };
+
+  const handleScanClose = () => {
+    setIsScannerOpen(false);
   };
 
 
@@ -806,8 +850,26 @@ const SellStock = ({ onBack }) => {
           {/* Serial Number Selection (Admin can choose manually) - Hidden for water products */}
           {selectedProduct && availableSerials.length > 0 && selectedCategory !== 'water' && (
             <div className="form-group">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                <label style={{ flex: 1, margin: 0 }}>
+                  Select Serial Numbers * ({selectedSerials.length} of {quantity} selected)
+                </label>
+                <button
+                  type="button"
+                  className="qr-scan-button"
+                  onClick={handleScanClick}
+                  title="Scan QR Code to add serial number"
+                  aria-label="Scan QR Code"
+                  disabled={selectedSerials.length >= quantity}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 7V5C3 3.89543 3.89543 3 5 3H7M21 7V5C21 3.89543 20.1046 3 19 3H17M17 21H19C20.1046 21 21 20.1046 21 19V17M7 21H5C3.89543 21 3 20.1046 3 19V17M9 9H15V15H9V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span style={{ marginLeft: '0.5rem', fontSize: '0.875rem' }}>Scan</span>
+                </button>
+              </div>
               <MultiSelectSearchableDropdown
-                label={`Select Serial Numbers * (${selectedSerials.length} of ${quantity} selected)`}
+                label=""
                 options={availableSerials.map((serial) => ({
                   value: serial,
                   label: serial,
@@ -826,7 +888,7 @@ const SellStock = ({ onBack }) => {
                 showSelectedCount={true}
               />
               <small style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem', display: 'block' }}>
-                Select {quantity} serial number(s) from {availableSerials.length} available. Use search to find specific serial numbers.
+                Select {quantity} serial number(s) from {availableSerials.length} available. Use search or scan QR code to find specific serial numbers.
               </small>
             </div>
           )}
@@ -1415,6 +1477,16 @@ const SellStock = ({ onBack }) => {
 
           {error && <div className="error-message">{error}</div>}
           {success && <div className="success-message">{success}</div>}
+
+          {/* QR Scanner Modal */}
+          <QRScanner
+            isOpen={isScannerOpen}
+            onClose={handleScanClose}
+            onScan={handleScanSuccess}
+            onError={(err) => {
+              setError(err.message || 'Failed to scan QR code');
+            }}
+          />
 
           {/* Cart Display */}
           {cart.length > 0 && (

@@ -313,6 +313,57 @@
   flex: 1;
 }
 
+.qr-scan-button {
+  padding: 0.625rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  min-width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.qr-scan-button:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+
+.qr-scan-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px -1px rgba(59, 130, 246, 0.2);
+}
+
+.qr-scan-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+[data-theme="dark"] .qr-scan-button {
+  background: #2563eb;
+}
+
+[data-theme="dark"] .qr-scan-button:hover {
+  background: #1d4ed8;
+}
+
+.qr-scan-button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.qr-scan-button:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .remove-btn {
   padding: 0.5rem 1rem;
   background: #fee2e2;

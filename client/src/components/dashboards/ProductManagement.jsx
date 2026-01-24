@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import api, { setAuthToken } from '../../api';
 import SearchableDropdown from '../common/SearchableDropdown';
+import QRScanner from '../common/QRScanner';
 import { useAuth } from '../../contexts/AuthContext';
 import { getFormState, saveFormState, markFormSubmitted } from '../../utils/formStateManager';
 import './InventoryManagement.css';
@@ -61,6 +62,11 @@ const ProductManagement = () => {
     serial_numbers: []
   });
   const [creatingProduct, setCreatingProduct] = useState(false);
+
+  // QR Scanner state
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scanningIndex, setScanningIndex] = useState(null);
+  const serialInputRefs = useRef({});
 
   // Determine role class for styling
   const roleClass = user?.role_id === 1 ? 'super-admin' : user?.role_id === 2 ? 'admin' : '';
@@ -565,6 +571,34 @@ await fetchProducts();
     } finally {
       setCreatingProduct(false);
     }
+  };
+
+  const handleScanClick = (index) => {
+    setScanningIndex(index);
+    setIsScannerOpen(true);
+  };
+
+  const handleScanSuccess = (scannedText) => {
+    if (scanningIndex !== null) {
+      const updated = [...(newProduct.serial_numbers || [])];
+      updated[scanningIndex] = scannedText.trim();
+      setNewProduct({ ...newProduct, serial_numbers: updated });
+      
+      // Auto-focus to next field
+      const nextIndex = scanningIndex + 1;
+      if (nextIndex < (newProduct.serial_numbers || []).length && serialInputRefs.current[nextIndex]) {
+        setTimeout(() => {
+          serialInputRefs.current[nextIndex]?.focus();
+        }, 100);
+      }
+    }
+    setIsScannerOpen(false);
+    setScanningIndex(null);
+  };
+
+  const handleScanClose = () => {
+    setIsScannerOpen(false);
+    setScanningIndex(null);
   };
 
   return (
@@ -1921,26 +1955,40 @@ await fetchProducts();
                         </label>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto', padding: '0.5rem', border: '1px solid var(--azb-border-subtle, #cbd5e1)', borderRadius: '0.375rem', background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))' }}>
                           {(newProduct.serial_numbers || []).map((serial, index) => (
-                            <input
-                              key={index}
-                              type="text"
-                              value={serial}
-                              onChange={(e) => {
-                                const updated = [...(newProduct.serial_numbers || [])];
-                                updated[index] = e.target.value;
-                                setNewProduct({ ...newProduct, serial_numbers: updated });
-                              }}
-                              style={{
-                                width: '100%',
-                                padding: '0.5rem',
-                                border: '1px solid var(--azb-border-subtle, #cbd5e1)',
-                                borderRadius: '0.25rem',
-                                fontSize: '0.875rem',
-                                background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
-                                color: 'var(--azb-text-main)'
-                              }}
-                              placeholder={`Serial Number ${index + 1}${parseInt(newProduct.qty) > 0 ? ' *' : ''}`}
-                            />
+                            <div key={index} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <input
+                                ref={(el) => (serialInputRefs.current[index] = el)}
+                                type="text"
+                                value={serial}
+                                onChange={(e) => {
+                                  const updated = [...(newProduct.serial_numbers || [])];
+                                  updated[index] = e.target.value;
+                                  setNewProduct({ ...newProduct, serial_numbers: updated });
+                                }}
+                                style={{
+                                  flex: 1,
+                                  padding: '0.5rem',
+                                  border: '1px solid var(--azb-border-subtle, #cbd5e1)',
+                                  borderRadius: '0.25rem',
+                                  fontSize: '0.875rem',
+                                  background: 'var(--azb-bg-input, var(--azb-bg-card, #ffffff))',
+                                  color: 'var(--azb-text-main)'
+                                }}
+                                placeholder={`Serial Number ${index + 1}${parseInt(newProduct.qty) > 0 ? ' *' : ''}`}
+                              />
+                              <button
+                                type="button"
+                                className="qr-scan-button"
+                                onClick={() => handleScanClick(index)}
+                                title="Scan QR Code"
+                                aria-label="Scan QR Code"
+                                style={{ minWidth: '44px', height: '44px', padding: '0.625rem' }}
+                              >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M3 7V5C3 3.89543 3.89543 3 5 3H7M21 7V5C21 3.89543 20.1046 3 19 3H17M17 21H19C20.1046 21 21 20.1046 21 19V17M7 21H5C3.89543 21 3 20.1046 3 19V17M9 9H15V15H9V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </button>
+                            </div>
                           ))}
                         </div>
                         <small style={{ color: 'var(--azb-text-muted, #64748b)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
@@ -2048,6 +2096,17 @@ await fetchProducts();
           </div>
         </div>
       )}
+
+      {/* QR Scanner Modal */}
+      <QRScanner
+        isOpen={isScannerOpen}
+        onClose={handleScanClose}
+        onScan={handleScanSuccess}
+        onError={(err) => {
+          setError(err.message || 'Failed to scan QR code');
+          setTimeout(() => setError(''), 5000);
+        }}
+      />
     </div>
   );
 };
