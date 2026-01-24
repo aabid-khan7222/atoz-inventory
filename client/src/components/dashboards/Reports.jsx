@@ -1102,6 +1102,13 @@ const Reports = () => {
             details={`Sales: ${formatCurrency(summaryData.profit?.sales_profit || 0)} | Charging: ${formatCurrency(summaryData.profit?.charging_profit || 0)} | Services: ${formatCurrency(summaryData.profit?.services_profit || 0)}`}
             isDetails={true}
           />
+          <SummaryCard 
+            title="Balance"
+            value={formatCurrency(summaryData.balance?.balance || 0)}
+            color={summaryData.balance?.balance >= 0 ? "var(--corp-success)" : "var(--corp-danger)"}
+            details={`Profit: ${formatCurrency(summaryData.balance?.total_profit || 0)} - Payments: ${formatCurrency(summaryData.balance?.total_employee_payments || 0)}`}
+            isDetails={true}
+          />
         </div>
 
         <div style={{ background: 'var(--corp-bg-card)', padding: '1.5rem', borderRadius: 'var(--corp-radius)', boxShadow: 'var(--corp-shadow)' }}>
