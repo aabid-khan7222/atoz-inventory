@@ -17,18 +17,37 @@
 
 .login-card {
   background: white;
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25), 0 5px 15px rgba(0, 0, 0, 0.1);
   padding: 3rem;
   width: 100%;
   max-width: 420px;
   animation: slideUp 0.5s ease;
   box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #e60000 0%, #ff3333 50%, #e60000 100%);
+  border-radius: 20px 20px 0 0;
 }
 
 [data-theme="dark"] .login-card {
   background: var(--azb-bg-surface);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4), 0 5px 15px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .login-card::before {
+  background: linear-gradient(90deg, #ff4444 0%, #ff6666 50%, #ff4444 100%);
 }
 
 @keyframes slideUp {
@@ -94,7 +113,7 @@
 .login-form .form-group input {
   padding: 0.9rem 1.2rem;
   border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 1rem;
   transition: all 0.3s ease;
   background: #f9f9f9;
@@ -123,10 +142,10 @@
 }
 
 .login-button {
-  background: #e60000;
+  background: linear-gradient(135deg, #e60000 0%, #cc0000 100%);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 1rem;
   font-size: 1rem;
   font-weight: 700;
@@ -140,6 +159,7 @@
   width: 100%;
   min-height: 44px;
   box-sizing: border-box;
+  box-shadow: 0 4px 15px rgba(230, 0, 0, 0.3);
 }
 
 .login-button::before {
@@ -158,9 +178,9 @@
 }
 
 .login-button:hover {
-  background: #cc0000;
+  background: linear-gradient(135deg, #cc0000 0%, #b30000 100%);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(230, 0, 0, 0.4);
+  box-shadow: 0 6px 25px rgba(230, 0, 0, 0.5);
 }
 
 .login-button:active {
@@ -227,7 +247,7 @@
   justify-content: center;
   gap: 0.75rem;
   padding: 0.875rem 1.5rem;
-  border-radius: 8px;
+  border-radius: 10px;
   text-decoration: none;
   font-size: 0.95rem;
   font-weight: 600;
@@ -331,14 +351,21 @@
   .login-container {
     padding: 1rem;
     min-height: 100vh;
-    align-items: flex-start;
-    padding-top: 1.25rem;
-    padding-bottom: 1.25rem;
+    align-items: center;
+    justify-content: center;
+    padding-top: 2rem;
+    padding-bottom: 3rem;
   }
 
   .login-card {
     padding: 2rem 1.75rem;
     margin: 0;
+    border-radius: 18px;
+    box-shadow: 0 12px 45px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  .login-card::before {
+    border-radius: 18px 18px 0 0;
   }
 
   .login-header {
@@ -382,15 +409,23 @@
   .login-container {
     padding: 0.75rem;
     min-height: 100vh;
-    align-items: flex-start;
-    padding-top: 1rem;
-    padding-bottom: 1rem;
+    align-items: center;
+    justify-content: center;
+    padding-top: 1.5rem;
+    padding-bottom: 2.5rem;
   }
 
   .login-card {
-    padding: 1.5rem 1.25rem;
+    padding: 1.75rem 1.5rem;
     max-width: 100%;
     margin: 0;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2), 0 4px 10px rgba(0, 0, 0, 0.1);
+  }
+
+  .login-card::before {
+    border-radius: 16px 16px 0 0;
+    height: 3px;
   }
 
   .login-header {
@@ -423,6 +458,7 @@
     padding: 0.75rem 1rem;
     font-size: 0.95rem;
     min-height: 42px;
+    border-radius: 9px;
   }
 
   .login-button {
@@ -430,6 +466,7 @@
     font-size: 0.95rem;
     margin-top: 0.25rem;
     min-height: 42px;
+    border-radius: 9px;
   }
 
   .login-divider {
@@ -469,15 +506,22 @@
   .login-container {
     padding: 0.5rem;
     min-height: 100vh;
-    align-items: flex-start;
-    padding-top: 0.75rem;
-    padding-bottom: 0.75rem;
+    align-items: center;
+    justify-content: center;
+    padding-top: 1rem;
+    padding-bottom: 2rem;
   }
 
   .login-card {
-    padding: 1.25rem 1rem;
-    border-radius: 12px;
+    padding: 1.5rem 1.25rem;
+    border-radius: 16px;
     margin: 0;
+    box-shadow: 0 8px 35px rgba(0, 0, 0, 0.2), 0 3px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .login-card::before {
+    border-radius: 16px 16px 0 0;
+    height: 3px;
   }
 
   .login-header {
@@ -510,6 +554,7 @@
     padding: 0.7rem 0.9rem;
     font-size: 0.9rem;
     min-height: 40px;
+    border-radius: 8px;
   }
 
   .login-button {
@@ -517,6 +562,7 @@
     font-size: 0.9rem;
     margin-top: 0.2rem;
     min-height: 40px;
+    border-radius: 8px;
   }
 
   .login-divider {
