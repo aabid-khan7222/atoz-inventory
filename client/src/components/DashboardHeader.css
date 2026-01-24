@@ -383,7 +383,7 @@
 /* Tablet: 769px - 1024px */
 @media (max-width: 1024px) and (min-width: 769px) {
   .dashboard-header {
-    padding: 0.75rem 1.5rem;
+    padding: 1.25rem 1.5rem 0.75rem 1.5rem;
   }
 
   .dashboard-title {
@@ -405,7 +405,7 @@
 /* Large Mobile & Tablet: ≤ 768px */
 @media (max-width: 768px) {
   .dashboard-header {
-    padding: 0.75rem 1rem;
+    padding: 1rem 1rem 0.5rem 1rem;
     height: 70px;
   }
 
@@ -490,7 +490,7 @@
 /* Small Mobile: ≤ 480px */
 @media (max-width: 480px) {
   .dashboard-header {
-    padding: 0.6rem 0.75rem;
+    padding: 0.875rem 0.75rem 0.5rem 0.75rem;
     height: 65px;
   }
 
