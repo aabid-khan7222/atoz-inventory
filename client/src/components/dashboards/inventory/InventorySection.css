@@ -364,6 +364,80 @@
   box-shadow: none;
 }
 
+/* Mobile/Tablet optimizations for Serial Numbers */
+@media (max-width: 1024px) {
+  .serial-number-input-group {
+    gap: 0.5rem;
+  }
+
+  .serial-number-input-group .form-input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .qr-scan-button {
+    min-width: 40px;
+    width: 40px;
+    height: 40px;
+    padding: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .qr-scan-button svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .serial-number-input-group {
+    gap: 0.4rem;
+  }
+
+  .serial-number-input-group .form-input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .qr-scan-button {
+    min-width: 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .qr-scan-button svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .serial-number-input-group {
+    gap: 0.35rem;
+  }
+
+  .serial-number-input-group .form-input {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.9rem;
+  }
+
+  .qr-scan-button {
+    min-width: 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .qr-scan-button svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
 .remove-btn {
   padding: 0.5rem 1rem;
   background: #fee2e2;
