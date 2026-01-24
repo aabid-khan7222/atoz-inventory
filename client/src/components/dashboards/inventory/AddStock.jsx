@@ -271,18 +271,29 @@ const AddStock = ({ onBack }) => {
     if (scanningIndex !== null) {
       // Update the serial number at the scanning index
       handleSerialNumberChange(scanningIndex, scannedText);
-      
-      // Auto-focus to next field
+    }
+    // Don't close scanner in continuous mode - it will stay open
+  };
+
+  const handleNextField = () => {
+    if (scanningIndex !== null) {
       const nextIndex = scanningIndex + 1;
-      if (nextIndex < serialNumbers.length && serialInputRefs.current[nextIndex]) {
-        // Small delay to ensure DOM is updated
+      
+      // Check if there are more fields to scan
+      if (nextIndex < serialNumbers.length) {
+        // Move to next field
+        setScanningIndex(nextIndex);
+        
+        // Focus the next input field
         setTimeout(() => {
           serialInputRefs.current[nextIndex]?.focus();
         }, 100);
+      } else {
+        // All fields filled, close scanner
+        setIsScannerOpen(false);
+        setScanningIndex(null);
       }
     }
-    setIsScannerOpen(false);
-    setScanningIndex(null);
   };
 
   const handleScanClose = () => {
@@ -730,6 +741,8 @@ const AddStock = ({ onBack }) => {
             isOpen={isScannerOpen}
             onClose={handleScanClose}
             onScan={handleScanSuccess}
+            onNextField={handleNextField}
+            continuousMode={true}
             onError={(err) => {
               setError(err.message || 'Failed to scan QR code');
             }}

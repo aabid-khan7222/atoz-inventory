@@ -4,7 +4,7 @@ import './QRScanner.css';
 // Dynamic import for html5-qrcode to ensure it loads correctly
 let Html5Qrcode = null;
 
-const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
+const QRScanner = ({ isOpen, onClose, onScan, onError, continuousMode = false, onNextField }) => {
   const scannerRef = useRef(null);
   const html5QrCodeRef = useRef(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -13,6 +13,7 @@ const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
   const [currentCameraId, setCurrentCameraId] = useState(null);
   const [libraryLoaded, setLibraryLoaded] = useState(false);
+  const scanCooldownRef = useRef(false);
 
   // Load the library when component mounts
   useEffect(() => {
@@ -179,17 +180,43 @@ const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
   };
 
   const handleScanSuccess = (decodedText) => {
-    // Stop scanning immediately after successful scan
-    stopScanning();
+    // Prevent multiple rapid scans
+    if (scanCooldownRef.current) {
+      return;
+    }
+    
+    scanCooldownRef.current = true;
     
     // Call the onScan callback with the scanned text
     if (onScan) {
       onScan(decodedText.trim());
     }
     
-    // Close the scanner
-    if (onClose) {
-      onClose();
+    if (continuousMode) {
+      // In continuous mode, keep scanner open and move to next field
+      // Don't stop scanning or close scanner
+      if (onNextField) {
+        // Small delay to allow current scan to process
+        setTimeout(() => {
+          onNextField();
+          // Reset cooldown after a short delay to allow next scan
+          setTimeout(() => {
+            scanCooldownRef.current = false;
+          }, 500);
+        }, 200);
+      } else {
+        // Reset cooldown if no next field callback
+        setTimeout(() => {
+          scanCooldownRef.current = false;
+        }, 500);
+      }
+    } else {
+      // Normal mode: stop scanning and close
+      stopScanning();
+      if (onClose) {
+        onClose();
+      }
+      scanCooldownRef.current = false;
     }
   };
 
@@ -241,7 +268,9 @@ const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
               {isScanning && (
                 <>
                   <p className="qr-scanner-hint">
-                    Point your camera at the QR code
+                    {continuousMode 
+                      ? 'Scan QR codes continuously. Scanner will move to next field automatically.'
+                      : 'Point your camera at the QR code'}
                   </p>
                   {availableCameras.length > 1 && (
                     <button
