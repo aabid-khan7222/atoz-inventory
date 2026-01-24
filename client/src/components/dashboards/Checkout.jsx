@@ -365,7 +365,6 @@ const Checkout = () => {
                       <input
                         type="number"
                         min="1"
-                        max={item.availableStock}
                         value={item.quantity}
                         onChange={(e) => {
                           const qty = parseInt(e.target.value) || 1;
@@ -375,7 +374,6 @@ const Checkout = () => {
                       <button
                         type="button"
                         onClick={() => handleQuantityChange(item, item.quantity + 1)}
-                        disabled={item.quantity >= item.availableStock}
                       >
                         +
                       </button>

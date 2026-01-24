@@ -42,13 +42,8 @@ export const CartProvider = ({ children }) => {
       );
 
       if (existingItem) {
-        // If exists, check if we can add more (stock check)
+        // If exists, update quantity
         const newQuantity = existingItem.quantity + 1;
-        if (newQuantity > product.qty) {
-          // Not enough stock
-          return prevItems;
-        }
-        // Update quantity
         return prevItems.map((item) =>
           item.id === product.id && item.category === product.category
             ? { ...item, quantity: newQuantity }
@@ -56,10 +51,6 @@ export const CartProvider = ({ children }) => {
         );
       } else {
         // Add new item (quantity 1)
-        if (product.qty < 1) {
-          // Out of stock
-          return prevItems;
-        }
         return [
           ...prevItems,
             {
@@ -70,7 +61,6 @@ export const CartProvider = ({ children }) => {
               price: product.selling_price || product.price || product.mrp || 0,
               mrp: product.mrp || product.price || 0,
               quantity: 1,
-              availableStock: product.qty || 0,
               ah_va: product.ah_va,
               warranty: product.warranty,
               series: product.series,
@@ -97,10 +87,6 @@ export const CartProvider = ({ children }) => {
     setCartItems((prevItems) =>
       prevItems.map((item) => {
         if (item.id === productId && item.category === category) {
-          // Check stock availability
-          if (quantity > item.availableStock) {
-            return item; // Don't update if exceeds stock
-          }
           return { ...item, quantity };
         }
         return item;

@@ -31,7 +31,6 @@ const PaymentModal = ({ product, category, onClose, onSuccess }) => {
   // Calculate discount based on actual selling price vs MRP
   const discountAmount = mrp > sellingPrice ? mrp - sellingPrice : 0;
   const discountPercent = mrp > 0 ? Math.round((discountAmount / mrp) * 100) : 0;
-  const availableStock = parseInt(product.qty || 0);
 
   const subtotal = sellingPrice * quantity;
   const savings = discountAmount * quantity;
@@ -116,11 +115,6 @@ const PaymentModal = ({ product, category, onClose, onSuccess }) => {
 
     if (!/^\d{10}$/.test(customerPhone.trim())) {
       setError('Phone number must be 10 digits');
-      return;
-    }
-
-    if (quantity > availableStock) {
-      setError(`Only ${availableStock} units available in stock`);
       return;
     }
 
@@ -309,7 +303,7 @@ const PaymentModal = ({ product, category, onClose, onSuccess }) => {
   };
 
   const handleQuantityChange = (newQty) => {
-    const qty = newQty < 1 ? 1 : (newQty > availableStock ? availableStock : newQty);
+    const qty = newQty < 1 ? 1 : newQty;
     setQuantity(qty);
     // Adjust vehicle numbers array
     if (vehicleNumbers.length > qty) {
@@ -382,13 +376,6 @@ const PaymentModal = ({ product, category, onClose, onSuccess }) => {
                   <span className="detail-value">{product.warranty}</span>
                 </div>
               )}
-              <div className="product-stock-info">
-                {availableStock > 0 ? (
-                  <span className="stock-available">✓ {availableStock} units available</span>
-                ) : (
-                  <span className="stock-unavailable">✗ Out of Stock</span>
-                )}
-              </div>
             </div>
 
             <div className="quantity-selector">
@@ -405,14 +392,12 @@ const PaymentModal = ({ product, category, onClose, onSuccess }) => {
                   id="quantity"
                   type="number"
                   min="1"
-                  max={availableStock}
                   value={quantity}
                   onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
                 />
                 <button
                   type="button"
                   onClick={() => handleQuantityChange(quantity + 1)}
-                  disabled={quantity >= availableStock}
                 >
                   +
                 </button>
@@ -667,7 +652,7 @@ const PaymentModal = ({ product, category, onClose, onSuccess }) => {
                 <button
                   type="submit"
                   className="btn-confirm"
-                  disabled={loading || availableStock === 0}
+                  disabled={loading}
                 >
                   {loading ? 'Processing...' : 'Confirm Purchase'}
                 </button>

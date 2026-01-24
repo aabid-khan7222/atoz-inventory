@@ -23,7 +23,6 @@ const CustomerProductListing = () => {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState(() => savedState?.searchQuery || '');
   const [selectedSeries, setSelectedSeries] = useState(() => savedState?.selectedSeries || 'all');
-  const [inStockOnly, setInStockOnly] = useState(() => savedState?.inStockOnly || false);
   const [paymentModal, setPaymentModal] = useState(null);
   
   const [isInitialMount, setIsInitialMount] = useState(true);
@@ -38,11 +37,10 @@ const CustomerProductListing = () => {
     const stateToSave = {
       selectedCategory,
       searchQuery,
-      selectedSeries,
-      inStockOnly
+      selectedSeries
     };
     saveFormState(STORAGE_KEY, stateToSave);
-  }, [selectedCategory, searchQuery, selectedSeries, inStockOnly, isInitialMount]);
+  }, [selectedCategory, searchQuery, selectedSeries, isInitialMount]);
 
   // Read URL params on mount
   useEffect(() => {
@@ -214,7 +212,6 @@ const CustomerProductListing = () => {
     setSelectedCategory(category);
     setSearchQuery(''); // Clear search when switching categories
     setSelectedSeries('all'); // Reset series filter
-    setInStockOnly(false); // Reset in-stock filter
   };
 
   const handleBackToCategories = () => {
@@ -222,7 +219,6 @@ const CustomerProductListing = () => {
     setFilteredProducts([]);
     setSearchQuery('');
     setSelectedSeries('all');
-    setInStockOnly(false);
   };
 
   const handleSearchChange = (e) => {
@@ -254,10 +250,6 @@ const CustomerProductListing = () => {
   };
 
   const handleBuyClick = async (product) => {
-    if (product.qty === 0) {
-      await Swal.fire('Out of Stock', 'This product is currently out of stock', 'warning');
-      return;
-    }
     // Force immediate re-render using flushSync to ensure modal opens instantly
     flushSync(() => {
       const isB2B =
@@ -384,18 +376,6 @@ const CustomerProductListing = () => {
               </select>
             </div>
 
-            {/* In-Stock Filter */}
-            <div className="filter-wrapper in-stock-filter-wrapper">
-              <label className={`filter-checkbox-label ${inStockOnly ? 'checked' : ''}`}>
-                <input
-                  type="checkbox"
-                  className="filter-checkbox"
-                  checked={inStockOnly}
-                  onChange={(e) => setInStockOnly(e.target.checked)}
-                />
-                <span className="filter-checkbox-text">In Stock Only</span>
-              </label>
-            </div>
           </div>
         </div>
 
@@ -433,7 +413,7 @@ const CustomerProductListing = () => {
                 'ups-inverter': [],
               };
 
-              // Filter products based on search query, series, and in-stock filter
+              // Filter products based on search query and series
               const searchLower = searchQuery.toLowerCase().trim();
               let productsToDisplay = filteredProducts;
 
@@ -454,13 +434,6 @@ const CustomerProductListing = () => {
                 });
               }
 
-              // Apply in-stock filter
-              if (inStockOnly) {
-                productsToDisplay = productsToDisplay.filter((product) => {
-                  const qty = parseInt(product.qty || 0, 10);
-                  return qty > 0;
-                });
-              }
 
               // Group products by series while maintaining order
               const seriesMap = new Map();
@@ -583,13 +556,6 @@ const CustomerProductListing = () => {
                                 <span className="detail-value warranty-text">{warranty}</span>
                               </div>
                             </div>
-                            <div className="product-stock">
-                              {product.qty > 0 ? (
-                                <span className="in-stock">✓ {t('products.inStock')} ({product.qty} {t('products.units')})</span>
-                              ) : (
-                                <span className="out-of-stock">✗ {t('products.outOfStock')}</span>
-                              )}
-                            </div>
                             <div className="price-section">
                               <div className="mrp-price">
                                 <span className="mrp-label">{t('products.mrp')}</span>
@@ -608,9 +574,8 @@ const CustomerProductListing = () => {
                             <button
                               className="buy-button"
                               onClick={() => handleBuyClick(product)}
-                              disabled={product.qty === 0}
                             >
-                              {product.qty > 0 ? t('products.buyNow') : t('products.outOfStock')}
+                              {t('products.buyNow')}
                             </button>
                           </div>
                         </div>
