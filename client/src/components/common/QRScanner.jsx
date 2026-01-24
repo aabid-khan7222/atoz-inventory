@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
 import './QRScanner.css';
+
+// Dynamic import for html5-qrcode to ensure it loads correctly
+let Html5Qrcode = null;
 
 const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
   const scannerRef = useRef(null);
@@ -10,9 +12,33 @@ const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
   const [availableCameras, setAvailableCameras] = useState([]);
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
   const [currentCameraId, setCurrentCameraId] = useState(null);
+  const [libraryLoaded, setLibraryLoaded] = useState(false);
+
+  // Load the library when component mounts
+  useEffect(() => {
+    const loadLibrary = async () => {
+      try {
+        if (!Html5Qrcode) {
+          const html5QrcodeModule = await import('html5-qrcode');
+          Html5Qrcode = html5QrcodeModule.Html5Qrcode;
+          setLibraryLoaded(true);
+        } else {
+          setLibraryLoaded(true);
+        }
+      } catch (err) {
+        console.error('Failed to load html5-qrcode library:', err);
+        setError('Failed to load QR scanner library. Please refresh the page.');
+        if (onError) {
+          onError(err);
+        }
+      }
+    };
+    
+    loadLibrary();
+  }, [onError]);
 
   useEffect(() => {
-    if (isOpen && !html5QrCodeRef.current) {
+    if (isOpen && !html5QrCodeRef.current && libraryLoaded) {
       startScanning();
     } else if (!isOpen && html5QrCodeRef.current) {
       stopScanning();
@@ -23,7 +49,7 @@ const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
         stopScanning();
       }
     };
-  }, [isOpen]);
+  }, [isOpen, libraryLoaded]);
 
   // Find back camera (preferred for QR scanning)
   const findBackCamera = (devices) => {
@@ -44,10 +70,20 @@ const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
 
   const startScanning = async (cameraIndex = null) => {
     try {
+      // Ensure library is loaded
+      if (!Html5Qrcode) {
+        const html5QrcodeModule = await import('html5-qrcode');
+        Html5Qrcode = html5QrcodeModule.Html5Qrcode;
+      }
+
+      if (!Html5Qrcode) {
+        throw new Error('QR scanner library not loaded. Please refresh the page.');
+      }
+
       setError('');
       setIsScanning(true);
 
-      const html5QrCode = new Html5QrCode('qr-reader');
+      const html5QrCode = new Html5Qrcode('qr-reader');
       html5QrCodeRef.current = html5QrCode;
 
       // Get available cameras
@@ -184,7 +220,11 @@ const QRScanner = ({ isOpen, onClose, onScan, onError }) => {
         </div>
         
         <div className="qr-scanner-content">
-          {error ? (
+          {!libraryLoaded && !error ? (
+            <div className="qr-scanner-error">
+              <p>Loading QR scanner...</p>
+            </div>
+          ) : error ? (
             <div className="qr-scanner-error">
               <p>{error}</p>
               <button
