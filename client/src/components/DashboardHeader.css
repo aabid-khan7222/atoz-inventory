@@ -85,6 +85,11 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
+/* UNUSED CSS CLASS - Commented out but kept for reference
+ * This class was likely from an older version/feature that was removed.
+ * If you need a role badge in the header in future, uncomment this.
+ */
+/*
 .dashboard-role-badge {
   background: rgba(255, 255, 255, 0.2);
   padding: 0.3rem 0.8rem;
@@ -93,6 +98,7 @@
   font-weight: 600;
   text-transform: uppercase;
 }
+*/
 
 /* ================= RIGHT (FIXED AREA) ================= */
 
@@ -210,7 +216,12 @@
 }
 
 /* ================= CART ================= */
-
+/* UNUSED CSS CLASSES - Commented out but kept for reference
+ * These classes were likely from an older cart feature that was removed.
+ * Cart functionality is now handled in the CustomerDashboard component.
+ * If you need a cart icon in the header in future, uncomment these.
+ */
+/*
 .cart-icon-button {
   position: relative;
   background: rgba(255, 255, 255, 0.1);
@@ -244,6 +255,7 @@
   align-items: center;
   justify-content: center;
 }
+*/
 
 /* ================= USER INFO ================= */
 
