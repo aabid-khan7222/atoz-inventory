@@ -21,6 +21,7 @@ const ProductManagement = () => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [editingProduct, setEditingProduct] = useState(null); // { productId: { customerType: 'b2b'|'b2c', mrp, sellingPrice, discountPercent, discountValue } }
   const [savingProduct, setSavingProduct] = useState(null); // productId that is currently being saved
+  const [deletingProduct, setDeletingProduct] = useState(null); // productId that is currently being deleted
   const [applyToAllProducts, setApplyToAllProducts] = useState(false); // Checkbox state for bulk update
   
   // Load saved state using utility (automatically handles refresh detection)
@@ -366,6 +367,34 @@ const ProductManagement = () => {
       return updated;
     });
     setApplyToAllProducts(false); // Reset checkbox when canceling
+  };
+
+  // Delete product permanently (admin/super-admin only)
+  const handleDeleteProduct = async (product) => {
+    const confirmed = window.confirm(
+      `Permanently delete "${product.name || product.sku}"? This will remove the product from the database, admin UI, add/sell stock, and customer catalog. This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeletingProduct(product.id);
+    setError('');
+    setSuccess('');
+    try {
+      await api.deleteProduct(product.id);
+      setSuccess(`Product "${product.name || product.sku}" has been deleted.`);
+      setTimeout(() => setSuccess(''), 5000);
+      await fetchProducts();
+      setEditingProduct(prev => {
+        const updated = { ...prev };
+        delete updated[product.id];
+        return updated;
+      });
+    } catch (err) {
+      setError(err.message || 'Failed to delete product.');
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setDeletingProduct(null);
+    }
   };
 
   // Handle add product form submission
@@ -837,7 +866,7 @@ await fetchProducts();
                             <th>B2C Discount</th>
                             <th>B2B Selling</th>
                             <th>B2B Discount</th>
-                            <th>Edit</th>
+                            <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1269,6 +1298,22 @@ await fetchProducts();
                                           style={{ fontSize: '0.75rem', padding: '0.5rem', background: '#f59e0b', color: 'white' }}
                                         >
                                           Edit B2B
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteProduct(product)}
+                                          disabled={deletingProduct === product.id}
+                                          className="product-edit-btn"
+                                          style={{
+                                            fontSize: '0.75rem',
+                                            padding: '0.5rem',
+                                            background: deletingProduct === product.id ? '#94a3b8' : '#dc2626',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: deletingProduct === product.id ? 'not-allowed' : 'pointer'
+                                          }}
+                                        >
+                                          {deletingProduct === product.id ? 'Deleting…' : 'Delete'}
                                         </button>
                                       </div>
                                     )}

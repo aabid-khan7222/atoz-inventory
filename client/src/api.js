@@ -221,6 +221,19 @@ export async function createProduct(product) {
   }
 }
 
+export async function deleteProduct(id) {
+  try {
+    const tokenToUse = currentToken || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null);
+    if (tokenToUse && !currentToken) {
+      setAuthToken(tokenToUse);
+    }
+    return await request(`/products/${id}`, { method: 'DELETE' });
+  } catch (error) {
+    console.error('Failed to delete product:', error);
+    throw error;
+  }
+}
+
 // Inventory API functions
 export async function getInventory(category) {
   try {
@@ -1658,6 +1671,7 @@ const api = {
   getCurrentUser,
   fetchProducts,
   createProduct,
+  deleteProduct,
   getInventory,
   getAllInventory,
   addStock,
