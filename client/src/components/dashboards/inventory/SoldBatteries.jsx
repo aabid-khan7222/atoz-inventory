@@ -163,28 +163,83 @@ const SoldBatteries = ({ onBack }) => {
   const handleDownloadPDF = async (invoiceNumber) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_BASE}/invoices/${invoiceNumber}/pdf`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      if (!token) {
+        throw new Error('Authentication token not found. Please login again.');
+      }
+
+      // Show loading
+      Swal.fire({
+        title: 'Generating PDF...',
+        text: 'Please wait',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
         }
       });
 
+      const response = await fetch(`${API_BASE}/invoices/${invoiceNumber}/pdf`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/pdf'
+        }
+      });
+
+      // Check if response is ok
       if (!response.ok) {
-        throw new Error('Failed to generate PDF');
+        const errorText = await response.text();
+        let errorMessage = 'Failed to generate PDF';
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorJson.message || errorMessage;
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Check content type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('pdf')) {
+        // If not PDF, might be JSON error
+        const text = await response.text();
+        try {
+          const errorJson = JSON.parse(text);
+          throw new Error(errorJson.error || errorJson.message || 'Invalid response format');
+        } catch (e) {
+          throw new Error('Invalid response format. Expected PDF but got: ' + contentType);
+        }
       }
 
       const blob = await response.blob();
+      
+      // Verify blob is not empty
+      if (blob.size === 0) {
+        throw new Error('PDF file is empty');
+      }
+
+      // Create download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `invoice-${invoiceNumber}.pdf`;
+      a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      
+      // Cleanup
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+
+      // Close loading and show success
+      Swal.close();
+      await Swal.fire('Success!', 'PDF downloaded successfully', 'success');
     } catch (err) {
       console.error('Error downloading PDF:', err);
-      await Swal.fire('Error!', 'Failed to download PDF: ' + err.message, 'error');
+      Swal.close();
+      await Swal.fire('Error!', 'Failed to download PDF: ' + (err.message || 'Unknown error'), 'error');
     }
   };
 
