@@ -84,12 +84,10 @@ export function generateReportPDF({ title, columns, data, totals = null, filters
   
   // Prepare table data
   const tableColumns = columns.map(col => col.header);
-  const tableRows = data.map(row => 
+  const tableRows = data.map(row =>
     columns.map(col => {
       if (col.render) {
-        // For rendered columns, we need to extract the text value
         const rendered = col.render(row);
-        // If it's a React element or object, try to get text content
         if (typeof rendered === 'object' && rendered !== null) {
           if (rendered.props && rendered.props.children) {
             return String(rendered.props.children);
@@ -101,27 +99,35 @@ export function generateReportPDF({ title, columns, data, totals = null, filters
       return row[col.field] !== null && row[col.field] !== undefined ? String(row[col.field]) : '-';
     })
   );
-  
-  // Add table
+
+  // Build columnStyles: amount columns (with render) get overflow+width so values never overflow
+  const TABLE_WIDTH_MM = 269; // landscape A4 minus margins 14+14
+  const AMOUNT_COL_WIDTH = 42;
+  const amountColCount = columns.filter(c => c.render).length;
+  const otherColCount = columns.length - amountColCount;
+  const otherColWidth = otherColCount > 0 ? Math.max(25, (TABLE_WIDTH_MM - AMOUNT_COL_WIDTH * amountColCount) / otherColCount) : 0;
+  const columnStyles = {};
+  columns.forEach((col, i) => {
+    if (col.render) {
+      columnStyles[i] = { halign: 'right', cellWidth: AMOUNT_COL_WIDTH, overflow: 'linebreak', fontSize: 7 };
+    } else {
+      columnStyles[i] = { cellWidth: otherColWidth, overflow: 'linebreak' };
+    }
+  });
+
   autoTable(doc, {
     head: [tableColumns],
     body: tableRows,
     startY: yPos + 5,
-    styles: {
-      fontSize: 8,
-      cellPadding: 2,
-      overflow: 'linebreak',
-      cellWidth: 'wrap'
-    },
+    styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+    columnStyles,
     headStyles: {
       fillColor: [66, 139, 202],
       textColor: 255,
       fontStyle: 'bold',
       halign: 'center'
     },
-    alternateRowStyles: {
-      fillColor: [245, 245, 245]
-    },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
     margin: { top: yPos + 5, left: 14, right: 14 }
   });
   
@@ -258,10 +264,10 @@ export function generateSummaryReportPDF({ title, summaryData, filters = null, f
     body: salesData,
     startY: yPos,
     theme: 'grid',
-    styles: { fontSize: 9 },
+    styles: { fontSize: 9, overflow: 'linebreak', cellPadding: 2 },
     columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 58 },
-      1: { halign: 'right', cellWidth: 124 }
+      0: { fontStyle: 'bold', cellWidth: 70 },
+      1: { halign: 'right', cellWidth: 112, fontSize: 8, overflow: 'linebreak' }
     },
     margin: { left: 14, right: 14 }
   });
@@ -284,10 +290,10 @@ export function generateSummaryReportPDF({ title, summaryData, filters = null, f
       body: commissionData,
       startY: yPos,
       theme: 'grid',
-      styles: { fontSize: 9 },
+      styles: { fontSize: 9, overflow: 'linebreak', cellPadding: 2 },
       columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 58 },
-        1: { halign: 'right', cellWidth: 124 }
+        0: { fontStyle: 'bold', cellWidth: 70 },
+        1: { halign: 'right', cellWidth: 112, fontSize: 8, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -310,10 +316,10 @@ export function generateSummaryReportPDF({ title, summaryData, filters = null, f
       body: chargingData,
       startY: yPos,
       theme: 'grid',
-      styles: { fontSize: 9 },
+      styles: { fontSize: 9, overflow: 'linebreak', cellPadding: 2 },
       columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 58 },
-        1: { halign: 'right', cellWidth: 124 }
+        0: { fontStyle: 'bold', cellWidth: 70 },
+        1: { halign: 'right', cellWidth: 112, fontSize: 8, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -420,10 +426,10 @@ export function generateProfitReportPDF({ profitReport, filters = null, filename
     body: overallData,
     startY: yPos,
     theme: 'grid',
-    styles: { fontSize: 9 },
+    styles: { fontSize: 9, overflow: 'linebreak', cellPadding: 2 },
     columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 58 },
-      1: { halign: 'right', cellWidth: 124 }
+      0: { fontStyle: 'bold', cellWidth: 70 },
+      1: { halign: 'right', cellWidth: 112, fontSize: 8, overflow: 'linebreak' }
     },
     margin: { left: 14, right: 14 }
   });
@@ -448,17 +454,18 @@ export function generateProfitReportPDF({ profitReport, filters = null, filename
       head: [['Category', 'Revenue', 'Purchase Cost', 'Profit', 'Margin %']],
       body: categoryRows,
       startY: yPos,
-      styles: { fontSize: 8 },
+      styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
         fontStyle: 'bold'
       },
       columnStyles: {
-        1: { halign: 'right' },
-        2: { halign: 'right' },
-        3: { halign: 'right' },
-        4: { halign: 'right' }
+        0: { cellWidth: 50, overflow: 'linebreak' },
+        1: { halign: 'right', cellWidth: 45, overflow: 'linebreak', fontSize: 7 },
+        2: { halign: 'right', cellWidth: 45, overflow: 'linebreak', fontSize: 7 },
+        3: { halign: 'right', cellWidth: 45, overflow: 'linebreak', fontSize: 7 },
+        4: { halign: 'right', cellWidth: 44, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -484,17 +491,18 @@ export function generateProfitReportPDF({ profitReport, filters = null, filename
       head: [['Series', 'Revenue', 'Purchase Cost', 'Profit', 'Margin %']],
       body: seriesRows,
       startY: yPos,
-      styles: { fontSize: 8 },
+      styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
         fontStyle: 'bold'
       },
       columnStyles: {
-        1: { halign: 'right' },
-        2: { halign: 'right' },
-        3: { halign: 'right' },
-        4: { halign: 'right' }
+        0: { cellWidth: 50, overflow: 'linebreak' },
+        1: { halign: 'right', cellWidth: 45, overflow: 'linebreak', fontSize: 7 },
+        2: { halign: 'right', cellWidth: 45, overflow: 'linebreak', fontSize: 7 },
+        3: { halign: 'right', cellWidth: 45, overflow: 'linebreak', fontSize: 7 },
+        4: { halign: 'right', cellWidth: 44, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -521,17 +529,19 @@ export function generateProfitReportPDF({ profitReport, filters = null, filename
       head: [['Product', 'SKU', 'Revenue', 'Purchase Cost', 'Profit', 'Margin %']],
       body: productRows,
       startY: yPos,
-      styles: { fontSize: 7 },
+      styles: { fontSize: 7, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
         fontStyle: 'bold'
       },
       columnStyles: {
-        2: { halign: 'right' },
-        3: { halign: 'right' },
-        4: { halign: 'right' },
-        5: { halign: 'right' }
+        0: { cellWidth: 45, overflow: 'linebreak' },
+        1: { cellWidth: 35, overflow: 'linebreak' },
+        2: { halign: 'right', cellWidth: 40, overflow: 'linebreak', fontSize: 7 },
+        3: { halign: 'right', cellWidth: 40, overflow: 'linebreak', fontSize: 7 },
+        4: { halign: 'right', cellWidth: 40, overflow: 'linebreak', fontSize: 7 },
+        5: { halign: 'right', cellWidth: 39, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -643,10 +653,10 @@ export function generateChargingServicesReportPDF({ chargingReport, filters = nu
     body: overviewData,
     startY: yPos,
     theme: 'grid',
-    styles: { fontSize: 9 },
+    styles: { fontSize: 9, overflow: 'linebreak', cellPadding: 2 },
     columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 58 },
-      1: { halign: 'right', cellWidth: 124 }
+      0: { fontStyle: 'bold', cellWidth: 70 },
+      1: { halign: 'right', cellWidth: 112, fontSize: 8, overflow: 'linebreak' }
     },
     margin: { left: 14, right: 14 }
   });
@@ -761,10 +771,10 @@ export function generateCustomerHistoryPDF({ customerHistory, filters = null, fi
     body: customerData,
     startY: yPos,
     theme: 'grid',
-    styles: { fontSize: 9 },
+    styles: { fontSize: 9, overflow: 'linebreak', cellPadding: 2 },
     columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 60 },
-      1: { cellWidth: 120 }
+      0: { fontStyle: 'bold', cellWidth: 70 },
+      1: { cellWidth: 112, overflow: 'linebreak' }
     },
     margin: { left: 14, right: 14 }
   });
@@ -790,19 +800,19 @@ export function generateCustomerHistoryPDF({ customerHistory, filters = null, fi
       head: [['Invoice', 'Date', 'Type', 'Items', 'Amount', 'Vehicle']],
       body: salesRows,
       startY: yPos,
-      styles: { fontSize: 8 },
+      styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
         fontStyle: 'bold'
       },
       columnStyles: {
-        0: { cellWidth: 40 },
-        1: { cellWidth: 30 },
-        2: { cellWidth: 25 },
-        3: { halign: 'center', cellWidth: 20 },
-        4: { halign: 'right', cellWidth: 35 },
-        5: { cellWidth: 30 }
+        0: { cellWidth: 34, overflow: 'linebreak' },
+        1: { cellWidth: 26, overflow: 'linebreak' },
+        2: { cellWidth: 22, overflow: 'linebreak' },
+        3: { halign: 'center', cellWidth: 16, overflow: 'linebreak' },
+        4: { halign: 'right', cellWidth: 46, overflow: 'linebreak', fontSize: 7 },
+        5: { cellWidth: 26, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -832,20 +842,20 @@ export function generateCustomerHistoryPDF({ customerHistory, filters = null, fi
       head: [['Date', 'Type', 'Original Serial', 'New Serial', 'Product', 'Discount', 'Invoice']],
       body: replacementRows,
       startY: yPos,
-      styles: { fontSize: 7 },
+      styles: { fontSize: 7, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
         fontStyle: 'bold'
       },
       columnStyles: {
-        0: { cellWidth: 25 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 40 },
-        5: { cellWidth: 20 },
-        6: { cellWidth: 30 }
+        0: { cellWidth: 22, overflow: 'linebreak' },
+        1: { cellWidth: 20, overflow: 'linebreak' },
+        2: { cellWidth: 26, overflow: 'linebreak' },
+        3: { cellWidth: 26, overflow: 'linebreak' },
+        4: { cellWidth: 34, overflow: 'linebreak' },
+        5: { cellWidth: 20, overflow: 'linebreak' },
+        6: { cellWidth: 26, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -872,19 +882,19 @@ export function generateCustomerHistoryPDF({ customerHistory, filters = null, fi
       head: [['Date', 'Battery Serial', 'Vehicle', 'Status', 'Price', 'Expected Completion']],
       body: chargingRows,
       startY: yPos,
-      styles: { fontSize: 8 },
+      styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
         fontStyle: 'bold'
       },
       columnStyles: {
-        0: { cellWidth: 30 },
-        1: { cellWidth: 40 },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 25 },
-        4: { halign: 'right', cellWidth: 30 },
-        5: { cellWidth: 35 }
+        0: { cellWidth: 24, overflow: 'linebreak' },
+        1: { cellWidth: 34, overflow: 'linebreak' },
+        2: { cellWidth: 24, overflow: 'linebreak' },
+        3: { cellWidth: 22, overflow: 'linebreak' },
+        4: { halign: 'right', cellWidth: 40, overflow: 'linebreak', fontSize: 7 },
+        5: { cellWidth: 30, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -920,18 +930,18 @@ export function generateCustomerHistoryPDF({ customerHistory, filters = null, fi
       head: [['Date', 'Service Type', 'Vehicle/Details', 'Notes', 'Status']],
       body: serviceRows,
       startY: yPos,
-      styles: { fontSize: 8 },
+      styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
         fontStyle: 'bold'
       },
       columnStyles: {
-        0: { cellWidth: 30 },
-        1: { cellWidth: 35 },
-        2: { cellWidth: 50 },
-        3: { cellWidth: 50 },
-        4: { cellWidth: 25 }
+        0: { cellWidth: 30, overflow: 'linebreak' },
+        1: { cellWidth: 35, overflow: 'linebreak' },
+        2: { cellWidth: 50, overflow: 'linebreak' },
+        3: { cellWidth: 50, overflow: 'linebreak' },
+        4: { cellWidth: 24, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
