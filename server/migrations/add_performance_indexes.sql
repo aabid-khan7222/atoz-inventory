@@ -30,6 +30,17 @@ CREATE INDEX IF NOT EXISTS idx_sales_item_purchase_date_desc ON sales_item(purch
 -- Indexes for products table
 CREATE INDEX IF NOT EXISTS idx_products_type_category ON products(product_type_id, category);
 
+-- Indexes for service_requests (dashboard overview, recent-transactions, services)
+CREATE INDEX IF NOT EXISTS idx_service_requests_updated_at ON service_requests(updated_at);
+CREATE INDEX IF NOT EXISTS idx_service_requests_created_at ON service_requests(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_service_requests_status ON service_requests(status) WHERE status IN ('pending', 'in_progress');
+
+-- Indexes for notifications (scheduled task, notification panel)
+CREATE INDEX IF NOT EXISTS idx_notifications_title_created ON notifications(title, created_at);
+
+-- Index for battery_replacements batch lookup (expiring guarantees task)
+CREATE INDEX IF NOT EXISTS idx_battery_replacements_original_serial ON battery_replacements(original_serial_number);
+
 COMMIT;
 
 -- Verify indexes were created
@@ -38,6 +49,6 @@ SELECT
     tablename,
     indexname
 FROM pg_indexes
-WHERE tablename IN ('purchases', 'stock', 'sales_item', 'products')
+WHERE tablename IN ('purchases', 'stock', 'sales_item', 'products', 'service_requests', 'notifications', 'battery_replacements')
 ORDER BY tablename, indexname;
 

@@ -52,14 +52,8 @@ export async function request(path, options = {}) {
     ...(options.headers || {}),
   };
 
-  // Add Authorization header if token exists
-  // Also check localStorage as fallback
   const tokenToUse = currentToken || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null);
-  if (tokenToUse) {
-    headers.Authorization = `Bearer ${tokenToUse}`;
-  } else {
-    console.warn('[API] No auth token available for request to:', path);
-  }
+  if (tokenToUse) headers.Authorization = `Bearer ${tokenToUse}`;
 
   // Set timeout for OTP-related requests (2 minutes)
   const isOTPRequest = path.includes('/signup/send-otp') || 
@@ -74,31 +68,17 @@ export async function request(path, options = {}) {
       headers,
     }, timeout);
 
-    // Parse JSON safely
     let data;
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
       data = await response.json();
-      console.log('[API] Response parsed as JSON:', {
-        path,
-        status: response.status,
-        hasData: !!data,
-        dataType: typeof data,
-        dataKeys: data && typeof data === 'object' ? Object.keys(data) : []
-      });
     } else {
       data = await response.text();
-      console.log('[API] Response parsed as text:', { path, status: response.status, dataLength: data?.length });
     }
 
     if (!response.ok) {
-      // Handle 401 Unauthorized - token is invalid or expired
-      if (response.status === 401) {
-        // Don't clear auth for login endpoint (avoid clearing on login failure)
-        if (!path.includes('/auth/login')) {
-          console.warn('[API] 401 Unauthorized - clearing invalid token');
-          clearInvalidAuth();
-        }
+      if (response.status === 401 && !path.includes('/auth/login')) {
+        clearInvalidAuth();
       }
       
       // data agar object hai to data.error le sakte hai,
@@ -124,25 +104,10 @@ export async function request(path, options = {}) {
 
 // Authentication API functions
 export async function login(email, password) {
-  try {
-    console.log('[API] Login request starting for:', email);
-    const result = await request("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    console.log('[API] Login response received:', {
-      hasResult: !!result,
-      resultType: typeof result,
-      resultKeys: result ? Object.keys(result) : [],
-      hasUser: !!result?.user,
-      hasToken: !!result?.token,
-      tokenLength: result?.token ? result.token.length : 0
-    });
-    return result;
-  } catch (error) {
-    console.error('[API] Login request failed:', error);
-    throw error;
-  }
+  return request("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
 }
 
 export async function getCurrentUser() {

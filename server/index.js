@@ -72,6 +72,7 @@ console.log('');
 
 const express = require("express");
 const cors = require("cors");
+const compression = require("compression");
 
 const productsRouter = require("./routes/products");
 const authRouter = require("./routes/auth");
@@ -100,6 +101,9 @@ const cleanBadPurchasesRouter = require("./routes/clean-bad-purchases");
 const dbCheckRouter = require("./routes/db-check");
 
 const app = express();
+
+// Gzip responses to reduce payload size (helps when many users load at once)
+app.use(compression());
 
 // Increase body size limit for large migrations (10MB)
 app.use(express.json({ limit: '10mb' }));
@@ -213,14 +217,12 @@ app.use("/api", dbCheckRouter); // Database check endpoint (GET /api/db-check)
 
 
 
-// Scheduled task to check for expiring guarantees daily
-// This runs every 24 hours (86400000 ms)
+// Scheduled task to check for expiring guarantees daily (optimized: no N+1, limited scan)
 const checkExpiringGuaranteesDaily = async () => {
   try {
     const db = require('./db');
     const { createNotification } = require('./routes/notifications');
-    
-    // Helper function to parse warranty string (same as in guaranteeWarranty.js)
+
     function parseWarrantyString(warrantyString) {
       if (!warrantyString || typeof warrantyString !== 'string') {
         return { guaranteeMonths: 0, warrantyMonths: 0, totalMonths: 0 };
@@ -236,118 +238,108 @@ const checkExpiringGuaranteesDaily = async () => {
       }
       const guaranteeMonths = parseInt(warrantyMatch[1], 10) || 0;
       const warrantyMonths = warrantyMatch[2] ? (parseInt(warrantyMatch[2], 10) || 0) : 0;
-      const totalMonths = guaranteeMonths + warrantyMonths;
-      return { guaranteeMonths, warrantyMonths, totalMonths };
+      return { guaranteeMonths, warrantyMonths, totalMonths: guaranteeMonths + warrantyMonths };
     }
 
-    const daysAhead = 7; // Check for guarantees expiring in the next 7 days
+    const daysAhead = 7;
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    // Limit scan: only items purchased in last 3 years (typical max warranty)
+    const cutoffDate = new Date(now);
+    cutoffDate.setFullYear(cutoffDate.getFullYear() - 3);
+
     const salesItemsResult = await db.query(
-      `SELECT 
-        si.id,
-        si.customer_id,
-        si.customer_name,
-        si.customer_mobile_number,
-        si.SERIAL_NUMBER,
-        si.invoice_number,
-        si.purchase_date,
-        si.WARRANTY as sales_item_warranty,
-        p.name as product_name,
-        p.warranty as product_warranty,
-        p.guarantee_period_months
-      FROM sales_item si
-      JOIN products p ON si.product_id = p.id
-      WHERE si.purchase_date IS NOT NULL
-      ORDER BY si.purchase_date DESC`
+      `SELECT si.id, si.customer_id, si.customer_name, si.customer_mobile_number,
+              si.SERIAL_NUMBER, si.invoice_number, si.purchase_date,
+              si.WARRANTY as sales_item_warranty, p.name as product_name,
+              p.warranty as product_warranty, p.guarantee_period_months
+       FROM sales_item si
+       JOIN products p ON si.product_id = p.id
+       WHERE si.purchase_date IS NOT NULL AND si.purchase_date >= $1
+       ORDER BY si.purchase_date DESC`,
+      [cutoffDate]
     );
 
-    const now = new Date();
-    const expiringItems = [];
-    const notifiedSerialNumbers = new Set();
-
+    const expiringSerials = [];
+    const expiringMap = new Map();
     for (const item of salesItemsResult.rows) {
       const warrantyString = item.sales_item_warranty || item.product_warranty || '';
       const warrantyInfo = parseWarrantyString(warrantyString);
-      const guaranteeMonths = warrantyInfo.guaranteeMonths > 0 
-        ? warrantyInfo.guaranteeMonths 
+      const guaranteeMonths = warrantyInfo.guaranteeMonths > 0
+        ? warrantyInfo.guaranteeMonths
         : (item.guarantee_period_months || 0);
-
       if (guaranteeMonths === 0) continue;
 
       const purchaseDate = new Date(item.purchase_date);
       const guaranteeEndDate = new Date(purchaseDate);
       guaranteeEndDate.setMonth(guaranteeEndDate.getMonth() + guaranteeMonths);
-
       const daysUntilExpiration = Math.ceil((guaranteeEndDate - now) / (1000 * 60 * 60 * 24));
 
-      if (daysUntilExpiration >= 0 && daysUntilExpiration <= daysAhead) {
-        const replacementCheck = await db.query(
-          `SELECT id FROM battery_replacements 
-           WHERE original_serial_number = $1 
-           LIMIT 1`,
-          [item.SERIAL_NUMBER]
-        );
-
-        if (replacementCheck.rows.length === 0 && !notifiedSerialNumbers.has(item.SERIAL_NUMBER)) {
-          expiringItems.push({
-            ...item,
-            daysUntilExpiration,
-            guaranteeEndDate
-          });
-          notifiedSerialNumbers.add(item.SERIAL_NUMBER);
-        }
+      if (daysUntilExpiration >= 0 && daysUntilExpiration <= daysAhead && item.SERIAL_NUMBER) {
+        expiringSerials.push(item.SERIAL_NUMBER);
+        expiringMap.set(item.SERIAL_NUMBER, { ...item, daysUntilExpiration, guaranteeEndDate });
       }
     }
 
-    // Get admin and super admin user IDs
+    if (expiringSerials.length === 0) return;
+
+    // Batch: which serials are already replaced
+    const replaced = new Set();
+    const repRes = await db.query(
+      `SELECT original_serial_number FROM battery_replacements WHERE original_serial_number = ANY($1)`,
+      [expiringSerials]
+    );
+    repRes.rows.forEach((r) => replaced.add(r.original_serial_number));
+
+    // Batch: which serials we already notified today
+    const notifiedToday = new Set();
+    const notifRes = await db.query(
+      `SELECT message FROM notifications
+       WHERE title = 'Guarantee Expiring Soon' AND created_at >= $1`,
+      [todayStart]
+    );
+    for (const r of notifRes.rows) {
+      const m = r.message || '';
+      for (const sn of expiringSerials) {
+        if (m.includes(sn)) notifiedToday.add(sn);
+      }
+    }
+
     const adminUsers = await db.query(
       `SELECT id FROM users WHERE role_id IN (1, 2) AND is_active = true`
     );
-    const adminUserIds = adminUsers.rows.map(u => u.id);
+    const adminUserIds = adminUsers.rows.map((u) => u.id);
+    if (adminUserIds.length === 0) return;
 
-    // Create notifications for expiring guarantees (only if not already notified today)
-    for (const item of expiringItems) {
-      const daysText = item.daysUntilExpiration === 0 
-        ? 'today' 
-        : item.daysUntilExpiration === 1 
-        ? 'in 1 day' 
-        : `in ${item.daysUntilExpiration} days`;
-      
-      const expirationDateStr = item.guaranteeEndDate.toLocaleDateString('en-IN', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-      });
-
-      // Check if we already notified about this today (avoid duplicate notifications)
-      const todayStart = new Date(now);
-      todayStart.setHours(0, 0, 0, 0);
-      const existingNotification = await db.query(
-        `SELECT id FROM notifications 
-         WHERE user_id = ANY($1) 
-         AND title = 'Guarantee Expiring Soon'
-         AND message LIKE $2
-         AND created_at >= $3
-         LIMIT 1`,
-        [
-          adminUserIds,
-          `%${item.SERIAL_NUMBER}%`,
-          todayStart
-        ]
-      );
-
-      if (existingNotification.rows.length === 0 && adminUserIds.length > 0) {
-        await createNotification(
-          adminUserIds,
-          'Guarantee Expiring Soon',
-          `Customer ${item.customer_name} (${item.customer_mobile_number}) - Battery ${item.SERIAL_NUMBER} (${item.product_name}) guarantee expires ${daysText} (${expirationDateStr}). Invoice: ${item.invoice_number}`,
-          'warning',
-          null
-        );
-      }
+    const toNotify = [];
+    const seen = new Set();
+    for (const sn of expiringSerials) {
+      if (replaced.has(sn) || notifiedToday.has(sn) || seen.has(sn)) continue;
+      seen.add(sn);
+      const item = expiringMap.get(sn);
+      if (!item) continue;
+      toNotify.push(item);
     }
 
-    if (expiringItems.length > 0) {
-      console.log(`[Scheduled Task] Checked expiring guarantees: ${expiringItems.length} guarantees expiring within ${daysAhead} days`);
+    for (const item of toNotify) {
+      const daysText = item.daysUntilExpiration === 0 ? 'today'
+        : item.daysUntilExpiration === 1 ? 'in 1 day'
+        : `in ${item.daysUntilExpiration} days`;
+      const expirationDateStr = item.guaranteeEndDate.toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'short', year: 'numeric'
+      });
+      await createNotification(
+        adminUserIds,
+        'Guarantee Expiring Soon',
+        `Customer ${item.customer_name} (${item.customer_mobile_number}) - Battery ${item.SERIAL_NUMBER} (${item.product_name}) guarantee expires ${daysText} (${expirationDateStr}). Invoice: ${item.invoice_number}`,
+        'warning',
+        null
+      );
+    }
+
+    if (toNotify.length > 0) {
+      console.log(`[Scheduled Task] Expiring guarantees: ${toNotify.length} notified`);
     }
   } catch (error) {
     console.error('[Scheduled Task] Error checking expiring guarantees:', error);

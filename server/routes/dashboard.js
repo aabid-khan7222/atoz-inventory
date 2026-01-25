@@ -4,51 +4,42 @@ const { requireAuth, requireSuperAdminOrAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Helper function to get purchase price (same as in reports.js)
-async function getPurchasePrice(serialNumber, productSku) {
+// Batch fetch purchase prices by serial numbers and SKUs (avoids N+1)
+async function getPurchasePricesBatch(serials, skus) {
+  const bySerial = {};
+  const bySku = {};
   try {
-    // Try to find purchase by serial number first (if serial number exists and is not empty)
-    if (serialNumber && serialNumber.trim() !== '') {
-      const purchaseResult = await db.query(
-        `SELECT purchase_value FROM purchases 
-         WHERE TRIM(serial_number) = TRIM($1) 
-         ORDER BY purchase_date DESC 
-         LIMIT 1`,
-        [serialNumber.trim()]
+    if (serials.length > 0) {
+      const serialRows = await db.query(
+        `SELECT DISTINCT ON (TRIM(serial_number)) TRIM(serial_number) as sn, purchase_value
+         FROM purchases
+         WHERE TRIM(serial_number) = ANY($1) AND purchase_value > 0
+         ORDER BY TRIM(serial_number), purchase_date DESC`,
+        [serials]
       );
-
-      if (purchaseResult.rows.length > 0 && purchaseResult.rows[0].purchase_value) {
-        const price = parseFloat(purchaseResult.rows[0].purchase_value || 0);
-        if (price > 0) {
-          return price;
-        }
+      for (const r of serialRows.rows) {
+        const v = parseFloat(r.purchase_value);
+        if (r.sn && v > 0) bySerial[r.sn] = v;
       }
     }
-
-    // If not found by serial number, try to get average purchase price for the SKU
-    if (productSku && productSku.trim() !== '') {
-      const avgPurchaseResult = await db.query(
-        `SELECT AVG(amount) as avg_amount 
-         FROM purchases 
-         WHERE TRIM(product_sku) = TRIM($1) 
-         AND amount > 0
-         AND supplier_name != 'replace'`,
-        [productSku.trim()]
+    if (skus.length > 0) {
+      const skuRows = await db.query(
+        `SELECT TRIM(product_sku) as sku, AVG(amount) as avg_amount
+         FROM purchases
+         WHERE TRIM(product_sku) = ANY($1) AND amount > 0
+         AND COALESCE(supplier_name, '') != 'replace'
+         GROUP BY TRIM(product_sku)`,
+        [skus]
       );
-
-      if (avgPurchaseResult.rows.length > 0 && avgPurchaseResult.rows[0].avg_amount) {
-        const avgPrice = parseFloat(avgPurchaseResult.rows[0].avg_amount || 0);
-        if (avgPrice > 0) {
-          return avgPrice;
-        }
+      for (const r of skuRows.rows) {
+        const v = parseFloat(r.avg_amount);
+        if (r.sku && v > 0) bySku[r.sku] = v;
       }
     }
-
-    return 0;
   } catch (err) {
-    console.error('Error getting purchase price:', err);
-    return 0;
+    if (process.env.NODE_ENV !== 'production') console.error('getPurchasePricesBatch:', err);
   }
+  return { bySerial, bySku };
 }
 
 // Helper function to get product_type_id from category
@@ -63,269 +54,90 @@ function getProductTypeId(category) {
   return typeMap[category] || 1;
 }
 
-// Get dashboard overview metrics
+// Get dashboard overview metrics (optimized: batch queries, no N+1, parallel fetches)
 router.get('/overview', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   try {
-    const { period = 'today' } = req.query; // today, week, month, year
-    
-    // Calculate date range based on period
-    let dateFilter = '';
-    let dateParams = [];
-    
-    if (period === 'today') {
-      dateFilter = "DATE(created_at) = CURRENT_DATE";
-    } else if (period === 'week') {
-      dateFilter = "created_at >= CURRENT_DATE - INTERVAL '7 days'";
-    } else if (period === 'month') {
-      dateFilter = "created_at >= DATE_TRUNC('month', CURRENT_DATE)";
-    } else if (period === 'year') {
-      dateFilter = "created_at >= DATE_TRUNC('year', CURRENT_DATE)";
-    }
+    const { period = 'today' } = req.query;
 
-    // Total Inventory Value
-    let totalInventoryValue = 0;
-    try {
-      const { rows } = await db.query(`
-        SELECT COALESCE(SUM(qty * COALESCE(selling_price, 0)), 0) as total_value
-        FROM products
-      `);
-      totalInventoryValue = parseFloat(rows[0]?.total_value || 0);
-    } catch (err) {
-      console.error('Error calculating inventory value:', err.message);
-    }
+    // Run all independent overview queries in parallel (no N+1)
+    const [
+      inventoryRes,
+      todaySalesRes,
+      todayItemsRes,
+      todayCountRes,
+      todayServicesRes,
+      monthlySalesRes,
+      monthlyServicesRes,
+      lowStockRes,
+      pendingServicesRes,
+      totalProductsRes,
+      customersRes,
+    ] = await Promise.all([
+      db.query(`SELECT COALESCE(SUM(qty * COALESCE(selling_price, 0)), 0) as total_value FROM products`).catch(() => ({ rows: [{ total_value: 0 }] })),
+      db.query(`SELECT COALESCE(SUM(si.final_amount), 0) as total FROM sales_item si WHERE DATE(si.created_at) = CURRENT_DATE`).catch(() => ({ rows: [{ total: 0 }] })),
+      db.query(`SELECT si.SERIAL_NUMBER as serial_number, si.SKU as sku, si.final_amount, si.product_id FROM sales_item si WHERE DATE(si.created_at) = CURRENT_DATE LIMIT 500`).catch(() => ({ rows: [] })),
+      db.query(`SELECT COUNT(*) as total FROM sales_item si WHERE DATE(si.created_at) = CURRENT_DATE`).catch(() => ({ rows: [{ total: 0 }] })),
+      db.query(`SELECT COALESCE(SUM(amount), 0) as total FROM service_requests WHERE DATE(updated_at) = CURRENT_DATE AND status = 'completed' AND amount IS NOT NULL`).catch(() => ({ rows: [{ total: 0 }] })),
+      db.query(`SELECT COALESCE(SUM(si.final_amount), 0) as total FROM sales_item si WHERE si.created_at >= DATE_TRUNC('month', CURRENT_DATE)`).catch(() => ({ rows: [{ total: 0 }] })),
+      db.query(`SELECT COALESCE(SUM(amount), 0) as total FROM service_requests WHERE updated_at >= DATE_TRUNC('month', CURRENT_DATE) AND status = 'completed' AND amount IS NOT NULL`).catch(() => ({ rows: [{ total: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM products WHERE qty < 5`).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM service_requests WHERE status IN ('pending', 'in_progress')`).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM products`).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM users u JOIN roles r ON u.role_id = r.id WHERE LOWER(r.role_name) = 'customer'`).catch(() => ({ rows: [{ count: 0 }] })),
+    ]);
 
-    // Today's Revenue (sales + services)
-    let todayRevenue = 0;
-    let todayProfit = 0;
-    try {
-      const todaySalesQuery = `
-        SELECT COALESCE(SUM(si.final_amount), 0) as total
-        FROM sales_item si
-        WHERE DATE(si.created_at) = CURRENT_DATE
-      `;
-      const salesResult = await db.query(todaySalesQuery);
-      const todaySalesRevenue = parseFloat(salesResult.rows[0]?.total || 0);
-      todayRevenue += todaySalesRevenue;
-      
-      // Calculate profit for today's sales
-      const todayItemsQuery = `
-        SELECT si.SERIAL_NUMBER as serial_number, si.SKU as sku, si.final_amount, si.product_id
-        FROM sales_item si
-        WHERE DATE(si.created_at) = CURRENT_DATE
-        LIMIT 500
-      `;
-      const todayItemsResult = await db.query(todayItemsQuery);
-      
-      console.log(`[DASHBOARD] Processing ${todayItemsResult.rows.length} items for today's profit calculation`);
-      
-      let itemsWithPurchasePrice = 0;
-      let itemsWithoutPurchasePrice = 0;
-      let totalRevenue = 0;
-      
-      for (const item of todayItemsResult.rows) {
-        const revenue = parseFloat(item.final_amount || 0);
-        totalRevenue += revenue;
-        const serialNum = (item.serial_number || item.SERIAL_NUMBER || '').toString().trim();
-        const sku = (item.sku || item.SKU || '').toString().trim();
-        
-        if (revenue > 0) {
-          let purchasePrice = 0;
-          
-          if (serialNum) {
-            purchasePrice = await getPurchasePrice(serialNum, sku);
-          }
-          
-          if (purchasePrice === 0 && sku) {
-            purchasePrice = await getPurchasePrice(null, sku);
-          }
-          
-          // If still no purchase price found, try to get from product's selling_price as fallback
-          if (purchasePrice === 0 && item.product_id) {
-            try {
-              const productResult = await db.query(
-                `SELECT selling_price, mrp_price FROM products WHERE id = $1`,
-                [item.product_id]
-              );
-              if (productResult.rows.length > 0) {
-                // Use 70% of selling price as estimated purchase cost
-                const sellingPrice = parseFloat(productResult.rows[0].selling_price || productResult.rows[0].mrp_price || 0);
-                if (sellingPrice > 0) {
-                  purchasePrice = sellingPrice * 0.7;
-                  itemsWithoutPurchasePrice++;
-                }
-              }
-            } catch (err) {
-              console.error('Error getting product price:', err);
-            }
-          } else if (purchasePrice > 0) {
-            itemsWithPurchasePrice++;
-          }
-          
-          const profit = revenue - purchasePrice;
-          todayProfit += profit;
-          
-          if (todayItemsResult.rows.length <= 10) {
-            console.log(`[DASHBOARD] Item: Serial=${serialNum || 'N/A'}, SKU=${sku || 'N/A'}, Revenue=${revenue}, Purchase=${purchasePrice}, Profit=${profit}`);
-          }
+    let totalInventoryValue = parseFloat(inventoryRes.rows[0]?.total_value || 0);
+    let todayRevenue = parseFloat(todaySalesRes.rows[0]?.total || 0);
+    const todayServicesRevenue = parseFloat(todayServicesRes.rows[0]?.total || 0);
+    todayRevenue += todayServicesRevenue;
+    let todayProfit = todayServicesRevenue; // services = 100% profit
+    const monthlyRevenue = parseFloat(monthlySalesRes.rows[0]?.total || 0) + parseFloat(monthlyServicesRes.rows[0]?.total || 0);
+    const lowStockCount = parseInt(lowStockRes.rows[0]?.count || 0);
+    const pendingServices = parseInt(pendingServicesRes.rows[0]?.count || 0);
+    const totalProducts = parseInt(totalProductsRes.rows[0]?.count || 0);
+    let totalCustomers = parseInt(customersRes.rows[0]?.count || 0);
+
+    const todayItems = todayItemsRes.rows || [];
+    const totalCount = parseInt(todayCountRes.rows[0]?.total || 0);
+
+    // Batch fetch purchase prices and product fallbacks (3 queries total, no per-item DB calls)
+    const serials = [];
+    const skus = [];
+    const productIds = [];
+    for (const item of todayItems) {
+      const sn = (item.serial_number || item.SERIAL_NUMBER || '').toString().trim();
+      const sku = (item.sku || item.SKU || '').toString().trim();
+      if (sn) serials.push(sn);
+      if (sku) skus.push(sku);
+      if (item.product_id) productIds.push(item.product_id);
+    }
+    const uniqSerials = [...new Set(serials)];
+    const uniqSkus = [...new Set(skus)];
+    const uniqProductIds = [...new Set(productIds)];
+
+    const { bySerial, bySku } = await getPurchasePricesBatch(uniqSerials, uniqSkus);
+    let byProductId = {};
+    if (uniqProductIds.length > 0) {
+      try {
+        const productRows = await db.query(`SELECT id, selling_price, mrp_price FROM products WHERE id = ANY($1)`, [uniqProductIds]);
+        for (const r of productRows.rows) {
+          const v = parseFloat(r.selling_price || r.mrp_price || 0);
+          if (v > 0) byProductId[r.id] = v * 0.7;
         }
-      }
-      
-      console.log(`[DASHBOARD] Total Revenue: ${totalRevenue}, Items with purchase price: ${itemsWithPurchasePrice}, Items without (using fallback): ${itemsWithoutPurchasePrice}, Calculated Profit: ${todayProfit}`);
-      
-      // Scale profit if we limited results
-      const totalCountResult = await db.query(
-        `SELECT COUNT(*) as total FROM sales_item si WHERE DATE(si.created_at) = CURRENT_DATE`
-      );
-      const totalCount = parseInt(totalCountResult.rows[0]?.total || 0);
-      const sampleCount = todayItemsResult.rows.length;
-      
-      if (totalCount > sampleCount && sampleCount > 0 && todayProfit > 0) {
-        const scaleFactor = totalCount / sampleCount;
-        const scaledProfit = todayProfit * scaleFactor;
-        console.log(`[DASHBOARD] Scaling profit: ${todayProfit} * ${scaleFactor.toFixed(2)} = ${scaledProfit.toFixed(2)} (Total items: ${totalCount}, Sample: ${sampleCount})`);
-        todayProfit = scaledProfit;
-      } else {
-        console.log(`[DASHBOARD] No scaling needed. Total items: ${totalCount}, Sample: ${sampleCount}, Profit: ${todayProfit}`);
-      }
-    } catch (err) {
-      if (err.code !== '42P01') { // 42P01 = relation does not exist
-        console.error('Error fetching today sales:', err.message);
-      }
-    }
-    
-    try {
-      const todayServicesQuery = `
-        SELECT COALESCE(SUM(amount), 0) as total
-        FROM service_requests
-        WHERE DATE(updated_at) = CURRENT_DATE AND status = 'completed' AND amount IS NOT NULL
-      `;
-      const servicesResult = await db.query(todayServicesQuery);
-      const servicesRevenue = parseFloat(servicesResult.rows[0]?.total || 0);
-      todayRevenue += servicesRevenue;
-      // Service requests amount is pure profit (100% profit as it's service charge)
-      todayProfit += servicesRevenue;
-    } catch (err) {
-      if (err.code !== '42P01') {
-        console.error('Error fetching today service requests:', err.message);
-      }
+      } catch (e) { /* ignore */ }
     }
 
-    // Add service requests (customer service bookings) profit
-    try {
-      const todayServiceRequestsQuery = `
-        SELECT COALESCE(SUM(amount), 0) as total
-        FROM service_requests
-        WHERE DATE(updated_at) = CURRENT_DATE AND status = 'completed' AND amount IS NOT NULL
-      `;
-      const serviceRequestsResult = await db.query(todayServiceRequestsQuery);
-      const serviceRequestsRevenue = parseFloat(serviceRequestsResult.rows[0]?.total || 0);
-      todayRevenue += serviceRequestsRevenue;
-      // Service requests amount is pure profit (100% profit as it's service charge)
-      todayProfit += serviceRequestsRevenue;
-    } catch (err) {
-      if (err.code !== '42P01') {
-        console.error('Error fetching today service requests:', err.message);
-      }
+    for (const item of todayItems) {
+      const revenue = parseFloat(item.final_amount || 0);
+      if (revenue <= 0) continue;
+      const serialNum = (item.serial_number || item.SERIAL_NUMBER || '').toString().trim();
+      const sku = (item.sku || item.SKU || '').toString().trim();
+      let purchasePrice = (serialNum && bySerial[serialNum]) || (sku && bySku[sku]) || (item.product_id && byProductId[item.product_id]) || 0;
+      todayProfit += revenue - purchasePrice;
     }
 
-    // Monthly Revenue
-    let monthlyRevenue = 0;
-    try {
-      const monthlySalesQuery = `
-        SELECT COALESCE(SUM(si.final_amount), 0) as total
-        FROM sales_item si
-        WHERE si.created_at >= DATE_TRUNC('month', CURRENT_DATE)
-      `;
-      const monthlySalesResult = await db.query(monthlySalesQuery);
-      monthlyRevenue += parseFloat(monthlySalesResult.rows[0]?.total || 0);
-    } catch (err) {
-      if (err.code !== '42P01') {
-        console.error('Error fetching monthly sales:', err.message);
-      }
-    }
-    
-    try {
-      const monthlyServicesQuery = `
-        SELECT COALESCE(SUM(amount), 0) as total
-        FROM service_requests
-        WHERE updated_at >= DATE_TRUNC('month', CURRENT_DATE) AND status = 'completed' AND amount IS NOT NULL
-      `;
-      const monthlyServicesResult = await db.query(monthlyServicesQuery);
-      monthlyRevenue += parseFloat(monthlyServicesResult.rows[0]?.total || 0);
-    } catch (err) {
-      if (err.code !== '42P01') {
-        console.error('Error fetching monthly service requests:', err.message);
-      }
-    }
-
-    // Add service requests (customer service bookings) to monthly revenue
-    try {
-      const monthlyServiceRequestsQuery = `
-        SELECT COALESCE(SUM(amount), 0) as total
-        FROM service_requests
-        WHERE updated_at >= DATE_TRUNC('month', CURRENT_DATE) AND status = 'completed' AND amount IS NOT NULL
-      `;
-      const monthlyServiceRequestsResult = await db.query(monthlyServiceRequestsQuery);
-      monthlyRevenue += parseFloat(monthlyServiceRequestsResult.rows[0]?.total || 0);
-    } catch (err) {
-      if (err.code !== '42P01') {
-        console.error('Error fetching monthly service requests:', err.message);
-      }
-    }
-
-    // Low Stock Alerts (products with qty < 5)
-    let lowStockCount = 0;
-    try {
-      const { rows } = await db.query(`
-        SELECT COUNT(*) as count
-        FROM products
-        WHERE qty < 5
-      `);
-      lowStockCount = parseInt(rows[0]?.count || 0);
-    } catch (err) {
-      console.error('Error checking low stock:', err.message);
-    }
-
-    // Pending Services
-    let pendingServices = 0;
-    try {
-      const pendingServicesQuery = `
-        SELECT COUNT(*) as count
-        FROM service_requests
-        WHERE status IN ('pending', 'in_progress')
-      `;
-      const pendingServicesResult = await db.query(pendingServicesQuery);
-      pendingServices = parseInt(pendingServicesResult.rows[0]?.count || 0);
-    } catch (err) {
-      if (err.code !== '42P01') {
-        console.error('Error fetching pending service requests:', err.message);
-      }
-    }
-
-    // Total Products Count
-    let totalProducts = 0;
-    try {
-      const { rows } = await db.query(`SELECT COUNT(*) as count FROM products`);
-      totalProducts = parseInt(rows[0]?.count || 0);
-    } catch (err) {
-      console.error('Error counting products:', err.message);
-    }
-
-    // Total Customers
-    let totalCustomers = 0;
-    try {
-      const customersQuery = `
-        SELECT COUNT(*) as count
-        FROM users u
-        JOIN roles r ON u.role_id = r.id
-        WHERE LOWER(r.role_name) = 'customer'
-      `;
-      const customersResult = await db.query(customersQuery);
-      totalCustomers = parseInt(customersResult.rows[0]?.count || 0);
-    } catch (err) {
-      console.error('Error fetching total customers:', err.message);
-      // If roles table doesn't exist or join fails, default to 0
-      totalCustomers = 0;
+    if (totalCount > todayItems.length && todayItems.length > 0 && todayProfit > 0) {
+      todayProfit = todayProfit * (totalCount / todayItems.length);
     }
 
     res.json({
@@ -339,8 +151,7 @@ router.get('/overview', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
       totalCustomers,
     });
   } catch (err) {
-    console.error('GET /dashboard/overview error', err);
-    // Return default values instead of crashing
+    if (process.env.NODE_ENV !== 'production') console.error('GET /dashboard/overview error', err);
     res.json({
       totalInventoryValue: 0,
       todayRevenue: 0,
@@ -837,12 +648,12 @@ router.get('/services', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
   }
 });
 
-// Get recent transactions
+// Get recent transactions (optimized: date filter to avoid full table scan)
 router.get('/recent-transactions', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { limit = 10 } = req.query;
-    
-    // Recent sales - using sales_item table grouped by invoice_number
+    const lim = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50);
+
     let recentSales = [];
     try {
       const recentSalesQuery = `
@@ -855,11 +666,12 @@ router.get('/recent-transactions', requireAuth, requireSuperAdminOrAdmin, async 
           COALESCE(SUM(si.final_amount), 0) as final_amount,
           MAX(si.payment_status) as payment_status
         FROM sales_item si
+        WHERE si.created_at >= CURRENT_DATE - INTERVAL '90 days'
         GROUP BY si.invoice_number, si.customer_name, si.sales_type
         ORDER BY MIN(si.created_at) DESC
         LIMIT $1
       `;
-      const recentSalesResult = await db.query(recentSalesQuery, [limit]);
+      const recentSalesResult = await db.query(recentSalesQuery, [lim]);
       recentSales = recentSalesResult.rows.map(row => ({
         id: row.id,
         invoiceNumber: row.invoice_number,
@@ -887,7 +699,7 @@ router.get('/recent-transactions', requireAuth, requireSuperAdminOrAdmin, async 
         ORDER BY created_at DESC
         LIMIT $1
       `;
-      const recentServicesResult = await db.query(recentServicesQuery, [limit]);
+      const recentServicesResult = await db.query(recentServicesQuery, [lim]);
       recentServices = recentServicesResult.rows.map(row => ({
         id: row.id,
         invoiceNumber: `SR-${row.id}`,
@@ -904,10 +716,9 @@ router.get('/recent-transactions', requireAuth, requireSuperAdminOrAdmin, async 
       }
     }
 
-    // Combine and sort by date
     const allTransactions = [...recentSales, ...recentServices]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, parseInt(limit));
+      .slice(0, lim);
 
     res.json(allTransactions);
   } catch (err) {

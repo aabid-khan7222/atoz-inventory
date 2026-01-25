@@ -260,8 +260,8 @@ export function generateSummaryReportPDF({ title, summaryData, filters = null, f
     theme: 'grid',
     styles: { fontSize: 9 },
     columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 80 },
-      1: { halign: 'right', cellWidth: 100 }
+      0: { fontStyle: 'bold', cellWidth: 58 },
+      1: { halign: 'right', cellWidth: 124 }
     },
     margin: { left: 14, right: 14 }
   });
@@ -286,8 +286,8 @@ export function generateSummaryReportPDF({ title, summaryData, filters = null, f
       theme: 'grid',
       styles: { fontSize: 9 },
       columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 80 },
-        1: { halign: 'right', cellWidth: 100 }
+        0: { fontStyle: 'bold', cellWidth: 58 },
+        1: { halign: 'right', cellWidth: 124 }
       },
       margin: { left: 14, right: 14 }
     });
@@ -312,8 +312,8 @@ export function generateSummaryReportPDF({ title, summaryData, filters = null, f
       theme: 'grid',
       styles: { fontSize: 9 },
       columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 80 },
-        1: { halign: 'right', cellWidth: 100 }
+        0: { fontStyle: 'bold', cellWidth: 58 },
+        1: { halign: 'right', cellWidth: 124 }
       },
       margin: { left: 14, right: 14 }
     });
@@ -422,8 +422,8 @@ export function generateProfitReportPDF({ profitReport, filters = null, filename
     theme: 'grid',
     styles: { fontSize: 9 },
     columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 80 },
-      1: { halign: 'right', cellWidth: 100 }
+      0: { fontStyle: 'bold', cellWidth: 58 },
+      1: { halign: 'right', cellWidth: 124 }
     },
     margin: { left: 14, right: 14 }
   });
@@ -645,8 +645,8 @@ export function generateChargingServicesReportPDF({ chargingReport, filters = nu
     theme: 'grid',
     styles: { fontSize: 9 },
     columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 80 },
-      1: { halign: 'right', cellWidth: 100 }
+      0: { fontStyle: 'bold', cellWidth: 58 },
+      1: { halign: 'right', cellWidth: 124 }
     },
     margin: { left: 14, right: 14 }
   });
