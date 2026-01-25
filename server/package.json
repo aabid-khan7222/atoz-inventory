@@ -9,7 +9,7 @@
     "migrate": "node scripts/run_migrations.js",
     "migrate-data": "node scripts/migrate-data-local-to-render.js",
     "reset-admin-passwords": "node scripts/reset-admin-passwords.js",
-    "postinstall": "npx puppeteer install || true"
+    "postinstall": "npx puppeteer browsers install chrome || true"
   },
   "keywords": [],
   "author": "",

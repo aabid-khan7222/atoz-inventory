@@ -29,11 +29,11 @@ require("dotenv").config();
       console.warn('⚠ Puppeteer Chrome not found. Attempting installation...');
       try {
         const { execSync } = require('child_process');
-        execSync('npx puppeteer install', { stdio: 'inherit', timeout: 120000 });
+        execSync('npx puppeteer browsers install chrome', { stdio: 'inherit', timeout: 180000 });
         console.log('✓ Chrome installation completed');
       } catch (installError) {
         console.warn('⚠ Chrome installation failed:', installError.message);
-        console.warn('   PDF generation may fail. Chrome will be installed on first PDF request.');
+        console.warn('   PDF generation will attempt to download Chrome on first request.');
       }
     }
   } catch (error) {
