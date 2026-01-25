@@ -92,6 +92,12 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
 
     // Try to find Chrome executable
     try {
+      // Set cache directory for Render.com
+      const cacheDir = process.env.PUPPETEER_CACHE_DIR || (process.env.HOME ? `${process.env.HOME}/.cache/puppeteer` : '/opt/render/.cache/puppeteer');
+      if (cacheDir && !process.env.PUPPETEER_CACHE_DIR) {
+        process.env.PUPPETEER_CACHE_DIR = cacheDir;
+      }
+
       // First, try to use Puppeteer's bundled Chrome
       let executablePath = null;
       
@@ -99,7 +105,9 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
         executablePath = puppeteer.executablePath();
         if (executablePath && fs.existsSync(executablePath)) {
           puppeteerOptions.executablePath = executablePath;
-          console.log('Using Puppeteer bundled Chrome at:', executablePath);
+          console.log('✓ Using Puppeteer bundled Chrome at:', executablePath);
+        } else {
+          console.log('Puppeteer executable path returned:', executablePath, 'exists:', executablePath ? fs.existsSync(executablePath) : 'N/A');
         }
       } catch (execPathError) {
         console.warn('Could not get Puppeteer executable path:', execPathError.message);
@@ -109,21 +117,28 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
       if (!puppeteerOptions.executablePath) {
         const possiblePaths = [
           process.env.PUPPETEER_EXECUTABLE_PATH,
+          // Render.com cache location
+          '/opt/render/.cache/puppeteer/chrome-linux64/chrome',
+          '/opt/render/.cache/puppeteer/chrome/chrome',
+          // Common Linux locations
           '/usr/bin/google-chrome-stable',
           '/usr/bin/google-chrome',
           '/usr/bin/chromium',
           '/usr/bin/chromium-browser',
           '/snap/bin/chromium',
+          // macOS
           '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          // Windows
           'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
           'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
         ].filter(Boolean);
 
+        console.log('Searching for Chrome in system locations...');
         for (const chromePath of possiblePaths) {
           try {
             if (chromePath && fs.existsSync(chromePath)) {
               puppeteerOptions.executablePath = chromePath;
-              console.log('Using system Chrome at:', chromePath);
+              console.log('✓ Using system Chrome at:', chromePath);
               break;
             }
           } catch (e) {
@@ -132,10 +147,12 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
         }
       }
 
-      // If still no Chrome found, log warning but try to launch anyway
+      // If still no Chrome found, log detailed info
       if (!puppeteerOptions.executablePath) {
-        console.warn('Chrome executable not found. Puppeteer will try to download it automatically.');
-        console.warn('If this fails, run: npx puppeteer browsers install chrome');
+        console.warn('⚠ Chrome executable not found in standard locations.');
+        console.warn('Cache directory:', process.env.PUPPETEER_CACHE_DIR || 'not set');
+        console.warn('HOME:', process.env.HOME || 'not set');
+        console.warn('Attempting to launch without explicit path - Puppeteer may download Chrome automatically.');
       }
     } catch (configError) {
       console.warn('Could not configure Puppeteer executable path:', configError.message);

@@ -1,6 +1,46 @@
 // index.js
 require("dotenv").config();
 
+// Verify Puppeteer Chrome installation on startup (non-blocking)
+(async () => {
+  try {
+    const puppeteer = require('puppeteer');
+    const fs = require('fs');
+    
+    // Set cache directory for Render.com
+    const cacheDir = process.env.PUPPETEER_CACHE_DIR || (process.env.HOME ? `${process.env.HOME}/.cache/puppeteer` : '/opt/render/.cache/puppeteer');
+    if (cacheDir && !process.env.PUPPETEER_CACHE_DIR) {
+      process.env.PUPPETEER_CACHE_DIR = cacheDir;
+    }
+    
+    // Check if Chrome exists
+    let chromeFound = false;
+    try {
+      const executablePath = puppeteer.executablePath();
+      if (executablePath && fs.existsSync(executablePath)) {
+        chromeFound = true;
+        console.log('✓ Puppeteer Chrome found at:', executablePath);
+      }
+    } catch (e) {
+      // Chrome not found via executablePath
+    }
+    
+    if (!chromeFound) {
+      console.warn('⚠ Puppeteer Chrome not found. Attempting installation...');
+      try {
+        const { execSync } = require('child_process');
+        execSync('npx puppeteer install', { stdio: 'inherit', timeout: 120000 });
+        console.log('✓ Chrome installation completed');
+      } catch (installError) {
+        console.warn('⚠ Chrome installation failed:', installError.message);
+        console.warn('   PDF generation may fail. Chrome will be installed on first PDF request.');
+      }
+    }
+  } catch (error) {
+    console.warn('⚠ Puppeteer verification skipped:', error.message);
+  }
+})();
+
 // Check email configuration on startup
 console.log('\n📧 Email Configuration Check:');
 const emailUser = (process.env.GMAIL_USER || process.env.EMAIL_USER)?.trim();
