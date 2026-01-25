@@ -158,7 +158,20 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
     const browser = await puppeteer.launch(puppeteerOptions);
 
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    
+    // Set longer timeout for page content (60 seconds instead of default 30)
+    page.setDefaultNavigationTimeout(60000);
+    
+    // Use 'load' instead of 'networkidle0' - faster and more reliable for self-contained HTML
+    // 'load' waits for page load event, which is sufficient for static HTML with base64 images
+    // 'networkidle0' waits for network to be idle, which can timeout unnecessarily
+    await page.setContent(html, { 
+      waitUntil: 'load',
+      timeout: 60000 
+    });
+    
+    // Small delay to ensure all rendering is complete
+    await page.waitForTimeout(500);
     
     const pdfBuffer = await page.pdf({
       format: 'A4',
@@ -168,7 +181,8 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
         bottom: '10mm',
         left: '10mm'
       },
-      printBackground: true
+      printBackground: true,
+      timeout: 60000 // 60 second timeout for PDF generation
     });
 
     await browser.close();

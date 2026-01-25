@@ -275,13 +275,20 @@ const CustomerOrders = ({ title, description }) => {
         }
       });
 
+      // Create AbortController for timeout (90 seconds - enough for PDF generation)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000);
+      
       const response = await fetch(`${API_BASE}/invoices/${invoiceNumber}/pdf`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/pdf'
-        }
+        },
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       // Check if response is ok
       if (!response.ok) {
