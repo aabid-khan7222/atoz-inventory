@@ -4,6 +4,7 @@ import SearchableDropdown from '../common/SearchableDropdown';
 import QRScanner from '../common/QRScanner';
 import { useAuth } from '../../contexts/AuthContext';
 import { getFormState, saveFormState, markFormSubmitted } from '../../utils/formStateManager';
+import Swal from 'sweetalert2';
 import './InventoryManagement.css';
 
 const STORAGE_KEY = 'productManagementState';
@@ -371,18 +372,40 @@ const ProductManagement = () => {
 
   // Delete product permanently (admin/super-admin only)
   const handleDeleteProduct = async (product) => {
-    const confirmed = window.confirm(
-      `Permanently delete "${product.name || product.sku}"? This will remove the product from the database, admin UI, add/sell stock, and customer catalog. This action cannot be undone.`
-    );
-    if (!confirmed) return;
+    const productName = product.name || product.sku || 'this product';
+    
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      html: `Do you want to permanently delete product <strong>"${productName}"</strong>?<br><br>This will remove the product from:<br>• Database<br>• Admin/Super Admin UI<br>• Add/Sell Stock options<br>• Customer catalog<br><br><strong>This action cannot be undone!</strong>`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true,
+      focusCancel: true
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
 
     setDeletingProduct(product.id);
     setError('');
     setSuccess('');
+
     try {
       await api.deleteProduct(product.id);
-      setSuccess(`Product "${product.name || product.sku}" has been deleted.`);
-      setTimeout(() => setSuccess(''), 5000);
+      
+      await Swal.fire({
+        title: 'Deleted!',
+        html: `Product <strong>"${productName}"</strong> has been permanently deleted.`,
+        icon: 'success',
+        confirmButtonColor: '#059669',
+        confirmButtonText: 'OK'
+      });
+      
       await fetchProducts();
       setEditingProduct(prev => {
         const updated = { ...prev };
@@ -390,8 +413,13 @@ const ProductManagement = () => {
         return updated;
       });
     } catch (err) {
-      setError(err.message || 'Failed to delete product.');
-      setTimeout(() => setError(''), 5000);
+      await Swal.fire({
+        title: 'Error!',
+        html: err.message || 'Failed to delete product.',
+        icon: 'error',
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'OK'
+      });
     } finally {
       setDeletingProduct(null);
     }
