@@ -75,10 +75,74 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
     const html = generateInvoiceHTML(invoice, logoBase64);
 
     // Generate PDF using Puppeteer
-    const browser = await puppeteer.launch({
+    // Configure Puppeteer for production environments (Render.com, etc.)
+    const puppeteerOptions = {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
+      ]
+    };
+
+    // Try to find Chrome executable
+    try {
+      // First, try to use Puppeteer's bundled Chrome
+      let executablePath = null;
+      
+      try {
+        executablePath = puppeteer.executablePath();
+        if (executablePath && fs.existsSync(executablePath)) {
+          puppeteerOptions.executablePath = executablePath;
+          console.log('Using Puppeteer bundled Chrome at:', executablePath);
+        }
+      } catch (execPathError) {
+        console.warn('Could not get Puppeteer executable path:', execPathError.message);
+      }
+
+      // If bundled Chrome not found, try common system locations
+      if (!puppeteerOptions.executablePath) {
+        const possiblePaths = [
+          process.env.PUPPETEER_EXECUTABLE_PATH,
+          '/usr/bin/google-chrome-stable',
+          '/usr/bin/google-chrome',
+          '/usr/bin/chromium',
+          '/usr/bin/chromium-browser',
+          '/snap/bin/chromium',
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+        ].filter(Boolean);
+
+        for (const chromePath of possiblePaths) {
+          try {
+            if (chromePath && fs.existsSync(chromePath)) {
+              puppeteerOptions.executablePath = chromePath;
+              console.log('Using system Chrome at:', chromePath);
+              break;
+            }
+          } catch (e) {
+            // Continue to next path
+          }
+        }
+      }
+
+      // If still no Chrome found, log warning but try to launch anyway
+      if (!puppeteerOptions.executablePath) {
+        console.warn('Chrome executable not found. Puppeteer will try to download it automatically.');
+        console.warn('If this fails, run: npx puppeteer browsers install chrome');
+      }
+    } catch (configError) {
+      console.warn('Could not configure Puppeteer executable path:', configError.message);
+      // Continue with default configuration - Puppeteer might download Chrome automatically
+    }
+
+    const browser = await puppeteer.launch(puppeteerOptions);
 
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
@@ -102,8 +166,16 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
     res.send(pdfBuffer);
   } catch (error) {
     console.error('Error generating PDF:', error);
+    
+    // Provide more helpful error messages
+    let errorMessage = error.message || 'Failed to generate PDF';
+    
+    if (errorMessage.includes('Could not find Chrome') || errorMessage.includes('Browser not found')) {
+      errorMessage = `PDF generation failed: Chrome browser not found. Please ensure Chrome/Chromium is installed. ${errorMessage}`;
+    }
+    
     res.status(error.message === 'Invoice not found' ? 404 : 500).json({
-      error: error.message || 'Failed to generate PDF'
+      error: errorMessage
     });
   }
 });

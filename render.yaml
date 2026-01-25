@@ -4,7 +4,7 @@ services:
     name: atoz-inventory-backend
     env: node
     plan: free
-    buildCommand: cd server && npm install
+    buildCommand: cd server && npm install && npx puppeteer browsers install chrome
     startCommand: cd server && npm start
     healthCheckPath: /health
     envVars:
@@ -18,6 +18,10 @@ services:
         generateValue: true  # Auto-generate secure secret
       - key: ALLOWED_ORIGINS
         sync: false  # Set this after frontend is deployed (e.g., https://your-frontend.onrender.com)
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/.cache/puppeteer
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: "false"
     
   # Frontend Service
   - type: web
