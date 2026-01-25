@@ -327,7 +327,11 @@ router.post('/', requireAuth, async (req, res) => {
       const product = productResult.rows[0];
       const currentStock = parseInt(product.qty || 0);
 
-      if (currentStock < quantity) {
+      // Skip stock check for customers - admin will handle stock management
+      // Customers can place orders regardless of stock availability
+      const isCustomer = req.user && req.user.role_id >= 3;
+      
+      if (!isCustomer && currentStock < quantity) {
         await client.query('ROLLBACK');
         return res.status(400).json({ 
           error: `Insufficient stock for ${product.name}. Available: ${currentStock}, Requested: ${quantity}` 
