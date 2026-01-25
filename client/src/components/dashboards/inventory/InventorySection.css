@@ -1752,11 +1752,11 @@
 /* Responsive - Mobile */
 @media (max-width: 768px) {
   .inventory-section {
-    padding: 1rem;
+    padding: 0.5rem;
   }
 
   .section-content {
-    padding: 1rem;
+    padding: 0.75rem;
   }
 
   /* Keep form-row as 2 columns for specific fields on mobile/tablet */
