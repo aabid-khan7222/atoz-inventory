@@ -170,8 +170,8 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
       timeout: 60000 
     });
     
-    // Small delay to ensure all rendering is complete
-    await page.waitForTimeout(500);
+    // Small delay to ensure all rendering is complete (using Promise-based delay)
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     const pdfBuffer = await page.pdf({
       format: 'A4',
