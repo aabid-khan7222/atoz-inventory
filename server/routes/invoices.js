@@ -147,12 +147,36 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
         }
       }
 
-      // If still no Chrome found, log detailed info
+      // If still no Chrome found, try to install it
       if (!puppeteerOptions.executablePath) {
         console.warn('⚠ Chrome executable not found in standard locations.');
         console.warn('Cache directory:', process.env.PUPPETEER_CACHE_DIR || 'not set');
         console.warn('HOME:', process.env.HOME || 'not set');
-        console.warn('Attempting to launch without explicit path - Puppeteer may download Chrome automatically.');
+        console.warn('Attempting to install Chrome...');
+        
+        try {
+          const { execSync } = require('child_process');
+          execSync('npx puppeteer install', { 
+            stdio: 'pipe', 
+            timeout: 120000,
+            env: { ...process.env, PUPPETEER_CACHE_DIR: cacheDir }
+          });
+          console.log('✓ Chrome installation completed, retrying executable path...');
+          
+          // Try again after installation
+          try {
+            const newExecutablePath = puppeteer.executablePath();
+            if (newExecutablePath && fs.existsSync(newExecutablePath)) {
+              puppeteerOptions.executablePath = newExecutablePath;
+              console.log('✓ Using newly installed Chrome at:', newExecutablePath);
+            }
+          } catch (retryError) {
+            console.warn('Chrome still not found after installation:', retryError.message);
+          }
+        } catch (installError) {
+          console.warn('⚠ Chrome installation failed:', installError.message);
+          console.warn('Attempting to launch without explicit path - Puppeteer may download Chrome automatically.');
+        }
       }
     } catch (configError) {
       console.warn('Could not configure Puppeteer executable path:', configError.message);
