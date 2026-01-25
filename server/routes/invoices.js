@@ -232,9 +232,9 @@ function generateInvoiceHTML(invoice, logoBase64 = '') {
 
     .invoice-page {
       width: 210mm;
-      height: 238mm;
-      min-height: 238mm;
-      max-height: 238mm;
+      min-height: auto;
+      height: auto;
+      max-height: none;
       position: relative;
       overflow: visible;
       padding: 0;
@@ -327,9 +327,11 @@ function generateInvoiceHTML(invoice, logoBase64 = '') {
 
     .items-table {
       width: 100%;
+      max-width: 100%;
+      table-layout: fixed;
       border-collapse: collapse;
       margin-bottom: 6px;
-      page-break-inside: avoid;
+      page-break-inside: auto;
     }
 
     .items-table th,
@@ -337,7 +339,10 @@ function generateInvoiceHTML(invoice, logoBase64 = '') {
       border: 1px solid #000;
       padding: 3px;
       text-align: left;
-      font-size: 8px;
+      font-size: 7px;
+      word-wrap: break-word;
+      word-break: break-word;
+      overflow-wrap: break-word;
     }
 
     .items-table th {
@@ -357,6 +362,7 @@ function generateInvoiceHTML(invoice, logoBase64 = '') {
       text-align: left;
       color: #000;
       background-color: transparent;
+      font-size: 6px;
     }
 
     .totals-table {
@@ -447,7 +453,11 @@ function generateInvoiceHTML(invoice, logoBase64 = '') {
       color: #000;
     }
 
-    table, tr, td {
+    .totals-table, .amount-in-words, .bank-details, .invoice-footer {
+      page-break-inside: avoid;
+    }
+    .items-table thead { display: table-header-group; }
+    .items-table tr {
       page-break-inside: avoid;
     }
   </style>
@@ -523,14 +533,14 @@ function generateInvoiceHTML(invoice, logoBase64 = '') {
     <table class="items-table">
       <thead>
         <tr>
-          <th style="width: 40px;">SL NO</th>
-          <th>Description of Goods</th>
-          <th style="width: 60px;">Quantity</th>
-          <th style="width: 80px;">Rate (Incl. Tax)</th>
-          <th style="width: 70px;">Rate</th>
-          <th style="width: 60px;">Tax %</th>
-          <th style="width: 60px;">Disc %</th>
-          <th style="width: 80px;">Amount</th>
+          <th style="width: 4%;">SL NO</th>
+          <th style="width: 38%;">Description of Goods</th>
+          <th style="width: 6%;">Quantity</th>
+          <th style="width: 10%;">Rate (Incl. Tax)</th>
+          <th style="width: 9%;">Rate</th>
+          <th style="width: 6%;">Tax %</th>
+          <th style="width: 6%;">Disc %</th>
+          <th style="width: 10%;">Amount</th>
         </tr>
       </thead>
       <tbody>

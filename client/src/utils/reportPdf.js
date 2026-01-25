@@ -100,18 +100,22 @@ export function generateReportPDF({ title, columns, data, totals = null, filters
     })
   );
 
-  // Build columnStyles: amount columns (with render) get overflow+width so values never overflow
+  // Build columnStyles: fit table to page, scale font when many columns
   const TABLE_WIDTH_MM = 269; // landscape A4 minus margins 14+14
-  const AMOUNT_COL_WIDTH = 42;
+  const AMOUNT_COL_WIDTH = 36;
   const amountColCount = columns.filter(c => c.render).length;
   const otherColCount = columns.length - amountColCount;
-  const otherColWidth = otherColCount > 0 ? Math.max(25, (TABLE_WIDTH_MM - AMOUNT_COL_WIDTH * amountColCount) / otherColCount) : 0;
+  const reservedForAmounts = AMOUNT_COL_WIDTH * amountColCount;
+  const remaining = Math.max(0, TABLE_WIDTH_MM - reservedForAmounts);
+  const otherColWidth = otherColCount > 0 ? Math.max(15, remaining / otherColCount) : 0;
+  const colCount = columns.length;
+  const baseFontSize = colCount > 12 ? 6 : colCount > 8 ? 7 : 8;
   const columnStyles = {};
   columns.forEach((col, i) => {
     if (col.render) {
-      columnStyles[i] = { halign: 'right', cellWidth: AMOUNT_COL_WIDTH, overflow: 'linebreak', fontSize: 7 };
+      columnStyles[i] = { halign: 'right', cellWidth: AMOUNT_COL_WIDTH, overflow: 'linebreak', fontSize: baseFontSize };
     } else {
-      columnStyles[i] = { cellWidth: otherColWidth, overflow: 'linebreak' };
+      columnStyles[i] = { cellWidth: otherColWidth, overflow: 'linebreak', fontSize: baseFontSize };
     }
   });
 
@@ -119,13 +123,15 @@ export function generateReportPDF({ title, columns, data, totals = null, filters
     head: [tableColumns],
     body: tableRows,
     startY: yPos + 5,
-    styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+    tableWidth: TABLE_WIDTH_MM,
+    styles: { fontSize: baseFontSize, cellPadding: 2, overflow: 'linebreak' },
     columnStyles,
     headStyles: {
       fillColor: [66, 139, 202],
       textColor: 255,
       fontStyle: 'bold',
-      halign: 'center'
+      halign: 'center',
+      fontSize: baseFontSize
     },
     alternateRowStyles: { fillColor: [245, 245, 245] },
     margin: { top: yPos + 5, left: 14, right: 14 }
@@ -450,22 +456,25 @@ export function generateProfitReportPDF({ profitReport, filters = null, filename
       `${item.profit_margin_percent}%`
     ]);
     
+    const PW = 182; // portrait A4 usable width
     autoTable(doc, {
       head: [['Category', 'Revenue', 'Purchase Cost', 'Profit', 'Margin %']],
       body: categoryRows,
       startY: yPos,
-      styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 2 },
+      tableWidth: PW,
+      styles: { fontSize: 7, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        fontSize: 7
       },
       columnStyles: {
-        0: { cellWidth: 50, overflow: 'linebreak' },
-        1: { halign: 'right', cellWidth: 45, overflow: 'linebreak', fontSize: 7 },
-        2: { halign: 'right', cellWidth: 45, overflow: 'linebreak', fontSize: 7 },
-        3: { halign: 'right', cellWidth: 45, overflow: 'linebreak', fontSize: 7 },
-        4: { halign: 'right', cellWidth: 44, overflow: 'linebreak' }
+        0: { cellWidth: 52, overflow: 'linebreak' },
+        1: { halign: 'right', cellWidth: 38, overflow: 'linebreak', fontSize: 7 },
+        2: { halign: 'right', cellWidth: 38, overflow: 'linebreak', fontSize: 7 },
+        3: { halign: 'right', cellWidth: 38, overflow: 'linebreak', fontSize: 7 },
+        4: { halign: 'right', cellWidth: 36, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -487,22 +496,25 @@ export function generateProfitReportPDF({ profitReport, filters = null, filename
       `${item.profit_margin_percent}%`
     ]);
     
+    const PW = 182;
     autoTable(doc, {
       head: [['Series', 'Revenue', 'Purchase Cost', 'Profit', 'Margin %']],
       body: seriesRows,
       startY: yPos,
-      styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 2 },
+      tableWidth: PW,
+      styles: { fontSize: 7, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        fontSize: 7
       },
       columnStyles: {
-        0: { cellWidth: 50, overflow: 'linebreak' },
-        1: { halign: 'right', cellWidth: 45, overflow: 'linebreak', fontSize: 7 },
-        2: { halign: 'right', cellWidth: 45, overflow: 'linebreak', fontSize: 7 },
-        3: { halign: 'right', cellWidth: 45, overflow: 'linebreak', fontSize: 7 },
-        4: { halign: 'right', cellWidth: 44, overflow: 'linebreak' }
+        0: { cellWidth: 52, overflow: 'linebreak' },
+        1: { halign: 'right', cellWidth: 38, overflow: 'linebreak', fontSize: 7 },
+        2: { halign: 'right', cellWidth: 38, overflow: 'linebreak', fontSize: 7 },
+        3: { halign: 'right', cellWidth: 38, overflow: 'linebreak', fontSize: 7 },
+        4: { halign: 'right', cellWidth: 36, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -525,23 +537,26 @@ export function generateProfitReportPDF({ profitReport, filters = null, filename
       `${item.profit_margin_percent}%`
     ]);
     
+    const PW = 182;
     autoTable(doc, {
       head: [['Product', 'SKU', 'Revenue', 'Purchase Cost', 'Profit', 'Margin %']],
       body: productRows,
       startY: yPos,
-      styles: { fontSize: 7, overflow: 'linebreak', cellPadding: 2 },
+      tableWidth: PW,
+      styles: { fontSize: 6, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        fontSize: 6
       },
       columnStyles: {
-        0: { cellWidth: 45, overflow: 'linebreak' },
-        1: { cellWidth: 35, overflow: 'linebreak' },
-        2: { halign: 'right', cellWidth: 40, overflow: 'linebreak', fontSize: 7 },
-        3: { halign: 'right', cellWidth: 40, overflow: 'linebreak', fontSize: 7 },
-        4: { halign: 'right', cellWidth: 40, overflow: 'linebreak', fontSize: 7 },
-        5: { halign: 'right', cellWidth: 39, overflow: 'linebreak' }
+        0: { cellWidth: 42, overflow: 'linebreak' },
+        1: { cellWidth: 28, overflow: 'linebreak' },
+        2: { halign: 'right', cellWidth: 32, overflow: 'linebreak', fontSize: 6 },
+        3: { halign: 'right', cellWidth: 32, overflow: 'linebreak', fontSize: 6 },
+        4: { halign: 'right', cellWidth: 32, overflow: 'linebreak', fontSize: 6 },
+        5: { halign: 'right', cellWidth: 16, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -771,6 +786,7 @@ export function generateCustomerHistoryPDF({ customerHistory, filters = null, fi
     body: customerData,
     startY: yPos,
     theme: 'grid',
+    tableWidth: 182,
     styles: { fontSize: 9, overflow: 'linebreak', cellPadding: 2 },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 70 },
@@ -800,11 +816,13 @@ export function generateCustomerHistoryPDF({ customerHistory, filters = null, fi
       head: [['Invoice', 'Date', 'Type', 'Items', 'Amount', 'Vehicle']],
       body: salesRows,
       startY: yPos,
-      styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 2 },
+      tableWidth: 182,
+      styles: { fontSize: 7, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        fontSize: 7
       },
       columnStyles: {
         0: { cellWidth: 34, overflow: 'linebreak' },
@@ -838,24 +856,27 @@ export function generateCustomerHistoryPDF({ customerHistory, filters = null, fi
       rep.new_invoice_number || 'N/A'
     ]);
     
+    const PW = 182;
     autoTable(doc, {
       head: [['Date', 'Type', 'Original Serial', 'New Serial', 'Product', 'Discount', 'Invoice']],
       body: replacementRows,
       startY: yPos,
-      styles: { fontSize: 7, overflow: 'linebreak', cellPadding: 2 },
+      tableWidth: PW,
+      styles: { fontSize: 6, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        fontSize: 6
       },
       columnStyles: {
         0: { cellWidth: 22, overflow: 'linebreak' },
-        1: { cellWidth: 20, overflow: 'linebreak' },
+        1: { cellWidth: 18, overflow: 'linebreak' },
         2: { cellWidth: 26, overflow: 'linebreak' },
         3: { cellWidth: 26, overflow: 'linebreak' },
-        4: { cellWidth: 34, overflow: 'linebreak' },
-        5: { cellWidth: 20, overflow: 'linebreak' },
-        6: { cellWidth: 26, overflow: 'linebreak' }
+        4: { cellWidth: 32, overflow: 'linebreak' },
+        5: { cellWidth: 18, overflow: 'linebreak' },
+        6: { cellWidth: 22, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -878,23 +899,26 @@ export function generateCustomerHistoryPDF({ customerHistory, filters = null, fi
       formatDateForPDF(service.expected_completion_time)
     ]);
     
+    const PW = 182;
     autoTable(doc, {
       head: [['Date', 'Battery Serial', 'Vehicle', 'Status', 'Price', 'Expected Completion']],
       body: chargingRows,
       startY: yPos,
-      styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 2 },
+      tableWidth: PW,
+      styles: { fontSize: 7, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        fontSize: 7
       },
       columnStyles: {
         0: { cellWidth: 24, overflow: 'linebreak' },
-        1: { cellWidth: 34, overflow: 'linebreak' },
+        1: { cellWidth: 32, overflow: 'linebreak' },
         2: { cellWidth: 24, overflow: 'linebreak' },
         3: { cellWidth: 22, overflow: 'linebreak' },
-        4: { halign: 'right', cellWidth: 40, overflow: 'linebreak', fontSize: 7 },
-        5: { cellWidth: 30, overflow: 'linebreak' }
+        4: { halign: 'right', cellWidth: 36, overflow: 'linebreak', fontSize: 7 },
+        5: { cellWidth: 28, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -926,22 +950,25 @@ export function generateCustomerHistoryPDF({ customerHistory, filters = null, fi
       ];
     });
     
+    const PW = 182;
     autoTable(doc, {
       head: [['Date', 'Service Type', 'Vehicle/Details', 'Notes', 'Status']],
       body: serviceRows,
       startY: yPos,
-      styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 2 },
+      tableWidth: PW,
+      styles: { fontSize: 7, overflow: 'linebreak', cellPadding: 2 },
       headStyles: {
         fillColor: [66, 139, 202],
         textColor: 255,
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        fontSize: 7
       },
       columnStyles: {
-        0: { cellWidth: 30, overflow: 'linebreak' },
-        1: { cellWidth: 35, overflow: 'linebreak' },
-        2: { cellWidth: 50, overflow: 'linebreak' },
-        3: { cellWidth: 50, overflow: 'linebreak' },
-        4: { cellWidth: 24, overflow: 'linebreak' }
+        0: { cellWidth: 28, overflow: 'linebreak' },
+        1: { cellWidth: 32, overflow: 'linebreak' },
+        2: { cellWidth: 44, overflow: 'linebreak' },
+        3: { cellWidth: 44, overflow: 'linebreak' },
+        4: { cellWidth: 22, overflow: 'linebreak' }
       },
       margin: { left: 14, right: 14 }
     });

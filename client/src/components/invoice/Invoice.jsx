@@ -218,14 +218,14 @@ const Invoice = () => {
         <table className="items-table">
           <thead>
             <tr>
-              <th style={{ width: '40px' }}>SL NO</th>
-              <th>Description of Goods</th>
-              <th style={{ width: '60px' }}>Quantity</th>
-              <th style={{ width: '80px' }}>Rate (Incl. Tax)</th>
-              <th style={{ width: '70px' }}>Rate</th>
-              <th style={{ width: '60px' }}>Tax %</th>
-              <th style={{ width: '60px' }}>Disc %</th>
-              <th style={{ width: '80px' }}>Amount</th>
+              <th style={{ width: '4%' }}>SL NO</th>
+              <th style={{ width: '38%' }}>Description of Goods</th>
+              <th style={{ width: '6%' }}>Quantity</th>
+              <th style={{ width: '10%' }}>Rate (Incl. Tax)</th>
+              <th style={{ width: '9%' }}>Rate</th>
+              <th style={{ width: '6%' }}>Tax %</th>
+              <th style={{ width: '6%' }}>Disc %</th>
+              <th style={{ width: '10%' }}>Amount</th>
             </tr>
           </thead>
           <tbody>

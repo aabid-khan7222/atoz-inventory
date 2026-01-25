@@ -297,11 +297,13 @@ const CustomerHistory = ({ onBack }) => {
             <style>
               @media print {
                 @page {
+                  size: A4 landscape;
                   margin: 1cm;
                 }
                 body {
                   margin: 0;
                   padding: 0;
+                  max-width: 100%;
                 }
                 .no-print {
                   display: none !important;
@@ -318,6 +320,7 @@ const CustomerHistory = ({ onBack }) => {
                 background: #fff;
                 margin: 0;
                 padding: 20px;
+                max-width: 100%;
               }
               .print-header {
                 text-align: center;
@@ -335,15 +338,29 @@ const CustomerHistory = ({ onBack }) => {
                 font-size: 14px;
                 color: #666;
               }
-              table {
+              .print-history-body {
                 width: 100%;
+                max-width: 100%;
+                overflow-x: visible;
+              }
+              .print-history-body table,
+              table {
+                table-layout: fixed !important;
+                width: 100% !important;
+                max-width: 100% !important;
                 border-collapse: collapse;
                 margin: 10px 0;
+                font-size: 9px !important;
               }
+              .print-history-body th,
+              .print-history-body td,
               th, td {
                 border: 1px solid #000;
-                padding: 8px;
+                padding: 6px 4px;
                 text-align: left;
+                word-break: break-word !important;
+                overflow-wrap: break-word !important;
+                font-size: 8px !important;
               }
               th {
                 background-color: #f0f0f0;
@@ -371,7 +388,7 @@ const CustomerHistory = ({ onBack }) => {
               <p>Generated on: ${new Date().toLocaleString('en-IN')}</p>
               ${selectedCustomer ? `<p>Customer: ${selectedCustomer.label}</p>` : ''}
             </div>
-            ${contentHTML}
+            <div class="print-history-body">${contentHTML}</div>
           </body>
         </html>
       `;

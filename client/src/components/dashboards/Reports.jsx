@@ -580,6 +580,7 @@ const Reports = () => {
                 font-family: Arial, sans-serif;
                 margin: 0;
                 padding: 20px;
+                max-width: 100%;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
               }
@@ -599,16 +600,30 @@ const Reports = () => {
                 font-size: 14px;
                 color: #666;
               }
-              table {
+              .print-report-body {
                 width: 100%;
+                max-width: 100%;
+                overflow-x: visible;
+              }
+              .print-report-body table,
+              table {
+                table-layout: fixed !important;
+                width: 100% !important;
+                max-width: 100% !important;
                 border-collapse: collapse;
                 page-break-inside: auto;
                 margin-top: 20px;
+                font-size: 9px !important;
               }
+              .print-report-body th,
+              .print-report-body td,
               th, td {
                 border: 1px solid #ddd;
-                padding: 8px;
+                padding: 6px 4px;
                 text-align: left;
+                word-break: break-word !important;
+                overflow-wrap: break-word !important;
+                font-size: 8px !important;
               }
               th {
                 background-color: #4285f4;
@@ -628,22 +643,19 @@ const Reports = () => {
               .no-print {
                 display: none !important;
               }
-              /* Ensure all spans are visible in print */
               span {
                 display: inline-block !important;
                 visibility: visible !important;
               }
-              /* Ensure status badges are visible in print */
               td span[style*="background"] {
                 display: inline-block !important;
                 padding: 0.25rem 0.5rem !important;
                 border-radius: 4px !important;
-                font-size: 0.75rem !important;
+                font-size: 0.7rem !important;
                 color: white !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
               }
-              /* Ensure totals row (blue container) is visible in print */
               tr[style*="background"],
               tr[style*="var(--corp-primary)"],
               tr[key="totals-row"] {
@@ -654,7 +666,6 @@ const Reports = () => {
                 display: table-row !important;
                 visibility: visible !important;
               }
-              /* Ensure totals row content is visible */
               tr[style*="background"] td,
               tr[style*="var(--corp-primary)"] td,
               tr[key="totals-row"] td {
@@ -664,7 +675,6 @@ const Reports = () => {
                 print-color-adjust: exact !important;
                 border: 1px solid #ddd !important;
               }
-              /* Ensure totals row spans are visible */
               tr[style*="background"] span,
               tr[style*="var(--corp-primary)"] span,
               tr[key="totals-row"] span {
@@ -672,7 +682,6 @@ const Reports = () => {
                 display: inline-block !important;
                 visibility: visible !important;
               }
-              /* Ensure totals row strong tags are visible */
               tr[style*="background"] strong,
               tr[style*="var(--corp-primary)"] strong,
               tr[key="totals-row"] strong {
@@ -688,7 +697,7 @@ const Reports = () => {
                 ${dateRangeText}
               </p>
             </div>
-            ${content}
+            <div class="print-report-body">${content}</div>
           </body>
         </html>
       `;

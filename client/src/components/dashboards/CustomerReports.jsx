@@ -369,6 +369,7 @@ const CustomerReports = () => {
                 font-family: Arial, sans-serif;
                 margin: 0;
                 padding: 20px;
+                max-width: 100%;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
               }
@@ -388,16 +389,30 @@ const CustomerReports = () => {
                 font-size: 14px;
                 color: #666;
               }
-              table {
+              .print-report-body {
                 width: 100%;
+                max-width: 100%;
+                overflow-x: visible;
+              }
+              .print-report-body table,
+              table {
+                table-layout: fixed !important;
+                width: 100% !important;
+                max-width: 100% !important;
                 border-collapse: collapse;
                 page-break-inside: auto;
                 margin-top: 20px;
+                font-size: 9px !important;
               }
+              .print-report-body th,
+              .print-report-body td,
               th, td {
                 border: 1px solid #ddd;
-                padding: 8px;
+                padding: 6px 4px;
                 text-align: left;
+                word-break: break-word !important;
+                overflow-wrap: break-word !important;
+                font-size: 8px !important;
               }
               th {
                 background-color: #4285f4;
@@ -408,16 +423,9 @@ const CustomerReports = () => {
                 page-break-inside: avoid;
                 page-break-after: auto;
               }
-              thead {
-                display: table-header-group;
-              }
-              tfoot {
-                display: table-footer-group;
-              }
-              .no-print {
-                display: none !important;
-              }
-              /* Ensure totals row (blue summary row) shows in print */
+              thead { display: table-header-group; }
+              tfoot { display: table-footer-group; }
+              .no-print { display: none !important; }
               tr[style*="var(--corp-primary)"],
               tr[style*="background: var(--corp-primary)"],
               tr[style*="background-color: var(--corp-primary)"],
@@ -428,7 +436,6 @@ const CustomerReports = () => {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
               }
-              /* Ensure all text in totals row is white */
               .totals-summary-row td,
               .totals-summary-row span,
               .totals-summary-row strong,
@@ -453,7 +460,7 @@ const CustomerReports = () => {
                 </p>
               ` : ''}
             </div>
-            ${content}
+            <div class="print-report-body">${content}</div>
           </body>
         </html>
       `;
