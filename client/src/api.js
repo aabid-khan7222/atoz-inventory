@@ -10,9 +10,42 @@ export const API_BASE = getApiBase();
 // Module-level token storage
 let currentToken = null;
 
+// Track if server is waking up (for cold start scenarios)
+let isServerWakingUp = false;
+let lastHealthCheckTime = 0;
+const HEALTH_CHECK_CACHE_MS = 30000; // Cache health check for 30 seconds
+
 // Export function to set auth token
 export function setAuthToken(token) {
   currentToken = token || null;
+}
+
+// Function to check if JWT token is expired
+function isTokenExpired(token) {
+  if (!token) return true;
+  
+  try {
+    // JWT tokens have 3 parts separated by dots: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    
+    // Decode the payload (second part)
+    const payload = JSON.parse(atob(parts[1]));
+    
+    // Check if token has expiration claim
+    if (!payload.exp) return false; // No expiration claim, assume valid
+    
+    // Check if token is expired (exp is in seconds, Date.now() is in milliseconds)
+    const expirationTime = payload.exp * 1000;
+    const currentTime = Date.now();
+    
+    // Add 5 minute buffer to account for clock skew and network delays
+    return currentTime >= (expirationTime - 5 * 60 * 1000);
+  } catch (error) {
+    console.warn('[api.js] Error checking token expiry:', error);
+    // If we can't parse the token, assume it's invalid
+    return true;
+  }
 }
 
 // Function to clear auth when token is invalid (401 errors)
@@ -32,6 +65,71 @@ function clearInvalidAuth() {
   }
 }
 
+// Check if backend server is awake (health check)
+async function checkServerHealth() {
+  const now = Date.now();
+  
+  // Use cached result if recent
+  if (now - lastHealthCheckTime < HEALTH_CHECK_CACHE_MS) {
+    return !isServerWakingUp;
+  }
+  
+  try {
+    const baseUrl = getApiBase().replace('/api', '');
+    const healthUrl = `${baseUrl}/health`;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
+    const response = await fetch(healthUrl, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    clearTimeout(timeoutId);
+    
+    lastHealthCheckTime = now;
+    isServerWakingUp = !response.ok;
+    
+    return response.ok;
+  } catch (error) {
+    // Network error or timeout - server might be waking up
+    lastHealthCheckTime = now;
+    isServerWakingUp = true;
+    return false;
+  }
+}
+
+// Wake up server by making a health check request
+async function wakeUpServer(maxRetries = 3, delayMs = 2000) {
+  if (!isServerWakingUp) return true;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const isHealthy = await checkServerHealth();
+      if (isHealthy) {
+        isServerWakingUp = false;
+        return true;
+      }
+      
+      if (attempt < maxRetries) {
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
+      }
+    } catch (error) {
+      console.warn(`[api.js] Server wake-up attempt ${attempt} failed:`, error.message);
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
+      }
+    }
+  }
+  
+  return false;
+}
+
 // Timeout wrapper for fetch requests
 function fetchWithTimeout(url, options = {}, timeout = 120000) {
   return Promise.race([
@@ -42,9 +140,12 @@ function fetchWithTimeout(url, options = {}, timeout = 120000) {
   ]);
 }
 
-// Generic request helper
-export async function request(path, options = {}) {
+// Generic request helper with retry logic and token validation
+export async function request(path, options = {}, retryCount = 0) {
   const url = `${getApiBase()}${path}`;
+  const maxRetries = 2; // Maximum 2 retries (3 total attempts)
+  const isLoginRequest = path.includes('/auth/login');
+  const isHealthCheck = path.includes('/health');
 
   // Ensure headers object exists
   const headers = {
@@ -52,7 +153,20 @@ export async function request(path, options = {}) {
     ...(options.headers || {}),
   };
 
-  const tokenToUse = currentToken || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null);
+  // Get token and validate expiry BEFORE making request
+  let tokenToUse = currentToken || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null);
+  
+  // Check if token is expired (skip for login requests)
+  if (!isLoginRequest && !isHealthCheck && tokenToUse) {
+    if (isTokenExpired(tokenToUse)) {
+      console.warn('[api.js] Token expired, clearing auth');
+      clearInvalidAuth();
+      const expiredError = new Error('Session expired. Please login again.');
+      expiredError.response = { status: 401 };
+      throw expiredError;
+    }
+  }
+  
   if (tokenToUse) headers.Authorization = `Bearer ${tokenToUse}`;
 
   // Set timeout for OTP-related requests (2 minutes)
@@ -63,6 +177,20 @@ export async function request(path, options = {}) {
   const timeout = isOTPRequest ? 120000 : 60000; // 2 minutes for OTP, 1 minute for others
 
   try {
+    // For non-login requests, check server health first (with caching)
+    if (!isLoginRequest && !isHealthCheck && retryCount === 0) {
+      const isHealthy = await checkServerHealth();
+      if (!isHealthy) {
+        // Server might be waking up, try to wake it
+        const wokeUp = await wakeUpServer(2, 1500);
+        if (!wokeUp && retryCount < maxRetries) {
+          // Wait a bit and retry
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return request(path, options, retryCount + 1);
+        }
+      }
+    }
+
     const response = await fetchWithTimeout(url, {
       ...options,
       headers,
@@ -77,8 +205,19 @@ export async function request(path, options = {}) {
     }
 
     if (!response.ok) {
-      if (response.status === 401 && !path.includes('/auth/login')) {
+      // Handle 401 Unauthorized
+      if (response.status === 401 && !isLoginRequest) {
         clearInvalidAuth();
+        const authError = new Error('Session expired. Please login again.');
+        authError.response = { data, status: 401 };
+        throw authError;
+      }
+      
+      // Handle 503 Service Unavailable (server might be waking up)
+      if (response.status === 503 && retryCount < maxRetries) {
+        console.warn(`[api.js] Server unavailable (503), retrying... (attempt ${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1))); // Exponential backoff
+        return request(path, options, retryCount + 1);
       }
       
       // data agar object hai to data.error le sakte hai,
@@ -91,10 +230,41 @@ export async function request(path, options = {}) {
       throw fullError;
     }
 
+    // Success - mark server as awake
+    if (isServerWakingUp) {
+      isServerWakingUp = false;
+    }
+
     return data;
   } catch (error) {
+    // Handle network errors (connection refused, timeout, etc.)
+    const isNetworkError = 
+      error.message?.includes('timeout') ||
+      error.message?.includes('Failed to fetch') ||
+      error.message?.includes('NetworkError') ||
+      error.name === 'TypeError' ||
+      error.name === 'AbortError';
+    
+    // Retry network errors (likely cold start)
+    if (isNetworkError && !isLoginRequest && !isHealthCheck && retryCount < maxRetries) {
+      console.warn(`[api.js] Network error, retrying... (attempt ${retryCount + 1}/${maxRetries}):`, error.message);
+      
+      // Try to wake up server first
+      if (retryCount === 0) {
+        await wakeUpServer(2, 1500);
+      }
+      
+      // Wait before retry (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
+      return request(path, options, retryCount + 1);
+    }
+    
     // Re-throw if it's already an Error with a message
     if (error instanceof Error) {
+      // Enhance error message for network errors
+      if (isNetworkError && retryCount >= maxRetries) {
+        error.message = 'Unable to connect to server. The server may be starting up. Please try again in a moment.';
+      }
       throw error;
     }
     // Otherwise wrap in Error

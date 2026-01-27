@@ -55,6 +55,34 @@ export const AuthProvider = ({ children }) => {
     window.dispatchEvent(new CustomEvent('azb-auth-changed'));
   }, []);
 
+  // Helper function to check if JWT token is expired
+  const isTokenExpired = (token) => {
+    if (!token) return true;
+    
+    try {
+      // JWT tokens have 3 parts separated by dots: header.payload.signature
+      const parts = token.split('.');
+      if (parts.length !== 3) return true;
+      
+      // Decode the payload (second part)
+      const payload = JSON.parse(atob(parts[1]));
+      
+      // Check if token has expiration claim
+      if (!payload.exp) return false; // No expiration claim, assume valid
+      
+      // Check if token is expired (exp is in seconds, Date.now() is in milliseconds)
+      const expirationTime = payload.exp * 1000;
+      const currentTime = Date.now();
+      
+      // Add 5 minute buffer to account for clock skew and network delays
+      return currentTime >= (expirationTime - 5 * 60 * 1000);
+    } catch (error) {
+      console.warn('[AuthContext] Error checking token expiry:', error);
+      // If we can't parse the token, assume it's invalid
+      return true;
+    }
+  };
+
   useEffect(() => {
     // On initial mount, try to load from localStorage
     try {
@@ -66,6 +94,16 @@ export const AuthProvider = ({ children }) => {
       // Check if token was created for a different environment (localhost vs production)
       if (storedToken && storedApiBase && storedApiBase !== currentApiBase) {
         console.warn('[AuthContext] Token from different environment detected, clearing auth');
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("auth_user");
+        localStorage.removeItem("auth_api_base");
+        setLoading(false);
+        return;
+      }
+
+      // Check if token is expired BEFORE using it
+      if (storedToken && isTokenExpired(storedToken)) {
+        console.warn('[AuthContext] Stored token is expired, clearing auth');
         localStorage.removeItem("auth_token");
         localStorage.removeItem("auth_user");
         localStorage.removeItem("auth_api_base");

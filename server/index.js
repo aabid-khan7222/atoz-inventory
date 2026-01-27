@@ -160,16 +160,76 @@ app.get("/", (req, res) => {
   res.send("A TO Z Inventory Backend is running 🚀");
 });
 
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "OK",
-    service: "A TO Z Inventory Backend",
-    time: new Date().toISOString()
-  });
+app.get("/health", async (req, res) => {
+  try {
+    // Quick database health check (non-blocking, with timeout)
+    let dbStatus = "unknown";
+    try {
+      const db = require('./db');
+      const healthCheckPromise = db.query('SELECT NOW()');
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('timeout')), 3000)
+      );
+      
+      await Promise.race([healthCheckPromise, timeoutPromise]);
+      dbStatus = "connected";
+    } catch (dbError) {
+      dbStatus = "disconnected";
+      console.warn('[Health Check] Database check failed:', dbError.message);
+    }
+    
+    res.status(200).json({
+      status: "OK",
+      service: "A TO Z Inventory Backend",
+      database: dbStatus,
+      time: new Date().toISOString()
+    });
+  } catch (error) {
+    // Even if health check fails, return 200 to indicate server is running
+    res.status(200).json({
+      status: "OK",
+      service: "A TO Z Inventory Backend",
+      database: "unknown",
+      time: new Date().toISOString(),
+      warning: "Health check incomplete"
+    });
+  }
 });
 
-app.get("/api/health", (req, res) => {
-  res.json({ ok: true, status: "OK", service: "A TO Z Inventory Backend" });
+app.get("/api/health", async (req, res) => {
+  try {
+    // Quick database health check (non-blocking, with timeout)
+    let dbStatus = "unknown";
+    try {
+      const db = require('./db');
+      const healthCheckPromise = db.query('SELECT NOW()');
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('timeout')), 3000)
+      );
+      
+      await Promise.race([healthCheckPromise, timeoutPromise]);
+      dbStatus = "connected";
+    } catch (dbError) {
+      dbStatus = "disconnected";
+      console.warn('[Health Check] Database check failed:', dbError.message);
+    }
+    
+    res.json({ 
+      ok: true, 
+      status: "OK", 
+      service: "A TO Z Inventory Backend",
+      database: dbStatus
+    });
+  } catch (error) {
+    // Even if health check fails, return 200 to indicate server is running
+    res.json({
+      ok: true,
+      status: "OK",
+      service: "A TO Z Inventory Backend",
+      database: "unknown",
+      warning: "Health check incomplete"
+    });
+  }
 });
 
 /* ================== API ROUTES ================== */

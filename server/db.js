@@ -48,7 +48,7 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-// Create PostgreSQL pool with optimized settings
+// Create PostgreSQL pool with optimized settings for production stability
 const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: isProduction
@@ -58,24 +58,100 @@ const pool = new Pool({
   idleTimeoutMillis: 30000,          // Close idle clients after 30 seconds
   connectionTimeoutMillis: 10000,     // Return error after 10 seconds if connection cannot be established
   statement_timeout: 30000,          // Query timeout: 30 seconds (prevents hanging queries)
-  query_timeout: 30000                // Alternative query timeout
+  query_timeout: 30000,              // Alternative query timeout
+  // Additional settings for better connection management
+  allowExitOnIdle: false,            // Don't exit when pool is idle (important for Render)
+  keepAlive: true,                    // Keep connections alive
+  keepAliveInitialDelayMillis: 10000  // Start keepalive after 10 seconds
 });
+
+// Track connection state
+let isConnected = false;
+let connectionRetries = 0;
+const MAX_RETRIES = 5;
 
 // Log once when connected
-pool.on("connect", () => {
-  console.log(
-    `✅ PostgreSQL connected (${isProduction ? "PRODUCTION" : "LOCAL"})`
-  );
+pool.on("connect", (client) => {
+  if (!isConnected) {
+    console.log(
+      `✅ PostgreSQL connected (${isProduction ? "PRODUCTION" : "LOCAL"})`
+    );
+    isConnected = true;
+    connectionRetries = 0;
+  }
 });
 
-// Handle unexpected errors
+// Handle unexpected errors - don't exit, just log and try to recover
 pool.on("error", (err) => {
-  console.error("❌ PostgreSQL pool error:", err);
-  process.exit(1);
+  console.error("❌ PostgreSQL pool error:", err.message);
+  isConnected = false;
+  
+  // Don't exit on connection errors - let the pool handle reconnection
+  // Only exit on critical errors that can't be recovered
+  if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
+    connectionRetries++;
+    console.warn(`⚠️  Database connection error (attempt ${connectionRetries}/${MAX_RETRIES}). Pool will attempt to reconnect.`);
+    
+    if (connectionRetries >= MAX_RETRIES) {
+      console.error("❌ Max connection retries reached. Server will continue but database operations may fail.");
+      // Don't exit - let the application continue and retry on next request
+    }
+  } else {
+    // For other errors, log but don't exit
+    console.error("❌ PostgreSQL error details:", {
+      code: err.code,
+      message: err.message,
+      stack: isProduction ? undefined : err.stack
+    });
+  }
 });
+
+// Test connection on startup (non-blocking)
+(async () => {
+  try {
+    const result = await pool.query('SELECT NOW()');
+    console.log(`✅ Database connection test successful: ${result.rows[0].now}`);
+    isConnected = true;
+  } catch (error) {
+    console.warn(`⚠️  Initial database connection test failed: ${error.message}`);
+    console.warn('   The pool will attempt to connect on first query.');
+    isConnected = false;
+  }
+})();
+
+// Enhanced query function with automatic retry on connection errors
+const queryWithRetry = async (text, params, retries = 2) => {
+  try {
+    return await pool.query(text, params);
+  } catch (error) {
+    // Check if it's a connection error that might be recoverable
+    const isConnectionError = 
+      error.code === 'ECONNREFUSED' ||
+      error.code === 'ENOTFOUND' ||
+      error.code === 'ETIMEDOUT' ||
+      error.code === '57P01' || // Admin shutdown
+      error.code === '57P02' || // Crash shutdown
+      error.code === '57P03' || // Cannot connect now
+      error.message?.includes('Connection terminated') ||
+      error.message?.includes('Connection lost');
+    
+    // Retry connection errors
+    if (isConnectionError && retries > 0) {
+      console.warn(`⚠️  Database connection error, retrying... (${retries} attempts left)`);
+      // Wait a bit before retry (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 1000 * (3 - retries)));
+      return queryWithRetry(text, params, retries - 1);
+    }
+    
+    // Re-throw if not a connection error or retries exhausted
+    throw error;
+  }
+};
 
 // Export helper
 module.exports = {
-  query: (text, params) => pool.query(text, params),
+  query: queryWithRetry,
   pool,
+  // Export direct pool query for cases where retry is not desired
+  queryDirect: (text, params) => pool.query(text, params),
 };
