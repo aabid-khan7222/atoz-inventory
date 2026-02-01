@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const bcrypt = require('bcrypt');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requireAdmin, requireShop } = require('../middleware/auth');
 const { createNotification } = require('./notifications');
 
 const router = express.Router();
@@ -47,12 +47,12 @@ async function generateInvoiceNumber() {
   }
 }
 
-// Helper: Find or create customer account
-async function findOrCreateCustomer(email, mobileNumber, customerName, salesType, client) {
-  // First, try to find by email (only customers, role_id >= 3)
+// Helper: Find or create customer account. shopId REQUIRED - NEVER from frontend.
+async function findOrCreateCustomer(email, mobileNumber, customerName, salesType, client, shopId) {
+  if (!shopId) throw new Error('shop_id required for findOrCreateCustomer');
   let customerResult = await client.query(
-    `SELECT id, email, phone, user_type FROM users WHERE LOWER(email) = $1 AND role_id >= 3 LIMIT 1`,
-    [email.toLowerCase()]
+    `SELECT id, email, phone, user_type FROM users WHERE LOWER(email) = $1 AND role_id >= 3 AND shop_id = $2 LIMIT 1`,
+    [email.toLowerCase(), shopId]
   );
 
   if (customerResult.rows.length > 0) {
@@ -77,10 +77,9 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
     return customer;
   }
 
-  // Try to find by mobile number (only customers, role_id >= 3)
   customerResult = await client.query(
-    `SELECT id, email, phone, user_type FROM users WHERE phone = $1 AND role_id >= 3 LIMIT 1`,
-    [mobileNumber]
+    `SELECT id, email, phone, user_type FROM users WHERE phone = $1 AND role_id >= 3 AND shop_id = $2 LIMIT 1`,
+    [mobileNumber, shopId]
   );
 
   if (customerResult.rows.length > 0) {
@@ -121,13 +120,12 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
   // Password = mobile number
   const hashedPassword = await bcrypt.hash(mobileNumber, 10);
 
-  // Insert user - password column is required (NOT NULL constraint)
   const insertResult = await client.query(
     `INSERT INTO users (
-      full_name, email, phone, password, role_id, user_type, is_active
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      full_name, email, phone, password, role_id, user_type, is_active, shop_id
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING id, email, phone, user_type`,
-    [customerName, email.toLowerCase(), mobileNumber, hashedPassword, customerRoleId, userType, true]
+    [customerName, email.toLowerCase(), mobileNumber, hashedPassword, customerRoleId, userType, true, shopId]
   );
 
   const newUser = insertResult.rows[0];
@@ -195,7 +193,7 @@ function calculateGSTBreakdown(mrp, quantity) {
 }
 
 // Create a new sale (Customer purchase from UI)
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, requireShop, async (req, res) => {
   const client = await db.pool.connect();
   
   try {
@@ -273,7 +271,8 @@ router.post('/', requireAuth, async (req, res) => {
         customer_phone.trim(),
         customer_name.trim(),
         sale_type,
-        client
+        client,
+        req.shop_id
       );
       finalCustomerId = customer.id;
     }
@@ -315,8 +314,8 @@ router.post('/', requireAuth, async (req, res) => {
       const productResult = await client.query(
         `SELECT id, sku, name, qty, mrp_price, selling_price, ah_va, warranty, series, product_type_id, category
          FROM products 
-         WHERE id = $1 AND product_type_id = $2`,
-        [product_id, productTypeId]
+         WHERE id = $1 AND product_type_id = $2 AND shop_id = $3`,
+        [product_id, productTypeId, req.shop_id]
       );
 
       if (productResult.rows.length === 0) {
@@ -512,7 +511,13 @@ router.post('/', requireAuth, async (req, res) => {
           item.customer_gst_number,
           item.customer_business_address
         );
+        paramIndex += 3;
       }
+      
+      // shop_id from JWT only - NEVER from frontend
+      insertColumns += `, shop_id`;
+      insertValues += `, $${paramIndex}`;
+      insertParams.push(req.shop_id);
       
       await client.query(
         `INSERT INTO sales_item (
@@ -546,7 +551,7 @@ router.post('/', requireAuth, async (req, res) => {
         MIN(created_at) as created_at,
         MAX(updated_at) as updated_at
       FROM sales_item 
-      WHERE invoice_number = $1
+      WHERE invoice_number = $1 AND shop_id = $2
       GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number, 
                customer_vehicle_number, sales_type, sales_type_id`;
     
@@ -560,7 +565,7 @@ router.post('/', requireAuth, async (req, res) => {
     
     selectQuery += ` LIMIT 1`;
     
-    const saleResult = await client.query(selectQuery, [invoiceNumber]);
+    const saleResult = await client.query(selectQuery, [invoiceNumber, req.shop_id]);
 
     // Use same column check from earlier in the function
     let itemsSelectCols = `id, customer_id, invoice_number, customer_name, customer_mobile_number,
@@ -578,14 +583,15 @@ router.post('/', requireAuth, async (req, res) => {
     }
     
     const itemsResult = await client.query(
-      `SELECT ${itemsSelectCols} FROM sales_item WHERE invoice_number = $1 ORDER BY id`,
-      [invoiceNumber]
+      `SELECT ${itemsSelectCols} FROM sales_item WHERE invoice_number = $1 AND shop_id = $2 ORDER BY id`,
+      [invoiceNumber, req.shop_id]
     );
 
-    // Create notifications for admin and super admin
+    // Create notifications for admin and super admin (same shop only)
     try {
-      const adminUsers = await db.query(
-        `SELECT id FROM users WHERE role_id IN (1, 2) AND is_active = true`
+      const adminUsers = await client.query(
+        `SELECT id FROM users WHERE role_id IN (1, 2) AND is_active = true AND shop_id = $1`,
+        [req.shop_id]
       );
       
       const adminUserIds = adminUsers.rows.map(u => u.id);
@@ -655,7 +661,7 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // Get sales for current user (customer) or all sales (admin)
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireAuth, requireShop, async (req, res) => {
   try {
     const { page = 1, limit = 20, customer_id } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -705,15 +711,15 @@ router.get('/', requireAuth, async (req, res) => {
     
     query += `
       FROM sales_item
-      WHERE 1=1
+      WHERE shop_id = $1
     `;
-    const params = [];
-    let paramCount = 1;
+    const params = [req.shop_id];
+    let paramCount = 2;
 
     // If customer role, only show their sales (both pending and confirmed)
     if (req.user.role_id >= 3) {
       query += ` AND customer_id = $${paramCount}`;
-      params.push(req.user.id);
+      params.push(req.user_id ?? req.user?.id);
       paramCount++;
     } else if (customer_id) {
       // Admin/Super Admin can filter by customer
@@ -748,7 +754,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // Get single sale with items (by invoice_number or id)
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', requireAuth, requireShop, async (req, res) => {
   try {
     const { id } = req.params;
     // The id parameter can be either an invoice_number or a legacy sales_id
@@ -768,7 +774,7 @@ router.get('/:id', requireAuth, async (req, res) => {
                               existingColumns.includes('customer_gst_number') && 
                               existingColumns.includes('customer_business_address');
     
-    // Build SELECT query dynamically for sale header
+    // Build SELECT query dynamically for sale header (shop_id from JWT only)
     let saleSelectQuery = `SELECT 
         invoice_number as id,
         invoice_number,
@@ -791,7 +797,7 @@ router.get('/:id', requireAuth, async (req, res) => {
         MIN(created_at) as created_at,
         MAX(updated_at) as updated_at
       FROM sales_item 
-      WHERE invoice_number = $1
+      WHERE invoice_number = $1 AND shop_id = $2
       GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number, 
                customer_vehicle_number, sales_type, sales_type_id`;
     
@@ -805,7 +811,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     
     saleSelectQuery += ` LIMIT 1`;
     
-    const saleResult = await db.query(saleSelectQuery, [invoiceNumber]);
+    const saleResult = await db.query(saleSelectQuery, [invoiceNumber, req.shop_id]);
 
     if (saleResult.rows.length === 0) {
       return res.status(404).json({ error: 'Sale not found' });
@@ -814,7 +820,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     const sale = saleResult.rows[0];
 
     // Check permissions
-    if (req.user.role_id >= 3 && sale.customer_id !== req.user.id) {
+    if (req.user.role_id >= 3 && sale.customer_id !== (req.user_id ?? req.user?.id)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     
@@ -833,14 +839,12 @@ router.get('/:id', requireAuth, async (req, res) => {
       selectCols += `, customer_business_name, customer_gst_number, customer_business_address`;
     }
     
-    // Show all items (both pending and confirmed) for customers and admin
-    let itemsWhereClause = `invoice_number = $1`;
+    let itemsWhereClause = `invoice_number = $1 AND shop_id = $2`;
     
-    // Exclude commission data from customer-facing response
     const itemsResult = await db.query(
       `SELECT ${selectCols}
       FROM sales_item WHERE ${itemsWhereClause} ORDER BY id`,
-      [invoiceNumber]
+      [invoiceNumber, req.shop_id]
     );
 
     res.json({
@@ -854,7 +858,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 });
 
 // Get pending orders (orders without serial numbers assigned) - Admin/Super Admin only
-router.get('/pending/orders', requireAuth, requireAdmin, async (req, res) => {
+router.get('/pending/orders', requireAuth, requireShop, requireAdmin, async (req, res) => {
   try {
     // Check which columns exist
     const columnsCheck = await db.query(`
@@ -918,7 +922,7 @@ router.get('/pending/orders', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Get pending order details with items - Admin/Super Admin only
-router.get('/pending/orders/:invoiceNumber', requireAuth, requireAdmin, async (req, res) => {
+router.get('/pending/orders/:invoiceNumber', requireAuth, requireShop, requireAdmin, async (req, res) => {
   try {
     const { invoiceNumber } = req.params;
 
@@ -1013,7 +1017,7 @@ router.get('/pending/orders/:invoiceNumber', requireAuth, requireAdmin, async (r
 });
 
 // Assign serial numbers to order items - Admin/Super Admin only
-router.put('/pending/orders/:invoiceNumber/assign-serial', requireAuth, requireAdmin, async (req, res) => {
+router.put('/pending/orders/:invoiceNumber/assign-serial', requireAuth, requireShop, requireAdmin, async (req, res) => {
   const client = await db.pool.connect();
   
   try {
@@ -1284,7 +1288,7 @@ router.get('/pending/available-serials/:productId', requireAuth, requireAdmin, a
 });
 
 // Cancel order by Admin/Super Admin - Can cancel any pending order
-router.delete('/pending/orders/:invoiceNumber/cancel', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/pending/orders/:invoiceNumber/cancel', requireAuth, requireShop, requireAdmin, async (req, res) => {
   const client = await db.pool.connect();
   
   try {
@@ -1362,7 +1366,7 @@ router.delete('/pending/orders/:invoiceNumber/cancel', requireAuth, requireAdmin
 });
 
 // Cancel order - Customer can cancel pending orders (orders without serial numbers)
-router.delete('/cancel/:invoiceNumber', requireAuth, async (req, res) => {
+router.delete('/cancel/:invoiceNumber', requireAuth, requireShop, async (req, res) => {
   const client = await db.pool.connect();
   
   try {

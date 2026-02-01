@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const db = require('../db');
-const { requireAuth, requireSuperAdminOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireShopId, requireSuperAdminOrAdmin } = require('../middleware/auth');
 const { createNotification } = require('./notifications');
 
 const router = express.Router();
@@ -28,7 +28,7 @@ async function getCustomerContact(userId) {
 }
 
 // Customer: create a new service request (stored in service_requests with status='requested')
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, requireShopId, async (req, res) => {
   try {
     const {
       serviceType,
@@ -215,7 +215,7 @@ router.get('/my', requireAuth, async (req, res) => {
 });
 
 // Admin/Super Admin: fetch all service requests (both pending and confirmed)
-router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const {
       status = 'all',
@@ -275,7 +275,7 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Admin/Super Admin: confirm pending service request (change status from 'requested' to 'pending')
-router.post('/pending/:id/confirm', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/pending/:id/confirm', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -325,7 +325,7 @@ router.post('/pending/:id/confirm', requireAuth, requireSuperAdminOrAdmin, async
 });
 
 // Admin/Super Admin: cancel pending service request (delete from service_requests if status='requested')
-router.delete('/pending/:id/cancel', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.delete('/pending/:id/cancel', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -370,7 +370,7 @@ router.delete('/pending/:id/cancel', requireAuth, requireSuperAdminOrAdmin, asyn
 });
 
 // Customer: cancel own pending service request (delete from service_requests if status='requested')
-router.delete('/my/pending/:id/cancel', requireAuth, async (req, res) => {
+router.delete('/my/pending/:id/cancel', requireAuth, requireShopId, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -398,7 +398,7 @@ router.delete('/my/pending/:id/cancel', requireAuth, async (req, res) => {
 });
 
 // Admin/Super Admin: update status
-router.patch('/:id/status', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.patch('/:id/status', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, amount } = req.body;
@@ -478,7 +478,7 @@ router.patch('/:id/status', requireAuth, requireSuperAdminOrAdmin, async (req, r
 });
 
 // Admin/Super Admin: Create service request for customer (with optional new customer creation)
-router.post('/admin', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/admin', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const {
       customerId,

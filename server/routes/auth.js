@@ -5,7 +5,7 @@ const router = express.Router();
 
 const db = require("../db");
 const bcrypt = require("bcrypt");
-const { signAuthToken, requireAuth, optionalAuth } = require("../middleware/auth");
+const { signAuthToken, requireAuth, requireShop, optionalAuth } = require("../middleware/auth");
 const { generateOTP, sendOTPEmail } = require("../utils/emailService");
 
 /*
@@ -50,6 +50,7 @@ router.post("/login", async (req, res) => {
           u.is_active,
           u.avatar_url,
           u.shop_id,
+          u.user_type,
           r.role_name,
           s.name as shop_name
         FROM users u
@@ -82,6 +83,7 @@ router.post("/login", async (req, res) => {
             u.is_active,
             u.avatar_url,
             u.shop_id,
+            u.user_type,
             s.name as shop_name
           FROM users u
           LEFT JOIN shops s ON u.shop_id = s.id
@@ -188,20 +190,21 @@ router.post("/login", async (req, res) => {
       console.warn('Could not fetch customer profile:', profileErr.message);
     }
 
-    // Multi-shop: ensure shop_id and shop_name for JWT and response
     const shopId = user.shop_id != null ? Number(user.shop_id) : 1;
     const shopName = user.shop_name || 'A To Z Battery';
+    const userType = user.user_type || (Number(user.role_id) <= 2 ? 'admin' : 'b2c');
 
     const payload = {
+      user_id: user.id,
+      shop_id: shopId,
+      role_id: Number(user.role_id) || 3,
+      user_type: userType,
       id: user.id,
       full_name: user.full_name,
       email: user.email,
-      role_id: user.role_id,
-      role_name: user.role_name, // <-- yaha se frontend ko exact role milega
-      shop_id: shopId,
+      role_name: user.role_name,
       shop_name: shopName,
-      avatar_url: user.avatar_url || null, // Include avatar URL if available
-      // Include profile data if available
+      avatar_url: user.avatar_url || null,
       ...(customerProfile ? {
         phone: customerProfile.phone,
         state: customerProfile.state,
@@ -236,12 +239,32 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // safeUser me password nahi bhej rahe
-    const safeUser = payload;
+    const safeUser = {
+      id: user.id,
+      full_name: user.full_name,
+      email: user.email,
+      role_id: Number(user.role_id) || 3,
+      user_type: userType,
+      shop_id: shopId,
+      shop_name: shopName,
+      avatar_url: user.avatar_url || null,
+      role_name: user.role_name,
+      ...(customerProfile ? {
+        phone: customerProfile.phone,
+        state: customerProfile.state,
+        city: customerProfile.city,
+        address: customerProfile.address,
+        pincode: customerProfile.pincode,
+        is_business_customer: customerProfile.is_business_customer,
+        company_name: customerProfile.company_name,
+        gst_number: customerProfile.gst_number,
+        company_address: customerProfile.company_address,
+      } : {}),
+    };
 
     return res.status(200).json({
-      user: safeUser,
       token,
+      user: safeUser,
     });
   } catch (err) {
     console.error("POST /api/auth/login error:", err);
@@ -263,7 +286,7 @@ router.post("/login", async (req, res) => {
 //  - Authenticated users only (Bearer token)
 //  - Frontend se body: { currentPassword, newPassword }
 // ------------------------------------------------------
-router.post("/change-password", requireAuth, async (req, res) => {
+router.post("/change-password", requireAuth, requireShop, async (req, res) => {
   try {
     const userId = req.user?.id;
 
@@ -336,7 +359,7 @@ router.post("/change-password", requireAuth, async (req, res) => {
 //  - Changes the user's full_name (username)
 //  - Requires current password for verification
 // ------------------------------------------------------
-router.post("/change-username", requireAuth, async (req, res) => {
+router.post("/change-username", requireAuth, requireShop, async (req, res) => {
   try {
     const userId = req.user?.id;
 
@@ -445,8 +468,8 @@ router.post("/logout-all", requireAuth, async (req, res) => {
 // GET /api/auth/me
 //  - Returns current user based on Bearer token
 // ------------------------------------------------------
-router.get("/me", optionalAuth, async (req, res) => {
-  const userId = req.user?.id;
+router.get("/me", requireAuth, requireShop, async (req, res) => {
+  const userId = req.user_id ?? req.user?.id;
 
   if (!userId) {
     return res.status(401).json({ error: "Not authenticated" });
@@ -462,13 +485,14 @@ router.get("/me", optionalAuth, async (req, res) => {
           u.is_active,
           u.avatar_url,
           u.shop_id,
+          u.user_type,
           r.role_name,
           s.name as shop_name
        FROM users u
        JOIN roles r ON u.role_id = r.id
        LEFT JOIN shops s ON u.shop_id = s.id
-       WHERE u.id = $1`,
-      [userId]
+       WHERE u.id = $1 AND u.shop_id = $2`,
+      [userId, req.shop_id]
     );
 
     if (rows.length === 0) {

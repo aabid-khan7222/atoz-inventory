@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireAdmin, requireSuperAdminOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireShopId, requireAdmin, requireSuperAdminOrAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -215,7 +215,7 @@ async function getPurchasePrice(serialNumber, productSku) {
 // ============================================
 
 // Category-wise Sales Report
-router.get('/sales/category', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/sales/category', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
     const { dateFilter, params } = buildSalesDateFilter(dateFrom, dateTo, period);
@@ -304,7 +304,7 @@ router.get('/sales/category', requireAuth, requireSuperAdminOrAdmin, async (req,
 });
 
 // Product-wise Sales Report
-router.get('/sales/product', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/sales/product', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all', category, series } = req.query;
     const { dateFilter, params, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period);
@@ -407,7 +407,7 @@ router.get('/sales/product', requireAuth, requireSuperAdminOrAdmin, async (req, 
 });
 
 // Series-wise Sales Report
-router.get('/sales/series', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/sales/series', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all', category } = req.query;
     const { dateFilter, params, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period);
@@ -503,7 +503,7 @@ router.get('/sales/series', requireAuth, requireSuperAdminOrAdmin, async (req, r
 });
 
 // Customer-wise Sales Report (with advance details)
-router.get('/sales/customer', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/sales/customer', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all', customerType } = req.query;
     const { dateFilter, params, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period);
@@ -602,7 +602,7 @@ router.get('/sales/customer', requireAuth, requireSuperAdminOrAdmin, async (req,
 });
 
 // B2B Customer-wise Sales Report
-router.get('/sales/customer/b2b', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/sales/customer/b2b', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
     const { dateFilter, params } = buildSalesDateFilter(dateFrom, dateTo, period);
@@ -691,7 +691,7 @@ router.get('/sales/customer/b2b', requireAuth, requireSuperAdminOrAdmin, async (
 });
 
 // B2C Customer-wise Sales Report
-router.get('/sales/customer/b2c', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/sales/customer/b2c', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
     const { dateFilter, params } = buildSalesDateFilter(dateFrom, dateTo, period);
@@ -781,7 +781,7 @@ router.get('/sales/customer/b2c', requireAuth, requireSuperAdminOrAdmin, async (
 // ============================================
 
 // Overall Profit Report
-router.get('/profit/overall', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/profit/overall', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
     const { dateFilter, params } = buildSalesDateFilter(dateFrom, dateTo, period);
@@ -953,7 +953,7 @@ router.get('/profit/overall', requireAuth, requireSuperAdminOrAdmin, async (req,
 // ============================================
 
 // Agent-wise Commission Report
-router.get('/commission/agent', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/commission/agent', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all', agentId } = req.query;
     const { dateFilter, params, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period);
@@ -1007,7 +1007,7 @@ router.get('/commission/agent', requireAuth, requireSuperAdminOrAdmin, async (re
 });
 
 // Commission Details Report
-router.get('/commission/details', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/commission/details', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all', agentId } = req.query;
     const { dateFilter, params, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period);
@@ -1064,7 +1064,7 @@ router.get('/commission/details', requireAuth, requireSuperAdminOrAdmin, async (
 // ============================================
 
 // Charging Services Revenue and Profit Report
-router.get('/charging/services', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/charging/services', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
     const { dateFilter, params } = buildChargingDateFilter(dateFrom, dateTo, period);
@@ -1105,7 +1105,7 @@ router.get('/charging/services', requireAuth, requireSuperAdminOrAdmin, async (r
 });
 
 // Charging Services by Customer Report
-router.get('/charging/customer', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/charging/customer', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
     const { dateFilter, params } = buildChargingDateFilter(dateFrom, dateTo, period);
@@ -1146,7 +1146,7 @@ router.get('/charging/customer', requireAuth, requireSuperAdminOrAdmin, async (r
 // ============================================
 
 // Get comprehensive summary report
-router.get('/summary', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/summary', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
     const { dateFilter: salesDateFilter, params: salesParams } = buildSalesDateFilter(dateFrom, dateTo, period);
@@ -1401,7 +1401,7 @@ function buildCustomerSalesDateFilter(dateFrom, dateTo, period, customerId, para
 }
 
 // Customer Category-wise Sales Report
-router.get('/customer/sales/category', requireAuth, async (req, res) => {
+router.get('/customer/sales/category', requireAuth, requireShopId, async (req, res) => {
   try {
     // Only allow customers (role_id >= 3) to access their own data
     if (req.user.role_id < 3) {
@@ -1445,7 +1445,7 @@ router.get('/customer/sales/category', requireAuth, async (req, res) => {
 });
 
 // Customer Product-wise Sales Report
-router.get('/customer/sales/product', requireAuth, async (req, res) => {
+router.get('/customer/sales/product', requireAuth, requireShopId, async (req, res) => {
   try {
     if (req.user.role_id < 3) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -1507,7 +1507,7 @@ router.get('/customer/sales/product', requireAuth, async (req, res) => {
 });
 
 // Customer Series-wise Sales Report
-router.get('/customer/sales/series', requireAuth, async (req, res) => {
+router.get('/customer/sales/series', requireAuth, requireShopId, async (req, res) => {
   try {
     if (req.user.role_id < 3) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -1562,7 +1562,7 @@ router.get('/customer/sales/series', requireAuth, async (req, res) => {
 });
 
 // Customer Charging Services Report
-router.get('/customer/charging/services', requireAuth, async (req, res) => {
+router.get('/customer/charging/services', requireAuth, requireShopId, async (req, res) => {
   try {
     if (req.user.role_id < 3) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -1631,7 +1631,7 @@ router.get('/customer/charging/services', requireAuth, async (req, res) => {
 });
 
 // Customer Summary Report
-router.get('/customer/summary', requireAuth, async (req, res) => {
+router.get('/customer/summary', requireAuth, requireShopId, async (req, res) => {
   try {
     if (req.user.role_id < 3) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -1704,7 +1704,7 @@ router.get('/customer/summary', requireAuth, async (req, res) => {
 });
 
 // Customer Service Requests Report
-router.get('/customer/services', requireAuth, async (req, res) => {
+router.get('/customer/services', requireAuth, requireShopId, async (req, res) => {
   try {
     if (req.user.role_id < 3) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -1788,7 +1788,7 @@ router.get('/customer/services', requireAuth, async (req, res) => {
 });
 
 // Service Type Report - Shows breakdown by service type
-router.get('/services/type', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/services/type', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
     const { dateFilter, params } = buildServiceRequestDateFilter(dateFrom, dateTo, period);
@@ -1855,7 +1855,7 @@ router.get('/services/type', requireAuth, requireSuperAdminOrAdmin, async (req, 
 });
 
 // Employee-wise Report - Shows all employee details and their performance
-router.get('/employees', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/employees', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
     const { dateFilter, params } = buildSalesDateFilter(dateFrom, dateTo, period);
@@ -2029,7 +2029,7 @@ router.get('/employees', requireAuth, requireSuperAdminOrAdmin, async (req, res)
 // WATER WISE REPORT (Distilled Water & Battery Acid)
 // ============================================
 
-router.get('/water', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/water', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
     const { dateFilter, params } = buildSalesDateFilter(dateFrom, dateTo, period);

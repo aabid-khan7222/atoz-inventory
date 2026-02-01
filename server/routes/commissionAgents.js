@@ -1,11 +1,11 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireSuperAdminOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireShopId, requireSuperAdminOrAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Get all commission agents (searchable)
-router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     // Check if commission_agents table exists
     const tableCheck = await db.query(`
@@ -78,7 +78,7 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Get single commission agent by ID
-router.get('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -103,7 +103,7 @@ router.get('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Create new commission agent
-router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { name, mobile_number, email, address } = req.body;
     
@@ -162,7 +162,7 @@ router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Update commission agent
-router.put('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, mobile_number, email, address } = req.body;
@@ -255,7 +255,7 @@ router.put('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Get commission history for an agent
-router.get('/:id/commission-history', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/:id/commission-history', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { dateFrom, dateTo } = req.query;

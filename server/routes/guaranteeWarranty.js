@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireAdmin, requireSuperAdminOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireShopId, requireAdmin, requireSuperAdminOrAdmin } = require('../middleware/auth');
 const { createNotification } = require('./notifications');
 
 const router = express.Router();
@@ -74,7 +74,7 @@ function getMonthsAfterGuarantee(purchaseDate, guaranteeMonths) {
 }
 
 // Get battery status (guarantee/warranty eligibility)
-router.get('/battery-status/:serialNumber', requireAuth, async (req, res) => {
+router.get('/battery-status/:serialNumber', requireAuth, requireShopId, async (req, res) => {
   try {
     const { serialNumber } = req.params;
 
@@ -333,7 +333,7 @@ router.get('/history-all', requireAuth, requireSuperAdminOrAdmin, async (req, re
 });
 
 // Get replacement history for current user (no customerId parameter)
-router.get('/history', requireAuth, async (req, res) => {
+router.get('/history', requireAuth, requireShopId, async (req, res) => {
   try {
     const customerId = req.user.id;
 

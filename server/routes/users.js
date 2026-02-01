@@ -151,7 +151,7 @@ router.post('/', requireAuth, requireAdmin, requireShopId, async (req, res) => {
 //  - Updates both users table and customer_profiles table
 //  - Requires authentication (user can only update their own profile)
 // ------------------------------------------------------
-router.put('/profile', requireAuth, async (req, res) => {
+router.put('/profile', requireAuth, requireShopId, async (req, res) => {
   let client;
   
   try {

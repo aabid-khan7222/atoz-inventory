@@ -343,7 +343,7 @@ router.get('/sales-analytics', requireAuth, requireSuperAdminOrAdmin, requireSho
 });
 
 // Detailed sales list: per customer, per product, series-wise
-router.get('/sales-detail', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/sales-detail', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { period = 'all' } = req.query;
 
@@ -485,7 +485,7 @@ router.get('/sales-detail', requireAuth, requireSuperAdminOrAdmin, async (req, r
 });
 
 // Get inventory insights
-router.get('/inventory-insights', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/inventory-insights', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const categories = ['car-truck-tractor', 'bike', 'ups-inverter'];
     const stockByCategory = [];
@@ -549,7 +549,7 @@ router.get('/inventory-insights', requireAuth, requireSuperAdminOrAdmin, async (
 });
 
 // Get service management data
-router.get('/services', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/services', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     // Service status breakdown
     let statusBreakdown = [];
@@ -672,7 +672,7 @@ router.get('/services', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
 });
 
 // Get recent transactions (optimized: date filter to avoid full table scan)
-router.get('/recent-transactions', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/recent-transactions', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { limit = 10 } = req.query;
     const lim = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50);
@@ -751,7 +751,7 @@ router.get('/recent-transactions', requireAuth, requireSuperAdminOrAdmin, async 
 });
 
 // Get financial overview
-router.get('/financial', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/financial', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { period = 'month' } = req.query;
     

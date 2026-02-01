@@ -1,11 +1,11 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireShop } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Get all sales types (the two IDs: 1 for retail, 2 for wholesale)
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireAuth, requireShop, async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM sales_types ORDER BY id');
     res.json(result.rows);
@@ -16,7 +16,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // Get sales type by ID
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', requireAuth, requireShop, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await db.query('SELECT * FROM sales_types WHERE id = $1', [id]);

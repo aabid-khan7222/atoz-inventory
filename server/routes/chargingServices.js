@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const bcrypt = require('bcrypt');
-const { requireAuth, requireSuperAdminOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireShopId, requireSuperAdminOrAdmin } = require('../middleware/auth');
 const { createNotification } = require('./notifications');
 
 const router = express.Router();
@@ -276,7 +276,7 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, client) {
 }
 
 // Get all charging services with optional filters and pagination
-router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { 
       status, 
@@ -372,7 +372,7 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Get a single charging service by ID
-router.get('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -398,7 +398,7 @@ router.get('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Create a new charging service
-router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   const client = await db.pool.connect();
   
   try {
@@ -560,7 +560,7 @@ router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Update charging service status
-router.patch('/:id/status', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.patch('/:id/status', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -643,7 +643,7 @@ router.patch('/:id/status', requireAuth, requireSuperAdminOrAdmin, async (req, r
 });
 
 // Update charging service details
-router.put('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   const client = await db.pool.connect();
   
   try {
@@ -783,7 +783,7 @@ router.put('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Delete charging service (soft delete by setting status to 'cancelled' or hard delete)
-router.delete('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.delete('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -807,7 +807,7 @@ router.delete('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) =>
 });
 
 // Get charging service statistics
-router.get('/stats/overview', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/stats/overview', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo } = req.query;
 

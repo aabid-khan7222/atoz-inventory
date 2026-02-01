@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireSuperAdminOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireShopId, requireSuperAdminOrAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -218,7 +218,7 @@ async function recordPurchase({ purchaseDate, purchasedFrom, product, serialNumb
 }
 
 // Get all purchases (new purchase system)
-router.get('/purchases-all', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/purchases-all', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     // Redirect to purchases route
     const purchasesRouter = require('./purchases');
@@ -230,7 +230,7 @@ router.get('/purchases-all', requireAuth, requireSuperAdminOrAdmin, async (req, 
 });
 
 // Get all inventory summary (must be before /:category route)
-router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const categories = ['car-truck-tractor', 'bike', 'ups-inverter'];
     const inventorySummary = {};
@@ -315,7 +315,7 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 
 // Get all sold batteries (from stock_history where transaction_type = 'sell')
 // NOTE: This route must be defined BEFORE '/:category' to avoid being captured by that param route
-router.get('/sold-batteries', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/sold-batteries', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { category, search, dateFrom, dateTo } = req.query;
     const productTypeId = category && category !== 'all' ? getProductTypeId(category) : null;
@@ -408,7 +408,7 @@ router.get('/sold-batteries', requireAuth, requireSuperAdminOrAdmin, async (req,
 
 // Get inventory by category (must be after / route)
 // OLD purchases route - now redirects to new purchase system
-router.get('/purchases', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/purchases', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     // Return empty array - use new purchases API instead
     res.json([]);
@@ -419,7 +419,7 @@ router.get('/purchases', requireAuth, requireSuperAdminOrAdmin, async (req, res)
 });
 
 // Get detailed purchase data for a specific purchase
-router.get('/purchases/detail', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/purchases/detail', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { purchase_date, purchased_from, category } = req.query;
     const productTypeId = category && category !== 'all' ? getProductTypeId(category) : null;
@@ -463,7 +463,7 @@ router.get('/purchases/detail', requireAuth, requireSuperAdminOrAdmin, async (re
 });
 
 // Special route for AddStock to fetch products (hidden from normal UI)
-router.get('/:category/products-for-stock', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/:category/products-for-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { category } = req.params;
     const productTypeId = getProductTypeId(category);
@@ -536,7 +536,7 @@ router.get('/:category/products-for-stock', requireAuth, requireSuperAdminOrAdmi
   }
 });
 
-router.get('/:category', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/:category', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { category } = req.params;
     const productTypeId = getProductTypeId(category);
@@ -647,7 +647,7 @@ router.get('/:category', requireAuth, requireSuperAdminOrAdmin, async (req, res)
 });
 
 // Add stock to a product
-router.post('/:category/add-stock', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/:category/add-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { category } = req.params;
     const { productId, quantity } = req.body;
@@ -698,7 +698,7 @@ router.post('/:category/add-stock', requireAuth, requireSuperAdminOrAdmin, async
 });
 
 // Reduce stock from a product
-router.post('/:category/reduce-stock', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/:category/reduce-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { category } = req.params;
     const { productId, quantity } = req.body;
@@ -758,7 +758,7 @@ router.post('/:category/reduce-stock', requireAuth, requireSuperAdminOrAdmin, as
 
 // Update pricing (MRP, selling price, discount value) for a product
 // Supports both B2B and B2C pricing via customer_type parameter ('b2b' or 'b2c')
-router.put('/:category/:productId/pricing', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.put('/:category/:productId/pricing', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { category, productId } = req.params;
     const { 
@@ -882,7 +882,7 @@ router.put('/:category/:productId/pricing', requireAuth, requireSuperAdminOrAdmi
 
 // Update discount % for all products in a category
 // Only updates discount %, not MRP. Discount amount is calculated automatically from discount % and each product's MRP
-router.put('/:category/bulk-discount', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.put('/:category/bulk-discount', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { category } = req.params;
     const { 
@@ -998,7 +998,7 @@ router.put('/:category/bulk-discount', requireAuth, requireSuperAdminOrAdmin, as
 });
 
 // Add stock with serial numbers
-router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     // Log incoming request for debugging
     console.log('[ADD STOCK] add-stock-with-serials payload:', {
@@ -1634,7 +1634,7 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireSuperAdminO
 });
 
 // Get available serial numbers for a product (only from stock table with status='available')
-router.get('/:category/:productId/available-serials', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/:category/:productId/available-serials', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { category, productId } = req.params;
     const productTypeId = getProductTypeId(category);
@@ -1669,7 +1669,7 @@ router.get('/:category/:productId/available-serials', requireAuth, requireSuperA
 });
 
 // Sell stock with serial numbers
-router.post('/:category/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/:category/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { category } = req.params;
     const { productId, quantity, serialNumbers, customerName, customerPhone, vehicleNumber, sellingPrice } = req.body;
@@ -1874,7 +1874,7 @@ router.post('/:category/sell-stock', requireAuth, requireSuperAdminOrAdmin, asyn
 });
 
 // Get all stock entries (only available items - sold items are removed from stock)
-router.get('/stock', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/stock', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { category, status, search } = req.query;
     const productTypeId = category && category !== 'all' ? getProductTypeId(category) : null;
@@ -1926,7 +1926,7 @@ router.get('/stock', requireAuth, requireSuperAdminOrAdmin, async (req, res) => 
 });
 
 // Get stock history ledger
-router.get('/history/ledger', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/history/ledger', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { category, type, dateFrom, dateTo } = req.query;
     const productTypeId = category && category !== 'all' ? getProductTypeId(category) : null;
@@ -2032,7 +2032,7 @@ router.get('/history/ledger', requireAuth, requireSuperAdminOrAdmin, async (req,
 });
 
 // Get customer history (sales, invoices, warranty services, charging services)
-router.get('/customer-history/:customerId', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/customer-history/:customerId', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { customerId } = req.params;
     const customerIdInt = parseInt(customerId, 10);
@@ -2191,7 +2191,7 @@ router.get('/customer-history/:customerId', requireAuth, requireSuperAdminOrAdmi
 });
 
 // Get employee history (payments, attendance, updates)
-router.get('/employee-history/:employeeId', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/employee-history/:employeeId', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { employeeId } = req.params;
     const employeeIdInt = parseInt(employeeId, 10);

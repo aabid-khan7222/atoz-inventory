@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireSuperAdminOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireShopId, requireSuperAdminOrAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -17,7 +17,7 @@ function getProductTypeId(category) {
 }
 
 // Get all purchases with filtering, search, sorting, and date range
-router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { 
       category, 
@@ -176,7 +176,7 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Get purchase statistics
-router.get('/stats', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/stats', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, category } = req.query;
     const productTypeId = category && category !== 'all' ? getProductTypeId(category) : null;

@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireSuperAdminOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireShopId, requireSuperAdminOrAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -67,7 +67,7 @@ async function getAveragePurchasePrice(productSku) {
 }
 
 // Get all sold serial numbers with customer and product details (for dropdown)
-router.get('/sold-serial-numbers', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/sold-serial-numbers', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { search } = req.query;
     
@@ -113,7 +113,7 @@ router.get('/sold-serial-numbers', requireAuth, requireSuperAdminOrAdmin, async 
 });
 
 // Get sale details by serial number (for auto-fill)
-router.get('/sale-by-serial/:serialNumber', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/sale-by-serial/:serialNumber', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { serialNumber } = req.params;
     
@@ -152,7 +152,7 @@ router.get('/sale-by-serial/:serialNumber', requireAuth, requireSuperAdminOrAdmi
 });
 
 // Get all company returns with filtering, search, sorting
-router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { 
       status, 
@@ -247,7 +247,7 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Get a single company return by ID
-router.get('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -279,7 +279,7 @@ router.get('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Create a new company return
-router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   const client = await db.pool.connect();
   
   try {
@@ -622,7 +622,7 @@ router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Update a company return (mark as returned, add received battery, etc.)
-router.put('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   const client = await db.pool.connect();
   
   try {

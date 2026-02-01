@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireAdmin, requireSuperAdminOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireShopId, requireAdmin, requireSuperAdminOrAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -9,7 +9,7 @@ const router = express.Router();
 // ============================================
 
 // Get all employees
-router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { is_active } = req.query;
     let query = 'SELECT * FROM employees WHERE 1=1';
@@ -31,7 +31,7 @@ router.get('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Get single employee by ID
-router.get('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await db.query('SELECT * FROM employees WHERE id = $1', [id]);
@@ -48,7 +48,7 @@ router.get('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Create new employee
-router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { full_name, email, phone, address, designation, joining_date, salary } = req.body;
 
@@ -81,7 +81,7 @@ router.post('/', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Update employee
-router.put('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { full_name, email, phone, address, designation, joining_date, salary, is_active } = req.body;
@@ -121,7 +121,7 @@ router.put('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
 });
 
 // Deactivate employee (soft delete by setting is_active to false)
-router.delete('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.delete('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
@@ -156,7 +156,7 @@ router.delete('/:id', requireAuth, requireSuperAdminOrAdmin, async (req, res) =>
 });
 
 // Activate employee (set is_active to true)
-router.patch('/:id/activate', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.patch('/:id/activate', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
@@ -191,7 +191,7 @@ router.patch('/:id/activate', requireAuth, requireSuperAdminOrAdmin, async (req,
 });
 
 // Permanently delete employee and all related data
-router.delete('/:id/permanent', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.delete('/:id/permanent', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
@@ -245,7 +245,7 @@ router.delete('/:id/permanent', requireAuth, requireSuperAdminOrAdmin, async (re
 // ============================================
 
 // Get attendance for an employee
-router.get('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/:id/attendance', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { month, year } = req.query;
@@ -270,7 +270,7 @@ router.get('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req,
 });
 
 // Add/Update attendance
-router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/:id/attendance', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
@@ -368,7 +368,7 @@ router.post('/:id/attendance', requireAuth, requireSuperAdminOrAdmin, async (req
 // ============================================
 
 // Get daily attendance for an employee
-router.get('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/:id/daily-attendance', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { date, month, year } = req.query;
@@ -401,7 +401,7 @@ router.get('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, async
 
 // Mark daily attendance
 // FIXED VERSION: Uses ON CONFLICT (employee_id, attendance_date) with proper unique constraint
-router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/:id/daily-attendance', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     console.log('[Daily Attendance API] Route called - Using ON CONFLICT (employee_id, attendance_date)');
     
@@ -606,7 +606,7 @@ router.post('/:id/daily-attendance', requireAuth, requireSuperAdminOrAdmin, asyn
 });
 
 // Bulk mark attendance for multiple employees on same date
-router.post('/daily-attendance/bulk', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/daily-attendance/bulk', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { attendance_date, employees } = req.body; // employees: [{employee_id, status, check_in_time, check_out_time, notes}]
 
@@ -731,7 +731,7 @@ router.post('/daily-attendance/bulk', requireAuth, requireSuperAdminOrAdmin, asy
 // ============================================
 
 // Get payments for an employee
-router.get('/:id/payments', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/:id/payments', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { month, year } = req.query;
@@ -761,7 +761,7 @@ router.get('/:id/payments', requireAuth, requireSuperAdminOrAdmin, async (req, r
 });
 
 // Add payment for an employee
-router.post('/:id/payments', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/:id/payments', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { payment_month, amount, payment_date, payment_method, notes } = req.body;
@@ -818,7 +818,7 @@ router.post('/:id/payments', requireAuth, requireSuperAdminOrAdmin, async (req, 
 });
 
 // Delete/Undo payment for an employee
-router.delete('/payments/:paymentId', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.delete('/payments/:paymentId', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const paymentId = parseInt(req.params.paymentId);
     if (isNaN(paymentId)) {
@@ -901,7 +901,7 @@ router.delete('/payments/:paymentId', requireAuth, requireSuperAdminOrAdmin, asy
 // ============================================
 
 // Get employee history
-router.get('/:id/history', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/:id/history', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const bcrypt = require('bcrypt');
-const { requireAuth, requireSuperAdminOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireShopId, requireSuperAdminOrAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -446,7 +446,7 @@ async function findOrCreateCommissionAgent(agentName, agentMobile, client) {
 
 // Admin/Super Admin Sell Stock - New route for new sales system
 // Supports both single product (backward compatible) and multiple products (items array)
-router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   const client = await db.pool.connect();
   
   try {
@@ -1061,7 +1061,7 @@ router.post('/sell-stock', requireAuth, requireSuperAdminOrAdmin, async (req, re
 });
 
 // Get all sales items (for admin/super admin to view sold items)
-router.get('/sales-items', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/sales-items', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { 
       category, 

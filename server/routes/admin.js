@@ -3,14 +3,14 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const db = require("../db");
-const { requireAuth, requireAdmin, requireRole, requireSuperAdminOrAdmin } = require("../middleware/auth");
+const { requireAuth, requireAdmin, requireRole, requireShop, requireSuperAdminOrAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 
 /**
  * GET /api/admin/customers
  */
-router.get("/customers", requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get("/customers", requireAuth, requireShop, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const search = (req.query.search || "").trim();
     const page = parseInt(req.query.page, 10) || 1;
@@ -58,20 +58,20 @@ router.get("/customers", requireAuth, requireSuperAdminOrAdmin, async (req, res)
         u.user_type
       FROM customer_profiles cp
       LEFT JOIN users u ON cp.user_id = u.id
-      WHERE u.role_id >= 3
+      WHERE u.role_id >= 3 AND u.shop_id = $1
     `;
 
-    const params = [];
+    const params = [req.shop_id];
 
     if (search) {
       params.push(`%${search}%`);
       listQuery += `
         AND
-          (cp.full_name ILIKE $1
-           OR cp.phone ILIKE $1
-           OR cp.company_name ILIKE $1
-           OR cp.gst_number ILIKE $1
-           OR u.email ILIKE $1)
+          (cp.full_name ILIKE $2
+           OR cp.phone ILIKE $2
+           OR cp.company_name ILIKE $2
+           OR cp.gst_number ILIKE $2
+           OR u.email ILIKE $2)
       `;
     }
 
@@ -89,19 +89,19 @@ router.get("/customers", requireAuth, requireSuperAdminOrAdmin, async (req, res)
       SELECT COUNT(*) AS total
       FROM customer_profiles cp
       LEFT JOIN users u ON cp.user_id = u.id
-      WHERE u.role_id >= 3
+      WHERE u.role_id >= 3 AND u.shop_id = $1
     `;
-    const countParams = [];
+    const countParams = [req.shop_id];
 
     if (search) {
       countParams.push(`%${search}%`);
       countQuery += `
         AND
-          (cp.full_name ILIKE $1
-           OR cp.phone ILIKE $1
-           OR cp.company_name ILIKE $1
-           OR cp.gst_number ILIKE $1
-           OR u.email ILIKE $1)
+          (cp.full_name ILIKE $2
+           OR cp.phone ILIKE $2
+           OR cp.company_name ILIKE $2
+           OR cp.gst_number ILIKE $2
+           OR u.email ILIKE $2)
       `;
     }
 
@@ -134,6 +134,7 @@ router.get("/customers", requireAuth, requireSuperAdminOrAdmin, async (req, res)
 router.get(
   "/customers/:id",
   requireAuth,
+  requireShop,
   requireSuperAdminOrAdmin,
   async (req, res) => {
     try {
@@ -249,6 +250,7 @@ router.get(
 router.get(
   "/customers/:id/history",
   requireAuth,
+  requireShop,
   requireSuperAdminOrAdmin,
   async (req, res) => {
     try {
@@ -489,7 +491,7 @@ router.get(
 /**
  * POST /api/admin/customers
  */
-router.post("/customers", requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.post("/customers", requireAuth, requireShop, requireSuperAdminOrAdmin, async (req, res) => {
   let {
     name,
     email,
@@ -830,7 +832,7 @@ router.post("/customers", requireAuth, requireSuperAdminOrAdmin, async (req, res
  * PUT /api/admin/customers/:id
  * Update a customer's details (username, password, email, phone, address, etc.)
  */
-router.put("/customers/:id", requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.put("/customers/:id", requireAuth, requireShop, requireSuperAdminOrAdmin, async (req, res) => {
   let client;
   
   try {
@@ -1493,7 +1495,7 @@ router.delete("/customers/:id", requireAuth, requireSuperAdminOrAdmin, async (re
  * GET /api/admin/staff-users
  * List all users with id, full_name, email, role_id (Super Admin only - for role management).
  */
-router.get("/staff-users", requireAuth, requireRole(1), async (req, res) => {
+router.get("/staff-users", requireAuth, requireShop, requireRole(1), async (req, res) => {
   try {
     const result = await db.query(
       `SELECT u.id, u.full_name, u.email, u.phone, u.role_id, r.role_name
@@ -1519,7 +1521,7 @@ router.get("/staff-users", requireAuth, requireRole(1), async (req, res) => {
  * PUT /api/admin/users/:id/role
  * Update a user's role (Super Admin only). Body: { role_id: 1|2|3 }.
  */
-router.put("/users/:id/role", requireAuth, requireRole(1), async (req, res) => {
+router.put("/users/:id/role", requireAuth, requireShop, requireRole(1), async (req, res) => {
   try {
     const userId = parseInt(req.params.id, 10);
     const { role_id } = req.body;

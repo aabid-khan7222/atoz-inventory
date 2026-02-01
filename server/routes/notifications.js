@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireSuperAdminOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireShop } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -24,7 +24,7 @@ async function createNotification(userIds, title, message, type = 'info', relate
 }
 
 // Get notifications for current user (admin/super admin/customer)
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireAuth, requireShop, async (req, res) => {
   try {
     const { unreadOnly = false, limit = 50 } = req.query;
     
@@ -32,7 +32,7 @@ router.get('/', requireAuth, async (req, res) => {
       SELECT * FROM notifications
       WHERE user_id = $1
     `;
-    const params = [req.user.id];
+    const params = [req.user_id ?? req.user?.id];
     
     if (unreadOnly === 'true') {
       query += ` AND is_read = false`;
@@ -50,7 +50,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // Mark notification as read
-router.put('/:id/read', requireAuth, async (req, res) => {
+router.put('/:id/read', requireAuth, requireShop, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -59,7 +59,7 @@ router.put('/:id/read', requireAuth, async (req, res) => {
        SET is_read = true 
        WHERE id = $1 AND user_id = $2
        RETURNING *`,
-      [id, req.user.id]
+      [id, req.user_id ?? req.user?.id]
     );
     
     if (result.rows.length === 0) {
@@ -74,13 +74,13 @@ router.put('/:id/read', requireAuth, async (req, res) => {
 });
 
 // Mark all notifications as read
-router.put('/read-all', requireAuth, async (req, res) => {
+router.put('/read-all', requireAuth, requireShop, async (req, res) => {
   try {
     await db.query(
       `UPDATE notifications 
        SET is_read = true 
        WHERE user_id = $1 AND is_read = false`,
-      [req.user.id]
+      [req.user_id ?? req.user?.id]
     );
     
     res.json({ success: true });
@@ -91,13 +91,13 @@ router.put('/read-all', requireAuth, async (req, res) => {
 });
 
 // Get unread count
-router.get('/unread-count', requireAuth, async (req, res) => {
+router.get('/unread-count', requireAuth, requireShop, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT COUNT(*) as count 
        FROM notifications 
        WHERE user_id = $1 AND is_read = false`,
-      [req.user.id]
+      [req.user_id ?? req.user?.id]
     );
     
     res.json({ count: parseInt(result.rows[0].count) || 0 });

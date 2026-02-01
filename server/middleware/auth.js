@@ -1,27 +1,29 @@
 // server/middleware/auth.js
+// Multi-shop: ALL protected routes MUST use verifyJWT → requireShop.
+// shop_id is ALWAYS from JWT (never from frontend). Data isolation is enforced by
+// filtering every query with WHERE shop_id = req.shop_id.
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 
-// Create JWT from a user row
+// Create JWT from a user row. Payload MUST include user_id, shop_id, role_id, user_type.
 function signAuthToken(user) {
-  // Ensure JWT_SECRET is set
   if (!JWT_SECRET || JWT_SECRET === "dev-secret-change-me") {
     console.warn("WARNING: JWT_SECRET is using default value. Set JWT_SECRET in environment variables for production!");
   }
 
   const payload = {
+    user_id: Number(user.id),
+    shop_id: user.shop_id != null ? Number(user.shop_id) : 1,
+    role_id: Number(user.role_id) || 3,
+    user_type: user.user_type || (Number(user.role_id) <= 2 ? "admin" : "b2c"),
+    // Keep for backward compatibility
     id: user.id,
     full_name: user.full_name,
     email: user.email,
-    // force number so role checks are reliable
-    role_id: Number(user.role_id) || 3,
-    // Include role_name if available
     ...(user.role_name && { role_name: user.role_name }),
-    // Multi-shop: shop_id from user record
-    ...(user.shop_id != null && { shop_id: Number(user.shop_id) }),
   };
 
   try {
@@ -40,14 +42,14 @@ function optionalAuth(req, res, next) {
       ? authHeader.slice(7)
       : null;
 
-    if (bearerToken) {
-      const decoded = jwt.verify(bearerToken, JWT_SECRET);
+    if (bearerToken || (req.cookies && req.cookies.token)) {
+      const token = bearerToken || req.cookies.token;
+      const decoded = jwt.verify(token, JWT_SECRET);
       req.user = decoded;
-      if (decoded.shop_id != null) req.shop_id = Number(decoded.shop_id);
-    } else if (req.cookies && req.cookies.token) {
-      const decoded = jwt.verify(req.cookies.token, JWT_SECRET);
-      req.user = decoded;
-      if (decoded.shop_id != null) req.shop_id = Number(decoded.shop_id);
+      req.user_id = Number(decoded.user_id ?? decoded.id);
+      req.shop_id = decoded.shop_id != null ? Number(decoded.shop_id) : null;
+      req.role_id = Number(decoded.role_id) || 0;
+      req.user_type = decoded.user_type || "b2c";
     }
   } catch (err) {
     // Swallow errors here so optional auth does not block the request path.
@@ -57,52 +59,63 @@ function optionalAuth(req, res, next) {
   next();
 }
 
-// Require logged-in user
-function requireAuth(req, res, next) {
+// verifyJWT: Verifies token, extracts shop_id, attaches req.user_id, req.shop_id, req.role_id, req.user_type.
+// NEVER trust shop_id from frontend — always from JWT.
+function verifyJWT(req, res, next) {
   try {
     let token = null;
-
-    // Authorization: Bearer <token>
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
       token = authHeader.slice(7);
     }
-
-    // optional: cookie token
     if (!token && req.cookies && req.cookies.token) {
       token = req.cookies.token;
     }
 
     if (!token) {
-      console.log('[requireAuth] No token found in request headers');
       return res.status(401).json({ error: "Authentication required" });
     }
 
     let decoded;
     try {
       decoded = jwt.verify(token, JWT_SECRET);
-      console.log('[requireAuth] Token decoded successfully, user role_id:', decoded.role_id);
     } catch (err) {
-      console.log('[requireAuth] Token verification failed:', err.message);
       return res.status(401).json({ error: "Invalid or expired token" });
     }
 
-    // basic shape check
-    if (!decoded || !decoded.id || typeof decoded.role_id === "undefined") {
-      console.log('[requireAuth] Invalid token structure:', decoded);
+    if (!decoded || (decoded.user_id == null && decoded.id == null) || typeof decoded.role_id === "undefined") {
       return res.status(401).json({ error: "Invalid or expired token" });
     }
 
     req.user = decoded;
-    // Multi-shop: attach shop_id for route filtering
-    if (decoded.shop_id != null) {
-      req.shop_id = Number(decoded.shop_id);
+    req.user_id = Number(decoded.user_id ?? decoded.id);
+    req.shop_id = decoded.shop_id != null ? Number(decoded.shop_id) : null;
+    req.role_id = Number(decoded.role_id) || 0;
+    req.user_type = decoded.user_type || "b2c";
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[verifyJWT] shop_id:", req.shop_id, "user_id:", req.user_id);
     }
     next();
   } catch (err) {
-    console.error("[requireAuth] Error:", err);
+    console.error("[verifyJWT] Error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
+}
+
+// requireAuth: alias for verifyJWT (backward compatibility)
+const requireAuth = verifyJWT;
+
+// requireShop: MUST run after verifyJWT. Rejects if shop_id missing (401).
+// No API should work without shop context — prevents cross-shop data access.
+function requireShop(req, res, next) {
+  if (req.shop_id == null || req.shop_id === undefined) {
+    return res.status(401).json({
+      error: "Shop context required",
+      details: "Your session does not have shop context. Please log in again.",
+    });
+  }
+  next();
 }
 
 // Role helper
@@ -147,17 +160,13 @@ const requireAdmin = (req, res, next) => {
 // TODO: Currently unused - may be useful in future for routes requiring ONLY Super Admin (not Admin)
 // const requireSuperAdmin = requireRole(1);
 
-// Multi-shop: require shop_id from JWT (user must belong to a shop)
-const requireShopId = (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({ error: "Authentication required" });
-  }
-  if (req.shop_id == null || req.shop_id === undefined) {
-    return res.status(403).json({
-      error: "Shop context required",
-      details: "Your session does not have shop context. Please log in again.",
-    });
-  }
+// requireShopId: alias for requireShop (backward compatibility)
+const requireShopId = requireShop;
+
+// requireSuperAdmin: ONLY role_id = 1
+const requireSuperAdmin = (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: "Authentication required" });
+  if (Number(req.role_id) !== 1) return res.status(403).json({ error: "Forbidden" });
   next();
 };
 
@@ -179,11 +188,13 @@ const requireSuperAdminOrAdmin = (req, res, next) => {
 
 module.exports = {
   signAuthToken,
+  verifyJWT,
   requireAuth,
   optionalAuth,
+  requireShop,
+  requireShopId,
   requireRole,
   requireAdmin,
-  requireShopId,
-  // requireSuperAdmin, // Currently unused - commented out but kept for potential future use
+  requireSuperAdmin,
   requireSuperAdminOrAdmin,
 };
