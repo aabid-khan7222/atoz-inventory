@@ -32,89 +32,48 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    const trimmedEmail = (email || "").trim().toLowerCase();
+    // Login: fetch by email only (no shop_id / JWT — user not authenticated yet)
+    const emailLower = (email || "").trim().toLowerCase();
 
-    // NOTE: yaha roles join kiya hai taaki role_name bhi mil jaye
-    // Try with JOIN first, fallback to simple query if roles table doesn't exist
-    let result;
-    let user;
-    
-    try {
-      const query = `
-        SELECT 
-          u.id,
-          u.full_name,
-          u.email,
-          u.password,
-          u.role_id,
-          u.is_active,
-          u.avatar_url,
-          u.shop_id,
-          u.user_type,
-          r.role_name,
-          s.name as shop_name
-        FROM users u
-        JOIN roles r ON u.role_id = r.id
-        LEFT JOIN shops s ON u.shop_id = s.id
-        WHERE LOWER(u.email) = $1
-        LIMIT 1;
-      `;
-      result = await db.query(query, [trimmedEmail]);
-      
-      if (result.rows.length === 0) {
-        return res.status(401).json({ error: "Invalid email or password" });
-      }
-      
-      user = result.rows[0];
-      // Multi-shop: ensure shop_id/shop_name for legacy users
-      if (user.shop_id == null) user.shop_id = 1;
-      if (!user.shop_name) user.shop_name = 'A To Z Battery';
-    } catch (dbError) {
-      // If JOIN fails (roles table might not exist), try without JOIN
-      console.warn("Login: Roles JOIN failed, trying without JOIN:", dbError.message);
-      try {
-        const simpleQuery = `
-          SELECT 
-            u.id,
-            u.full_name,
-            u.email,
-            u.password,
-            u.role_id,
-            u.is_active,
-            u.avatar_url,
-            u.shop_id,
-            u.user_type,
-            s.name as shop_name
-          FROM users u
-          LEFT JOIN shops s ON u.shop_id = s.id
-          WHERE LOWER(u.email) = $1
-          LIMIT 1;
-        `;
-        result = await db.query(simpleQuery, [trimmedEmail]);
-        
-        if (result.rows.length === 0) {
-          return res.status(401).json({ error: "Invalid email or password" });
-        }
-        
-        user = result.rows[0];
-        // Set default role_name if not available
-        user.role_name = user.role_id === 1 ? 'Super Admin' : user.role_id === 2 ? 'Admin' : 'Customer';
-        // shop_id/shop_name may be null for legacy users; default to shop 1
-        if (user.shop_id == null) user.shop_id = 1;
-        if (!user.shop_name) user.shop_name = 'A To Z Battery';
-      } catch (simpleError) {
-        console.error("Login: Database query failed:", simpleError);
-        return res.status(500).json({ 
-          error: "Database error", 
-          details: process.env.NODE_ENV === 'production' ? undefined : simpleError.message 
-        });
-      }
+    const query = `
+      SELECT 
+        u.id,
+        u.full_name,
+        u.email,
+        u.password,
+        u.role_id,
+        u.is_active,
+        u.avatar_url,
+        u.shop_id,
+        u.user_type,
+        r.role_name,
+        s.name AS shop_name
+      FROM users u
+      LEFT JOIN shops s ON s.id = u.shop_id
+      LEFT JOIN roles r ON r.id = u.role_id
+      WHERE LOWER(u.email) = $1
+      LIMIT 1;
+    `;
+    const result = await db.query(query, [emailLower]);
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const user = result.rows[0];
+    if (user.is_active === false) {
+      return res.status(403).json({ error: "Account is inactive" });
+    }
+    if (user.shop_id == null) user.shop_id = 1;
+    if (!user.shop_name) user.shop_name = 'A To Z Battery';
+    if (!user.role_name) {
+      user.role_name = user.role_id === 1 ? 'Super Admin' : user.role_id === 2 ? 'Admin' : 'Customer';
     }
 
     const storedPassword = (user.password || "").trim();
     
     if (!storedPassword) {
-      console.error("Login: User found but password field is empty for email:", trimmedEmail);
+      console.error("Login: User found but password field is empty for email:", emailLower);
       return res.status(500).json({ error: "Account configuration error" });
     }
     
@@ -137,10 +96,6 @@ router.post("/login", async (req, res) => {
 
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid email or password" });
-    }
-
-    if (user.is_active === false) {
-      return res.status(403).json({ error: "Account is inactive" });
     }
 
     // Fetch customer profile data if it exists (include pincode when available)
