@@ -16,14 +16,28 @@ function getProductTypeId(category) {
   return typeMap[category] || 1;
 }
 
-// Helper: generate invoice number for admin/super-admin sales
-async function generateInvoiceNumber() {
+// Helper: generate invoice number for admin/super-admin sales (shop-scoped)
+async function generateInvoiceNumber(shopId) {
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
 
   try {
+    if (shopId != null) {
+      const result = await db.query(
+        `SELECT invoice_number FROM sales_item 
+         WHERE invoice_number LIKE $1 AND shop_id = $2
+         ORDER BY invoice_number DESC 
+         LIMIT 1`,
+        [`INV-${dateStr}-%`, shopId]
+      );
+      if (result.rows.length > 0) {
+        const lastNumber = result.rows[0].invoice_number.split('-')[2];
+        const nextNumber = String(parseInt(lastNumber, 10) + 1).padStart(4, '0');
+        return `INV-${dateStr}-${nextNumber}`;
+      }
+    }
     const result = await db.query(
-      `SELECT invoice_number FROM sales 
+      `SELECT invoice_number FROM sales_item 
        WHERE invoice_number LIKE $1 
        ORDER BY invoice_number DESC 
        LIMIT 1`,
@@ -33,7 +47,6 @@ async function generateInvoiceNumber() {
     if (result.rows.length === 0) {
       return `INV-${dateStr}-0001`;
     }
-
     const lastNumber = result.rows[0].invoice_number.split('-')[2];
     const nextNumber = String(parseInt(lastNumber, 10) + 1).padStart(4, '0');
     return `INV-${dateStr}-${nextNumber}`;
@@ -92,20 +105,27 @@ async function ensurePurchaseSchema() {
   }
 }
 
-// Helper: purchase number generator (PO-YYYYMMDD-XXXX)
-async function generatePurchaseNumber(purchaseDate) {
+// Helper: purchase number generator (PO-YYYYMMDD-XXXX), shop-scoped
+async function generatePurchaseNumber(purchaseDate, shopId) {
   const dateObj = purchaseDate ? new Date(purchaseDate) : new Date();
   const dateStr = dateObj.toISOString().slice(0, 10).replace(/-/g, '');
 
   try {
-    // Check new purchases table for purchase numbers
-    const result = await db.query(
-      `SELECT purchase_number FROM purchases 
-       WHERE purchase_number LIKE $1 
-       ORDER BY purchase_number DESC 
-       LIMIT 1`,
-      [`PO-${dateStr}-%`]
-    );
+    const result = shopId != null
+      ? await db.query(
+          `SELECT purchase_number FROM purchases 
+           WHERE purchase_number LIKE $1 AND shop_id = $2
+           ORDER BY purchase_number DESC 
+           LIMIT 1`,
+          [`PO-${dateStr}-%`, shopId]
+        )
+      : await db.query(
+          `SELECT purchase_number FROM purchases 
+           WHERE purchase_number LIKE $1 
+           ORDER BY purchase_number DESC 
+           LIMIT 1`,
+          [`PO-${dateStr}-%`]
+        );
 
     if (result.rows.length === 0) {
       return `PO-${dateStr}-0001`;
@@ -265,13 +285,13 @@ router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req
               product_id,
               COUNT(*) as available_qty
             FROM stock
-            WHERE status = 'available'
+            WHERE status = 'available' AND shop_id = $2
             GROUP BY product_id
           ) stock_counts ON p.id = stock_counts.product_id
-          WHERE p.product_type_id = $1
+          WHERE p.product_type_id = $1 AND p.shop_id = $2
           ORDER BY 
             CASE WHEN p.order_index IS NOT NULL THEN p.order_index ELSE p.id END ASC
-        `, [productTypeId]);
+        `, [productTypeId, req.shop_id]);
 
         // Group by series
         const groupedBySeries = {};
@@ -352,10 +372,10 @@ router.get('/sold-batteries', requireAuth, requireShopId, requireSuperAdminOrAdm
         p.warranty
       FROM stock_history sh
       JOIN products p ON sh.product_id = p.id
-      WHERE sh.transaction_type = 'sell'
+      WHERE sh.transaction_type = 'sell' AND sh.shop_id = $1 AND p.shop_id = $1
     `;
-    const params = [];
-    let paramCount = 0;
+    const params = [req.shop_id];
+    let paramCount = 1;
 
     if (productTypeId) {
       paramCount++;
@@ -366,7 +386,7 @@ router.get('/sold-batteries', requireAuth, requireShopId, requireSuperAdminOrAdm
     if (search) {
       paramCount++;
       const searchConditions = [
-        'p.name ILIKE $' + paramCount,
+        `p.name ILIKE $${paramCount}`,
         'p.sku ILIKE $' + paramCount,
         'sh.serial_number ILIKE $' + paramCount,
         'sh.customer_name ILIKE $' + paramCount,
@@ -435,10 +455,10 @@ router.get('/purchases/detail', requireAuth, requireShopId, requireSuperAdminOrA
         p.mrp_price
       FROM stock s
       LEFT JOIN products p ON s.product_id = p.id
-      WHERE DATE(s.purchase_date) = $1
+      WHERE DATE(s.purchase_date) = $1 AND s.shop_id = $2
     `;
-    const params = [purchase_date];
-    let paramCount = 1;
+    const params = [purchase_date, req.shop_id];
+    let paramCount = 2;
 
     if (purchased_from) {
       paramCount++;
@@ -472,7 +492,7 @@ router.get('/:category/products-for-stock', requireAuth, requireShopId, requireS
       return res.status(400).json({ error: 'Invalid category' });
     }
 
-    // Get products for AddStock component (internal use only)
+    // Get products for AddStock component (shop-scoped)
     const { rows } = await db.query(`
       SELECT 
         p.id, 
@@ -499,13 +519,13 @@ router.get('/:category/products-for-stock', requireAuth, requireShopId, requireS
           product_id,
           COUNT(*) as available_qty
         FROM stock
-        WHERE status = 'available'
+        WHERE status = 'available' AND shop_id = $2
         GROUP BY product_id
       ) stock_counts ON p.id = stock_counts.product_id
-      WHERE p.product_type_id = $1
+      WHERE p.product_type_id = $1 AND p.shop_id = $2
       ORDER BY 
         CASE WHEN p.order_index IS NOT NULL THEN p.order_index ELSE p.id END ASC
-    `, [productTypeId]);
+    `, [productTypeId, req.shop_id]);
 
     // Group by series
     const groupedBySeries = {};
@@ -574,7 +594,7 @@ router.get('/:category', requireAuth, requireShopId, requireSuperAdminOrAdmin, a
           p.series, 
           p.order_index
         FROM products p
-        WHERE p.product_type_id = $1
+        WHERE p.product_type_id = $1 AND p.shop_id = $2
         ORDER BY 
           CASE WHEN p.order_index IS NOT NULL THEN p.order_index ELSE p.id END ASC
       `;
@@ -606,16 +626,16 @@ router.get('/:category', requireAuth, requireShopId, requireSuperAdminOrAdmin, a
             product_id,
             COUNT(*) as available_qty
           FROM stock
-          WHERE status = 'available'
+          WHERE status = 'available' AND shop_id = $2
           GROUP BY product_id
         ) stock_counts ON p.id = stock_counts.product_id
-        WHERE p.product_type_id = $1
+        WHERE p.product_type_id = $1 AND p.shop_id = $2
         ORDER BY 
           CASE WHEN p.order_index IS NOT NULL THEN p.order_index ELSE p.id END ASC
       `;
     }
     
-    const { rows } = await db.query(query, [productTypeId]);
+    const { rows } = await db.query(query, [productTypeId, req.shop_id]);
 
     // Group by series
     const groupedBySeries = {};
@@ -665,10 +685,10 @@ router.post('/:category/add-stock', requireAuth, requireShopId, requireSuperAdmi
       return res.status(400).json({ error: 'Invalid category' });
     }
 
-    // Get current quantity
+    // Get current quantity (shop-scoped)
     const { rows: currentRows } = await db.query(
-      `SELECT qty, product_type_id FROM products WHERE id = $1 AND product_type_id = $2`,
-      [productId, productTypeId]
+      `SELECT qty, product_type_id FROM products WHERE id = $1 AND product_type_id = $2 AND shop_id = $3`,
+      [productId, productTypeId, req.shop_id]
     );
 
     if (currentRows.length === 0) {
@@ -678,10 +698,10 @@ router.post('/:category/add-stock', requireAuth, requireShopId, requireSuperAdmi
     const currentQty = parseInt(currentRows[0].qty || 0);
     const newQty = currentQty + parseInt(quantity);
 
-    // Update quantity
+    // Update quantity (shop-scoped)
     const { rows } = await db.query(
-      `UPDATE products SET qty = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`,
-      [newQty, productId]
+      `UPDATE products SET qty = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND shop_id = $3 RETURNING *`,
+      [newQty, productId, req.shop_id]
     );
 
     res.json({
@@ -716,10 +736,10 @@ router.post('/:category/reduce-stock', requireAuth, requireShopId, requireSuperA
       return res.status(400).json({ error: 'Invalid category' });
     }
 
-    // Get current quantity
+    // Get current quantity (shop-scoped)
     const { rows: currentRows } = await db.query(
-      `SELECT qty, product_type_id FROM products WHERE id = $1 AND product_type_id = $2`,
-      [productId, productTypeId]
+      `SELECT qty, product_type_id FROM products WHERE id = $1 AND product_type_id = $2 AND shop_id = $3`,
+      [productId, productTypeId, req.shop_id]
     );
 
     if (currentRows.length === 0) {
@@ -737,10 +757,10 @@ router.post('/:category/reduce-stock', requireAuth, requireShopId, requireSuperA
 
     const newQty = currentQty - reduceQty;
 
-    // Update quantity
+    // Update quantity (shop-scoped)
     const { rows } = await db.query(
-      `UPDATE products SET qty = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`,
-      [newQty, productId]
+      `UPDATE products SET qty = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND shop_id = $3 RETURNING *`,
+      [newQty, productId, req.shop_id]
     );
 
     res.json({
@@ -812,10 +832,10 @@ router.put('/:category/:productId/pricing', requireAuth, requireShopId, requireS
       return res.status(400).json({ error: 'Invalid category' });
     }
 
-    // Ensure product belongs to this category type and get current DP
+    // Ensure product belongs to this category and shop
     const { rows: existingRows } = await db.query(
-      `SELECT id, dp FROM products WHERE id = $1 AND product_type_id = $2`,
-      [productId, productTypeId]
+      `SELECT id, dp FROM products WHERE id = $1 AND product_type_id = $2 AND shop_id = $3`,
+      [productId, productTypeId, req.shop_id]
     );
 
     if (existingRows.length === 0) {
@@ -839,14 +859,14 @@ router.put('/:category/:productId/pricing', requireAuth, requireShopId, requireS
             b2b_discount_percent = $4,
             dp = $5,
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = $6
+        WHERE id = $6 AND shop_id = $7
         RETURNING id, sku, name, qty, selling_price as price, category,
                   ah_va, warranty, mrp_price as mrp, dp,
                   selling_price, discount, discount_percent,
                   b2b_selling_price, b2b_discount, b2b_discount_percent,
                   series, order_index
       `;
-      queryParams = [numericMrp, numericSelling, finalDiscount, finalDiscountPercent, dpToUpdate, productId];
+      queryParams = [numericMrp, numericSelling, finalDiscount, finalDiscountPercent, dpToUpdate, productId, req.shop_id];
     } else {
       // Update B2C pricing (default)
       updateQuery = `
@@ -857,14 +877,14 @@ router.put('/:category/:productId/pricing', requireAuth, requireShopId, requireS
             discount_percent = $4,
             dp = $5,
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = $6
+        WHERE id = $6 AND shop_id = $7
         RETURNING id, sku, name, qty, selling_price as price, category,
                   ah_va, warranty, mrp_price as mrp, dp,
                   selling_price, discount, discount_percent,
                   b2b_selling_price, b2b_discount, b2b_discount_percent,
                   series, order_index
       `;
-      queryParams = [numericMrp, numericSelling, finalDiscount, finalDiscountPercent, dpToUpdate, productId];
+      queryParams = [numericMrp, numericSelling, finalDiscount, finalDiscountPercent, dpToUpdate, productId, req.shop_id];
     }
 
     const { rows } = await db.query(updateQuery, queryParams);
@@ -910,10 +930,10 @@ router.put('/:category/bulk-discount', requireAuth, requireShopId, requireSuperA
       return res.status(400).json({ error: 'Invalid category' });
     }
 
-    // Get all products in this category
+    // Get all products in this category (shop-scoped)
     const { rows: products } = await db.query(
-      `SELECT id, mrp_price FROM products WHERE product_type_id = $1`,
-      [productTypeId]
+      `SELECT id, mrp_price FROM products WHERE product_type_id = $1 AND shop_id = $2`,
+      [productTypeId, req.shop_id]
     );
 
     if (products.length === 0) {
@@ -949,12 +969,12 @@ router.put('/:category/bulk-discount', requireAuth, requireShopId, requireSuperA
               b2b_discount = $2,
               b2b_selling_price = $3,
               updated_at = CURRENT_TIMESTAMP
-          WHERE id = $4
+          WHERE id = $4 AND shop_id = $5
           RETURNING id, sku, name, mrp_price, 
                     selling_price, discount, discount_percent,
                     b2b_selling_price, b2b_discount, b2b_discount_percent
         `;
-        queryParams = [numericDiscountPercent, discountAmount, sellingPrice, product.id];
+        queryParams = [numericDiscountPercent, discountAmount, sellingPrice, product.id, req.shop_id];
       } else {
         // Update B2C pricing - only discount %, discount amount, and selling price
         // MRP remains unchanged
@@ -964,12 +984,12 @@ router.put('/:category/bulk-discount', requireAuth, requireShopId, requireSuperA
               discount = $2,
               selling_price = $3,
               updated_at = CURRENT_TIMESTAMP
-          WHERE id = $4
+          WHERE id = $4 AND shop_id = $5
           RETURNING id, sku, name, mrp_price, 
                     selling_price, discount, discount_percent,
                     b2b_selling_price, b2b_discount, b2b_discount_percent
         `;
-        queryParams = [numericDiscountPercent, discountAmount, sellingPrice, product.id];
+        queryParams = [numericDiscountPercent, discountAmount, sellingPrice, product.id, req.shop_id];
       }
 
       try {
@@ -1050,8 +1070,8 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
     let product;
     try {
       const { rows: currentRows } = await db.query(
-        `SELECT id, qty, product_type_id, name, sku, series, category, ah_va, warranty, selling_price, mrp_price, dp FROM products WHERE id = $1 AND product_type_id = $2`,
-        [productId, productTypeId]
+        `SELECT id, qty, product_type_id, name, sku, series, category, ah_va, warranty, selling_price, mrp_price, dp FROM products WHERE id = $1 AND product_type_id = $2 AND shop_id = $3`,
+        [productId, productTypeId, req.shop_id]
       );
 
       if (currentRows.length === 0) {
@@ -1187,13 +1207,13 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
       // Update product quantity
       console.log('[ADD STOCK] Updating product quantity from', currentQty, 'to', newQty);
       const updateResult = await client.query(
-        `UPDATE products SET qty = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-        [newQty, productId]
+        `UPDATE products SET qty = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND shop_id = $3`,
+        [newQty, productId, req.shop_id]
       );
       console.log('[ADD STOCK] Product quantity updated:', updateResult.rowCount, 'rows affected');
 
       // Save to new purchases table - generate purchase number first
-      const purchaseNumber = await generatePurchaseNumber(purchaseDate);
+      const purchaseNumber = await generatePurchaseNumber(purchaseDate, req.shop_id);
       const purchaseProductTypeId = getProductTypeId(category);
       
       console.log('[ADD STOCK] Generated purchase number:', purchaseNumber);
@@ -1217,15 +1237,15 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
             `);
             
             if (tableCheck.rows[0].exists) {
-              const stockHistoryValues = serialNumbers.map((_, idx) => 
-                `($${idx * 3 + 1}, 'add', 1, $${idx * 3 + 2}, $${idx * 3 + 3}, CURRENT_TIMESTAMP)`
-              ).join(', ');
-              const stockHistoryParams = serialNumbers.flatMap(sn => [productId, sn, userId || null]);
+              const stockHistoryValues = serialNumbers.map((_, idx) => {
+                const b = idx * 4 + 1;
+                return `($${b}, 'add', 1, $${b+1}, $${b+2}, $${b+3}, CURRENT_TIMESTAMP)`;
+              }).join(', ');
+              const stockHistoryParams = serialNumbers.flatMap(sn => [productId, sn, userId || null, req.shop_id]);
               await client.query(`
                 INSERT INTO stock_history 
-                (product_id, transaction_type, quantity, serial_number, user_id, created_at)
+                (product_id, transaction_type, quantity, serial_number, user_id, shop_id, created_at)
                 VALUES ${stockHistoryValues}
-                ON CONFLICT DO NOTHING
               `, stockHistoryParams);
               console.log(`[ADD STOCK] Batch inserted ${serialNumbers.length} stock_history records`);
             } else {
@@ -1268,8 +1288,8 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
             // First, check which serials already exist to avoid conflicts
             const existingSerials = await client.query(`
               SELECT serial_number FROM stock 
-              WHERE product_id = $1 AND serial_number = ANY($2::text[]) AND status = 'available'
-            `, [product.id, serialNumbers]);
+              WHERE product_id = $1 AND serial_number = ANY($2::text[]) AND status = 'available' AND shop_id = $3
+            `, [product.id, serialNumbers, req.shop_id]);
             
             const existingSerialSet = new Set(existingSerials.rows.map(r => r.serial_number));
             const newSerials = serialNumbers.filter(sn => !existingSerialSet.has(sn));
@@ -1277,20 +1297,20 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
             if (newSerials.length > 0) {
               // Build VALUES for only new serials with correct parameter indices
               const newStockValues = newSerials.map((_, idx) => {
-                const baseParam = idx * 12 + 1;
-                return `($${baseParam}, $${baseParam + 1}, $${baseParam + 2}, $${baseParam + 3}, $${baseParam + 4}, $${baseParam + 5}, $${baseParam + 6}, $${baseParam + 7}, $${baseParam + 8}, $${baseParam + 9}, $${baseParam + 10}, $${baseParam + 11}, 'available')`;
+                const baseParam = idx * 13 + 1;
+                return `($${baseParam}, $${baseParam + 1}, $${baseParam + 2}, $${baseParam + 3}, $${baseParam + 4}, $${baseParam + 5}, $${baseParam + 6}, $${baseParam + 7}, $${baseParam + 8}, $${baseParam + 9}, $${baseParam + 10}, $${baseParam + 11}, $${baseParam + 12}, 'available')`;
               }).join(', ');
               
               const newStockParams = newSerials.flatMap(sn => [
                 purchaseDate, product.sku, product.series, product.category, product.name, product.ah_va,
-                1, purchasedFrom, product.warranty, product.product_type_id, product.id, sn
+                1, purchasedFrom, product.warranty, product.product_type_id, product.id, sn, req.shop_id
               ]);
               
-              // Insert new stock records
+              // Insert new stock records (shop_id from JWT)
               const stockResult = await client.query(`
                 INSERT INTO stock (
                   purchase_date, sku, series, category, name, ah_va, quantity,
-                  purchased_from, warranty, product_type_id, product_id, serial_number, status
+                  purchased_from, warranty, product_type_id, product_id, serial_number, shop_id, status
                 ) VALUES ${newStockValues}
               `, newStockParams);
               console.log(`[ADD STOCK] ✅ Successfully inserted ${stockResult.rowCount} new stock records (skipped ${serialNumbers.length - newSerials.length} existing)`);
@@ -1305,8 +1325,8 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
                   SET purchase_date = $1,
                       purchased_from = $2,
                       updated_at = CURRENT_TIMESTAMP
-                  WHERE product_id = $3 AND serial_number = $4 AND status = 'available'
-                `, [purchaseDate, purchasedFrom, product.id, serialNumber]);
+                  WHERE product_id = $3 AND serial_number = $4 AND status = 'available' AND shop_id = $5
+                `, [purchaseDate, purchasedFrom, product.id, serialNumber, req.shop_id]);
               }
               console.log(`[ADD STOCK] ✅ Updated ${existingSerialSet.size} existing stock records`);
             }
@@ -1346,9 +1366,9 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
         const hasPurchasePrice = foundColumns.includes('purchase_price');
         const hasTotalAmount = foundColumns.includes('total_amount');
         
-        // Build INSERT query structure (same for all rows)
-        let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity';
-        let baseParamCount = 12;
+        // Build INSERT query structure (shop_id from JWT)
+        let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity, shop_id';
+        let baseParamCount = 13;
         
         if (hasTotalAmount) {
           insertColumns += ', total_amount';
@@ -1363,7 +1383,6 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
           baseParamCount += 3;
         }
         
-        // Build ON CONFLICT UPDATE clause
         let conflictUpdate = `
           ON CONFLICT (product_sku, serial_number) DO UPDATE SET
             purchase_date = EXCLUDED.purchase_date,
@@ -1374,6 +1393,7 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
             discount_amount = EXCLUDED.discount_amount,
             discount_percent = EXCLUDED.discount_percent,
             quantity = EXCLUDED.quantity,
+            shop_id = EXCLUDED.shop_id,
             updated_at = CURRENT_TIMESTAMP
         `;
         if (hasTotalAmount) {
@@ -1400,7 +1420,8 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
             finalPurchaseValue,
             finalDiscountAmount,
             finalDiscountPercent,
-            1  // quantity
+            1,  // quantity
+            req.shop_id
           ];
           if (hasTotalAmount) {
             // Ensure total_amount is never null - use purchase_value * quantity (which is 1 per row)
@@ -1417,22 +1438,13 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
         // Build VALUES clause with sequential parameter numbers
         const purchaseValues = serialNumbers.map((serialNumber, idx) => {
           let values = [];
-          let paramNum = idx * baseParamCount + 1; // Start from 1, then 13, 25, etc.
+          let paramNum = idx * baseParamCount + 1;
           
-          // Base values (same order as insertColumns)
           values.push(
-            `$${paramNum++}`, // product_type_id
-            `$${paramNum++}`, // purchase_date
-            `$${paramNum++}`, // purchase_number
-            `$${paramNum++}`, // product_series
-            `$${paramNum++}`, // product_sku
-            `$${paramNum++}`, // serial_number
-            `$${paramNum++}`, // supplier_name
-            `$${paramNum++}`, // dp
-            `$${paramNum++}`, // purchase_value
-            `$${paramNum++}`, // discount_amount
-            `$${paramNum++}`, // discount_percent
-            `$${paramNum++}`  // quantity
+            `$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`,
+            `$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`,
+            `$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`,
+            `$${paramNum++}`  // quantity, shop_id
           );
           
           if (hasTotalAmount) {
@@ -1474,9 +1486,8 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
         const hasPurchasePrice = foundColumns.includes('purchase_price');
         const hasTotalAmount = foundColumns.includes('total_amount');
         
-        // Build INSERT query structure (same for all rows)
-        let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity';
-        let baseParamCount = 12;
+        let insertColumns = 'product_type_id, purchase_date, purchase_number, product_series, product_sku, serial_number, supplier_name, dp, purchase_value, discount_amount, discount_percent, quantity, shop_id';
+        let baseParamCount = 13;
         
         if (hasTotalAmount) {
           insertColumns += ', total_amount';
@@ -1491,7 +1502,6 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
           baseParamCount += 3;
         }
         
-        // Build ON CONFLICT UPDATE clause
         let conflictUpdate = `
           ON CONFLICT (product_sku, serial_number) DO UPDATE SET
             purchase_date = EXCLUDED.purchase_date,
@@ -1502,6 +1512,7 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
             discount_amount = EXCLUDED.discount_amount,
             discount_percent = EXCLUDED.discount_percent,
             quantity = EXCLUDED.quantity,
+            shop_id = EXCLUDED.shop_id,
             updated_at = CURRENT_TIMESTAMP
         `;
         if (hasTotalAmount) {
@@ -1529,11 +1540,11 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
             finalPurchaseValue,
             finalDiscountAmount,
             finalDiscountPercent,
-            1  // quantity
+            1,  // quantity
+            req.shop_id
           ];
           if (hasTotalAmount) {
-            // Ensure total_amount is never null - use purchase_value * quantity (which is 1 per row)
-            const totalAmount = finalPurchaseValue * 1; // quantity is always 1 per serial number
+            const totalAmount = finalPurchaseValue * 1;
             params.push(totalAmount);
           }
           if (hasPurchasePrice) params.push(finalDp);
@@ -1546,21 +1557,13 @@ router.post('/:category/add-stock-with-serials', requireAuth, requireShopId, req
         // Build VALUES clause with sequential parameter numbers
         const purchaseValues = waterSerialNumbers.map((waterSerialNumber, idx) => {
           let values = [];
-          let paramNum = idx * baseParamCount + 1; // Start from 1, then 13, 25, etc.
+          let paramNum = idx * baseParamCount + 1;
           
           values.push(
-            `$${paramNum++}`, // product_type_id
-            `$${paramNum++}`, // purchase_date
-            `$${paramNum++}`, // purchase_number
-            `$${paramNum++}`, // product_series
-            `$${paramNum++}`, // product_sku
-            `$${paramNum++}`, // serial_number
-            `$${paramNum++}`, // supplier_name
-            `$${paramNum++}`, // dp
-            `$${paramNum++}`, // purchase_value
-            `$${paramNum++}`, // discount_amount
-            `$${paramNum++}`, // discount_percent
-            `$${paramNum++}`  // quantity
+            `$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`,
+            `$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`,
+            `$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`, `$${paramNum++}`,
+            `$${paramNum++}`  // quantity, shop_id
           );
           
           if (hasTotalAmount) {
@@ -1650,9 +1653,9 @@ router.get('/:category/:productId/available-serials', requireAuth, requireShopId
       const stockResult = await db.query(`
         SELECT DISTINCT TRIM(serial_number) as serial_number
         FROM stock
-        WHERE product_id = $1 AND status = 'available' AND serial_number IS NOT NULL
+        WHERE product_id = $1 AND status = 'available' AND serial_number IS NOT NULL AND shop_id = $2
         ORDER BY TRIM(serial_number)
-      `, [productId]);
+      `, [productId, req.shop_id]);
       rows = stockResult.rows;
     } catch (err) {
       // If stock table doesn't exist, return empty array
@@ -1700,10 +1703,10 @@ router.post('/:category/sell-stock', requireAuth, requireShopId, requireSuperAdm
       return res.status(400).json({ error: 'Invalid category' });
     }
 
-    // Get product info and check available stock from stock table
+    // Get product info (shop-scoped)
     const { rows: currentRows } = await db.query(
-      `SELECT id, qty, product_type_id, name, sku FROM products WHERE id = $1 AND product_type_id = $2`,
-      [productId, productTypeId]
+      `SELECT id, qty, product_type_id, name, sku FROM products WHERE id = $1 AND product_type_id = $2 AND shop_id = $3`,
+      [productId, productTypeId, req.shop_id]
     );
 
     if (currentRows.length === 0) {
@@ -1716,8 +1719,8 @@ router.post('/:category/sell-stock', requireAuth, requireShopId, requireSuperAdm
       const stockCountResult = await db.query(`
         SELECT COUNT(*) as count
         FROM stock
-        WHERE product_id = $1 AND status = 'available'
-      `, [productId]);
+        WHERE product_id = $1 AND status = 'available' AND shop_id = $2
+      `, [productId, req.shop_id]);
       availableStock = parseInt(stockCountResult.rows[0]?.count || 0);
     } catch (stockErr) {
       // If stock table doesn't exist, fall back to products.qty
@@ -1739,21 +1742,20 @@ router.post('/:category/sell-stock', requireAuth, requireShopId, requireSuperAdm
     await db.query('BEGIN');
 
     try {
-      // Update product quantity
+      // Update product quantity (shop-scoped)
       await db.query(
-        `UPDATE products SET qty = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-        [newQty, productId]
+        `UPDATE products SET qty = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND shop_id = $3`,
+        [newQty, productId, req.shop_id]
       );
 
       // Record sale in stock_history and DELETE from stock table
       for (const serialNumber of serialNumbers) {
         // Insert into stock_history - check if vehicle_number column exists
         try {
-          // Try with vehicle_number first
           await db.query(`
             INSERT INTO stock_history 
-            (product_id, transaction_type, quantity, serial_number, customer_name, customer_phone, vehicle_number, amount, user_id, created_at)
-            VALUES ($1, 'sell', 1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+            (product_id, transaction_type, quantity, serial_number, customer_name, customer_phone, vehicle_number, amount, user_id, shop_id, created_at)
+            VALUES ($1, 'sell', 1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
           `, [
             productId, 
             serialNumber, 
@@ -1761,22 +1763,23 @@ router.post('/:category/sell-stock', requireAuth, requireShopId, requireSuperAdm
             customerPhone || null, 
             vehicleNumber || null,
             sellingPrice, 
-            userId || null
+            userId || null,
+            req.shop_id
           ]);
         } catch (historyErr) {
-          // If vehicle_number column doesn't exist, insert without it
           if (historyErr.message.includes('vehicle_number') || historyErr.code === '42703') {
             await db.query(`
               INSERT INTO stock_history 
-              (product_id, transaction_type, quantity, serial_number, customer_name, customer_phone, amount, user_id, created_at)
-              VALUES ($1, 'sell', 1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+              (product_id, transaction_type, quantity, serial_number, customer_name, customer_phone, amount, user_id, shop_id, created_at)
+              VALUES ($1, 'sell', 1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
             `, [
               productId, 
               serialNumber, 
               customerName.trim(), 
               customerPhone || null,
               sellingPrice, 
-              userId || null
+              userId || null,
+              req.shop_id
             ]);
           } else {
             throw historyErr;
@@ -1787,41 +1790,42 @@ router.post('/:category/sell-stock', requireAuth, requireShopId, requireSuperAdm
         try {
           await db.query(`
             DELETE FROM stock 
-            WHERE product_id = $1 AND serial_number = $2 AND status = 'available'
-          `, [productId, serialNumber]);
+            WHERE product_id = $1 AND serial_number = $2 AND status = 'available' AND shop_id = $3
+          `, [productId, serialNumber, req.shop_id]);
         } catch (stockErr) {
           // Log error but don't fail the transaction
           console.warn('Failed to delete from stock table:', stockErr.message);
         }
       }
 
-      // Create a sale record in sales table so that dashboard & reports can see this admin sale
+      // Create a sale record in sales table (shop-scoped)
       try {
-        const invoiceNumber = await generateInvoiceNumber();
+        const invoiceNumber = await generateInvoiceNumber(req.shop_id);
         const totalAmount = sellingPrice * quantity;
 
         const saleResult = await db.query(
           `INSERT INTO sales (
              invoice_number, customer_id, customer_name, customer_phone, vehicle_number,
              sale_type, total_amount, discount, tax, final_amount,
-             payment_method, payment_status, created_by, notes
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+             payment_method, payment_status, created_by, notes, shop_id
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
            RETURNING id`,
           [
             invoiceNumber,
-            null, // customer_id unknown for walk-in customers
+            null,
             customerName.trim(),
             customerPhone || null,
             vehicleNumber || null,
             'retail',
             totalAmount,
-            0,              // discount
-            0,              // tax
-            totalAmount,    // final_amount
-            'cash',         // payment_method
-            'paid',         // payment_status
-            userId || null, // created_by (admin/super admin)
+            0,
+            0,
+            totalAmount,
+            'cash',
+            'paid',
+            userId || null,
             'Admin inventory sale',
+            req.shop_id
           ]
         );
 
@@ -1886,10 +1890,10 @@ router.get('/stock', requireAuth, requireShopId, requireSuperAdminOrAdmin, async
         p.mrp_price
       FROM stock s
       LEFT JOIN products p ON s.product_id = p.id
-      WHERE s.status = 'available'
+      WHERE s.status = 'available' AND s.shop_id = $1
     `;
-    const params = [];
-    let paramCount = 0;
+    const params = [req.shop_id];
+    let paramCount = 1;
 
     if (productTypeId) {
       paramCount++;
@@ -1949,10 +1953,10 @@ router.get('/history/ledger', requireAuth, requireShopId, requireSuperAdminOrAdm
         p.category
       FROM stock_history sh
       JOIN products p ON sh.product_id = p.id
-      WHERE 1=1
+      WHERE sh.shop_id = $1 AND p.shop_id = $1
     `;
-    const params = [];
-    let paramCount = 0;
+    const params = [req.shop_id];
+    let paramCount = 1;
 
     if (productTypeId) {
       paramCount++;
@@ -2041,7 +2045,7 @@ router.get('/customer-history/:customerId', requireAuth, requireShopId, requireS
       return res.status(400).json({ error: 'Invalid customer ID' });
     }
 
-    // Get customer info
+    // Get customer info (shop-scoped)
     const customerResult = await db.query(
       `SELECT 
         u.id,
@@ -2057,8 +2061,8 @@ router.get('/customer-history/:customerId', requireAuth, requireShopId, requireS
         cp.company_address
       FROM users u
       LEFT JOIN customer_profiles cp ON u.id = cp.user_id
-      WHERE u.id = $1`,
-      [customerIdInt]
+      WHERE u.id = $1 AND u.shop_id = $2`,
+      [customerIdInt, req.shop_id]
     );
 
     if (customerResult.rows.length === 0) {
@@ -2086,12 +2090,12 @@ router.get('/customer-history/:customerId', requireAuth, requireShopId, requireS
         ARRAY_AGG(DISTINCT SERIES) FILTER (WHERE SERIES IS NOT NULL) as series_list,
         ARRAY_AGG(DISTINCT NAME) FILTER (WHERE NAME IS NOT NULL) as product_names
       FROM sales_item
-      WHERE customer_id = $1
+      WHERE customer_id = $1 AND shop_id = $2
       GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number,
                customer_vehicle_number, sales_type, customer_business_name,
                customer_gst_number, customer_business_address
       ORDER BY MIN(created_at) DESC`,
-      [customerIdInt]
+      [customerIdInt, req.shop_id]
     );
 
     // Get warranty/guarantee replacements
@@ -2116,9 +2120,9 @@ router.get('/customer-history/:customerId', requireAuth, requireShopId, requireS
         FROM battery_replacements br
         LEFT JOIN products p ON br.product_id = p.id
         LEFT JOIN warranty_slabs ws ON br.warranty_slab_id = ws.id
-        WHERE br.customer_id = $1
+        WHERE br.customer_id = $1 AND br.shop_id = $2
         ORDER BY br.replacement_date DESC, br.created_at DESC`,
-        [customerIdInt]
+        [customerIdInt, req.shop_id]
       );
     } catch (replacementsError) {
       // If table doesn't exist, just return empty array
@@ -2159,7 +2163,8 @@ router.get('/customer-history/:customerId', requireAuth, requireShopId, requireS
       }
       
       if (conditions.length > 0) {
-        chargingServicesQuery += conditions.join(' OR ');
+        chargingServicesQuery += `(${conditions.join(' OR ')}) AND cs.shop_id = $${chargingParams.length + 1}`;
+        chargingParams.push(req.shop_id);
         chargingServicesQuery += ` ORDER BY cs.created_at DESC`;
         chargingServicesResult = await db.query(chargingServicesQuery, chargingParams);
       }
@@ -2172,9 +2177,9 @@ router.get('/customer-history/:customerId', requireAuth, requireShopId, requireS
         u.full_name as created_by_name
       FROM service_requests sr
       LEFT JOIN users u ON sr.user_id = u.id
-      WHERE sr.user_id = $1
+      WHERE sr.user_id = $1 AND sr.shop_id = $2
       ORDER BY sr.created_at DESC`,
-      [customerIdInt]
+      [customerIdInt, req.shop_id]
     );
 
     res.json({
@@ -2200,10 +2205,10 @@ router.get('/employee-history/:employeeId', requireAuth, requireShopId, requireS
       return res.status(400).json({ error: 'Invalid employee ID' });
     }
 
-    // Get employee info
+    // Get employee info (shop-scoped)
     const employeeResult = await db.query(
-      `SELECT * FROM employees WHERE id = $1`,
-      [employeeIdInt]
+      `SELECT * FROM employees WHERE id = $1 AND shop_id = $2`,
+      [employeeIdInt, req.shop_id]
     );
 
     if (employeeResult.rows.length === 0) {

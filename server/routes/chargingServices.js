@@ -6,9 +6,7 @@ const { createNotification } = require('./notifications');
 
 const router = express.Router();
 
-// Get charging services for the logged-in customer
-// Customers can only see their own charging services
-router.get('/my-services', requireAuth, async (req, res) => {
+router.get('/my-services', requireAuth, requireShopId, async (req, res) => {
   try {
     const { 
       status, 
@@ -32,10 +30,10 @@ router.get('/my-services', requireAuth, async (req, res) => {
     let baseQuery = `
       FROM charging_services cs
       LEFT JOIN users u ON cs.created_by = u.id
-      WHERE (LOWER(cs.customer_email) = $1 OR cs.customer_mobile_number = $2)
+      WHERE (LOWER(cs.customer_email) = $1 OR cs.customer_mobile_number = $2) AND cs.shop_id = $3
     `;
-    const params = [customerEmail, customerPhone];
-    let paramCount = 2;
+    const params = [customerEmail, customerPhone, req.shop_id];
+    let paramCount = 3;
 
     // Filter by status
     if (status && status !== 'all') {
@@ -294,10 +292,10 @@ router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req
     let baseQuery = `
       FROM charging_services cs
       LEFT JOIN users u ON cs.created_by = u.id
-      WHERE 1=1
+      WHERE cs.shop_id = $1
     `;
-    const params = [];
-    let paramCount = 0;
+    const params = [req.shop_id];
+    let paramCount = 1;
 
     // Filter by status
     if (status && status !== 'all') {
@@ -382,8 +380,8 @@ router.get('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
         u.full_name as created_by_name
       FROM charging_services cs
       LEFT JOIN users u ON cs.created_by = u.id
-      WHERE cs.id = $1`,
-      [id]
+      WHERE cs.id = $1 AND cs.shop_id = $2`,
+      [id, req.shop_id]
     );
 
     if (result.rows.length === 0) {
@@ -502,7 +500,8 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
       'service_price',
       'expected_completion_time',
       'notes',
-      'created_by'
+      'created_by',
+      'shop_id'
     ];
     const values = [
       batterySerialNumber,
@@ -515,7 +514,8 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
       servicePrice,
       expectedCompletionTime,
       notes || null,
-      req.user.id
+      req.user_id ?? req.user?.id,
+      req.shop_id
     ];
 
     if (hasEmailCol) {

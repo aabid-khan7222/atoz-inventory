@@ -95,25 +95,21 @@ function getDateRangeFromPeriod(period) {
   };
 }
 
-// Helper function to build date filter for sales_item queries
-function buildSalesDateFilter(dateFrom, dateTo, period) {
+// Helper: build date filter for sales_item (paramStart=1 means dates at $1,$2; paramStart=2 means $2,$3 for shop_id first)
+function buildSalesDateFilter(dateFrom, dateTo, period, paramStart = 1) {
   let dateFilter = '';
   const params = [];
-  let paramCount = 1;
+  let paramCount = paramStart;
 
   if (dateFrom && dateTo) {
-    // For DATE columns, compare directly with DATE type (no time component needed)
     dateFilter = ` AND si.purchase_date >= $${paramCount}::DATE AND si.purchase_date <= $${paramCount + 1}::DATE`;
     params.push(dateFrom, dateTo);
     paramCount += 2;
   } else if (period && period !== 'all') {
-    // For "today" period, use DATE comparison like dashboard does for consistency
     if (period === 'today') {
       dateFilter = ` AND DATE(si.purchase_date) = CURRENT_DATE`;
-      // No params needed for CURRENT_DATE
     } else {
       const dateRange = getDateRangeFromPeriod(period);
-      // For DATE columns, compare directly with DATE type (no time component needed)
       dateFilter = ` AND si.purchase_date >= $${paramCount}::DATE AND si.purchase_date <= $${paramCount + 1}::DATE`;
       params.push(dateRange.startDate, dateRange.endDate);
       paramCount += 2;
@@ -123,11 +119,10 @@ function buildSalesDateFilter(dateFrom, dateTo, period) {
   return { dateFilter, params, nextParamIndex: paramCount };
 }
 
-// Helper function to build date filter for charging_services queries
-function buildChargingDateFilter(dateFrom, dateTo, period) {
+function buildChargingDateFilter(dateFrom, dateTo, period, paramStart = 1) {
   let dateFilter = '';
   const params = [];
-  let paramCount = 1;
+  let paramCount = paramStart;
 
   if (dateFrom && dateTo) {
     dateFilter = ` AND cs.created_at >= $${paramCount} AND cs.created_at <= $${paramCount + 1}`;
@@ -143,11 +138,10 @@ function buildChargingDateFilter(dateFrom, dateTo, period) {
   return { dateFilter, params, nextParamIndex: paramCount };
 }
 
-// Helper function to build date filter for service_requests queries
-function buildServiceRequestDateFilter(dateFrom, dateTo, period) {
+function buildServiceRequestDateFilter(dateFrom, dateTo, period, paramStart = 1) {
   let dateFilter = '';
   const params = [];
-  let paramCount = 1;
+  let paramCount = paramStart;
 
   if (dateFrom && dateTo) {
     dateFilter = ` AND sr.created_at >= $${paramCount} AND sr.created_at <= $${paramCount + 1}`;
@@ -163,17 +157,17 @@ function buildServiceRequestDateFilter(dateFrom, dateTo, period) {
   return { dateFilter, params, nextParamIndex: paramCount };
 }
 
-// Get purchase price for a serial number (for profit calculation)
-async function getPurchasePrice(serialNumber, productSku) {
+// Get purchase price for a serial number (shop-scoped)
+async function getPurchasePrice(serialNumber, productSku, shopId) {
+  if (!shopId) return 0;
   try {
-    // Try to find purchase by serial number first (if serial number exists and is not empty)
     if (serialNumber && serialNumber.trim() !== '') {
       const purchaseResult = await db.query(
         `SELECT purchase_value FROM purchases 
-         WHERE TRIM(serial_number) = TRIM($1) 
+         WHERE TRIM(serial_number) = TRIM($1) AND shop_id = $2
          ORDER BY purchase_date DESC 
          LIMIT 1`,
-        [serialNumber.trim()]
+        [serialNumber.trim(), shopId]
       );
 
       if (purchaseResult.rows.length > 0 && purchaseResult.rows[0].purchase_value) {
@@ -184,15 +178,14 @@ async function getPurchasePrice(serialNumber, productSku) {
       }
     }
 
-    // If not found by serial number, try to get average purchase price for the SKU
     if (productSku && productSku.trim() !== '') {
       const avgPurchaseResult = await db.query(
-        `SELECT AVG(amount) as avg_amount 
+        `SELECT AVG(purchase_value) as avg_amount 
          FROM purchases 
-         WHERE TRIM(product_sku) = TRIM($1) 
-         AND amount > 0
-         AND supplier_name != 'replace'`,
-        [productSku.trim()]
+         WHERE TRIM(product_sku) = TRIM($1) AND shop_id = $2
+         AND purchase_value > 0
+         AND (supplier_name IS NULL OR supplier_name != 'replace')`,
+        [productSku.trim(), shopId]
       );
 
       if (avgPurchaseResult.rows.length > 0 && avgPurchaseResult.rows[0].avg_amount) {
@@ -218,7 +211,8 @@ async function getPurchasePrice(serialNumber, productSku) {
 router.get('/sales/category', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
-    const { dateFilter, params } = buildSalesDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params: dateParams } = buildSalesDateFilter(dateFrom, dateTo, period, 2);
+    const params = [req.shop_id, ...dateParams];
 
     const query = `
       SELECT 
@@ -233,7 +227,7 @@ router.get('/sales/category', requireAuth, requireShopId, requireSuperAdminOrAdm
         SUM(si.tax) as total_tax,
         AVG(si.final_amount) as avg_sale_amount
       FROM sales_item si
-      WHERE 1=1 ${dateFilter}
+      WHERE si.shop_id = $1 ${dateFilter}
       GROUP BY si.CATEGORY
       ORDER BY total_revenue DESC
     `;
@@ -245,13 +239,14 @@ router.get('/sales/category', requireAuth, requireShopId, requireSuperAdminOrAdm
       let categoryProfit = 0;
       try {
         // Get sample items from this category to calculate profit
+        const { dateFilter: innerDateFilter, params: innerDateParams } = buildSalesDateFilter(dateFrom, dateTo, period, 3);
         const categoryItemsQuery = `
           SELECT si.SERIAL_NUMBER as serial_number, si.SKU as sku, si.final_amount
           FROM sales_item si
-          WHERE si.CATEGORY = $1 ${dateFilter}
+          WHERE si.shop_id = $1 AND si.CATEGORY = $2 ${innerDateFilter}
           LIMIT 200
         `;
-        const categoryParams = [row.category, ...params];
+        const categoryParams = [req.shop_id, row.CATEGORY || row.category, ...innerDateParams];
         const categoryItemsResult = await db.query(categoryItemsQuery, categoryParams);
         
         for (const item of categoryItemsResult.rows) {
@@ -259,7 +254,7 @@ router.get('/sales/category', requireAuth, requireShopId, requireSuperAdminOrAdm
           const serialNum = item.serial_number || item.SERIAL_NUMBER;
           const sku = item.sku || item.SKU;
           if (serialNum || sku) {
-            const purchasePrice = await getPurchasePrice(serialNum, sku);
+            const purchasePrice = await getPurchasePrice(serialNum, sku, req.shop_id);
             const profit = revenue - purchasePrice;
             categoryProfit += profit;
           } else {
@@ -270,7 +265,7 @@ router.get('/sales/category', requireAuth, requireShopId, requireSuperAdminOrAdm
         
         // Scale profit if we limited results
         const totalCountResult = await db.query(
-          `SELECT COUNT(*) as total FROM sales_item si WHERE si.CATEGORY = $1 ${dateFilter}`,
+          `SELECT COUNT(*) as total FROM sales_item si WHERE si.shop_id = $1 AND si.CATEGORY = $2 ${innerDateFilter}`,
           categoryParams
         );
         const totalCount = parseInt(totalCountResult.rows[0]?.total || categoryItemsResult.rows.length);
@@ -307,7 +302,7 @@ router.get('/sales/category', requireAuth, requireShopId, requireSuperAdminOrAdm
 router.get('/sales/product', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all', category, series } = req.query;
-    const { dateFilter, params, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params: dateParams, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period, 2);
 
     let query = `
       SELECT 
@@ -324,9 +319,9 @@ router.get('/sales/product', requireAuth, requireShopId, requireSuperAdminOrAdmi
         COALESCE(SUM(si.commission_amount), 0) as total_commission,
         AVG(si.final_amount) as avg_sale_amount
       FROM sales_item si
-      WHERE 1=1 ${dateFilter}
+      WHERE si.shop_id = $1 ${dateFilter}
     `;
-    let queryParams = [...params];
+    let queryParams = [req.shop_id, ...dateParams];
     let paramIndex = nextParamIndex;
 
     if (category && category !== 'all') {
@@ -352,13 +347,14 @@ router.get('/sales/product', requireAuth, requireShopId, requireSuperAdminOrAdmi
     const rowsWithProfit = await Promise.all(rows.map(async (row) => {
       let productProfit = 0;
       try {
+        const { dateFilter: prodDateFilter, params: prodDateParams } = buildSalesDateFilter(dateFrom, dateTo, period, 4);
         const productItemsQuery = `
           SELECT si.SERIAL_NUMBER as serial_number, si.SKU as sku, si.final_amount
           FROM sales_item si
-          WHERE si.NAME = $1 AND si.SKU = $2 ${dateFilter}
+          WHERE si.shop_id = $1 AND si.NAME = $2 AND si.SKU = $3 ${prodDateFilter}
           LIMIT 200
         `;
-        const productParams = [row.name, row.sku, ...params];
+        const productParams = [req.shop_id, row.name, row.sku, ...prodDateParams];
         const productItemsResult = await db.query(productItemsQuery, productParams);
         
         for (const item of productItemsResult.rows) {
@@ -366,14 +362,14 @@ router.get('/sales/product', requireAuth, requireShopId, requireSuperAdminOrAdmi
           const serialNum = item.serial_number || item.SERIAL_NUMBER;
           const sku = item.sku || item.SKU;
           if (serialNum || sku) {
-            const purchasePrice = await getPurchasePrice(serialNum, sku);
+            const purchasePrice = await getPurchasePrice(serialNum, sku, req.shop_id);
             productProfit += (revenue - purchasePrice);
           }
         }
         
         // Scale profit if we limited results
         const totalCountResult = await db.query(
-          `SELECT COUNT(*) as total FROM sales_item si WHERE si.NAME = $1 AND si.SKU = $2 ${dateFilter}`,
+          `SELECT COUNT(*) as total FROM sales_item si WHERE si.shop_id = $1 AND si.NAME = $2 AND si.SKU = $3 ${prodDateFilter}`,
           productParams
         );
         const totalCount = parseInt(totalCountResult.rows[0]?.total || productItemsResult.rows.length);
@@ -410,7 +406,7 @@ router.get('/sales/product', requireAuth, requireShopId, requireSuperAdminOrAdmi
 router.get('/sales/series', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all', category } = req.query;
-    const { dateFilter, params, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params: dateParams, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period, 2);
 
     let query = `
       SELECT 
@@ -426,9 +422,9 @@ router.get('/sales/series', requireAuth, requireShopId, requireSuperAdminOrAdmin
         COALESCE(SUM(si.commission_amount), 0) as total_commission,
         AVG(si.final_amount) as avg_sale_amount
       FROM sales_item si
-      WHERE si.SERIES IS NOT NULL ${dateFilter}
+      WHERE si.shop_id = $1 AND si.SERIES IS NOT NULL ${dateFilter}
     `;
-    let queryParams = [...params];
+    let queryParams = [req.shop_id, ...dateParams];
     let paramIndex = nextParamIndex;
 
     if (category && category !== 'all') {
@@ -448,13 +444,14 @@ router.get('/sales/series', requireAuth, requireShopId, requireSuperAdminOrAdmin
     const rowsWithProfit = await Promise.all(rows.map(async (row) => {
       let seriesProfit = 0;
       try {
+        const { dateFilter: seriesDateFilter, params: seriesDateParams } = buildSalesDateFilter(dateFrom, dateTo, period, 4);
         const seriesItemsQuery = `
           SELECT si.SERIAL_NUMBER as serial_number, si.SKU as sku, si.final_amount
           FROM sales_item si
-          WHERE si.SERIES = $1 AND si.CATEGORY = $2 ${dateFilter}
+          WHERE si.shop_id = $1 AND si.SERIES = $2 AND si.CATEGORY = $3 ${seriesDateFilter}
           LIMIT 200
         `;
-        const seriesParams = [row.series, row.category, ...params];
+        const seriesParams = [req.shop_id, row.series, row.category, ...seriesDateParams];
         const seriesItemsResult = await db.query(seriesItemsQuery, seriesParams);
         
         for (const item of seriesItemsResult.rows) {
@@ -462,14 +459,14 @@ router.get('/sales/series', requireAuth, requireShopId, requireSuperAdminOrAdmin
           const serialNum = item.serial_number || item.SERIAL_NUMBER;
           const sku = item.sku || item.SKU;
           if (serialNum || sku) {
-            const purchasePrice = await getPurchasePrice(serialNum, sku);
+            const purchasePrice = await getPurchasePrice(serialNum, sku, req.shop_id);
             seriesProfit += (revenue - purchasePrice);
           }
         }
         
         // Scale profit if we limited results
         const totalCountResult = await db.query(
-          `SELECT COUNT(*) as total FROM sales_item si WHERE si.SERIES = $1 AND si.CATEGORY = $2 ${dateFilter}`,
+          `SELECT COUNT(*) as total FROM sales_item si WHERE si.shop_id = $1 AND si.SERIES = $2 AND si.CATEGORY = $3 ${seriesDateFilter}`,
           seriesParams
         );
         const totalCount = parseInt(totalCountResult.rows[0]?.total || seriesItemsResult.rows.length);
@@ -506,7 +503,7 @@ router.get('/sales/series', requireAuth, requireShopId, requireSuperAdminOrAdmin
 router.get('/sales/customer', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all', customerType } = req.query;
-    const { dateFilter, params, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params: dateParams, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period, 2);
 
     let query = `
       SELECT 
@@ -525,9 +522,9 @@ router.get('/sales/customer', requireAuth, requireShopId, requireSuperAdminOrAdm
         MIN(si.purchase_date) as first_purchase_date,
         MAX(si.purchase_date) as last_purchase_date
       FROM sales_item si
-      WHERE 1=1 ${dateFilter}
+      WHERE si.shop_id = $1 ${dateFilter}
     `;
-    let queryParams = [...params];
+    let queryParams = [req.shop_id, ...dateParams];
 
     if (customerType === 'b2b') {
       query += ` AND si.sales_type = 'wholesale'`;
@@ -547,13 +544,14 @@ router.get('/sales/customer', requireAuth, requireShopId, requireSuperAdminOrAdm
     const rowsWithProfit = await Promise.all(rows.map(async (row) => {
       let customerProfit = 0;
       try {
+        const { dateFilter: custDateFilter, params: custDateParams } = buildSalesDateFilter(dateFrom, dateTo, period, 3);
         const customerItemsQuery = `
           SELECT si.SERIAL_NUMBER as serial_number, si.SKU as sku, si.final_amount
           FROM sales_item si
-          WHERE si.customer_id = $1 ${dateFilter}
+          WHERE si.shop_id = $1 AND si.customer_id = $2 ${custDateFilter}
           LIMIT 200
         `;
-        const customerParams = [row.customer_id, ...params];
+        const customerParams = [req.shop_id, row.customer_id, ...custDateParams];
         const customerItemsResult = await db.query(customerItemsQuery, customerParams);
         
         for (const item of customerItemsResult.rows) {
@@ -561,14 +559,14 @@ router.get('/sales/customer', requireAuth, requireShopId, requireSuperAdminOrAdm
           const serialNum = item.serial_number || item.SERIAL_NUMBER;
           const sku = item.sku || item.SKU;
           if (serialNum || sku) {
-            const purchasePrice = await getPurchasePrice(serialNum, sku);
+            const purchasePrice = await getPurchasePrice(serialNum, sku, req.shop_id);
             customerProfit += (revenue - purchasePrice);
           }
         }
         
         // Scale profit if we limited results
         const totalCountResult = await db.query(
-          `SELECT COUNT(*) as total FROM sales_item si WHERE si.customer_id = $1 ${dateFilter}`,
+          `SELECT COUNT(*) as total FROM sales_item si WHERE si.shop_id = $1 AND si.customer_id = $2 ${custDateFilter}`,
           customerParams
         );
         const totalCount = parseInt(totalCountResult.rows[0]?.total || customerItemsResult.rows.length);
@@ -605,7 +603,7 @@ router.get('/sales/customer', requireAuth, requireShopId, requireSuperAdminOrAdm
 router.get('/sales/customer/b2b', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
-    const { dateFilter, params } = buildSalesDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params: dateParams } = buildSalesDateFilter(dateFrom, dateTo, period, 2);
 
     const query = `
       SELECT 
@@ -624,25 +622,27 @@ router.get('/sales/customer/b2b', requireAuth, requireShopId, requireSuperAdminO
         MIN(si.purchase_date) as first_purchase_date,
         MAX(si.purchase_date) as last_purchase_date
       FROM sales_item si
-      WHERE si.sales_type = 'wholesale' ${dateFilter}
+      WHERE si.shop_id = $1 AND si.sales_type = 'wholesale' ${dateFilter}
       GROUP BY si.customer_id, si.customer_name, si.customer_mobile_number, 
                si.customer_business_name, si.customer_gst_number, si.customer_business_address
       ORDER BY total_revenue DESC
     `;
 
+    const params = [req.shop_id, ...dateParams];
     const { rows } = await db.query(query, params);
     
     // Calculate profit for each B2B customer
     const rowsWithProfit = await Promise.all(rows.map(async (row) => {
       let customerProfit = 0;
       try {
+        const { dateFilter: b2bDateFilter, params: b2bDateParams } = buildSalesDateFilter(dateFrom, dateTo, period, 3);
         const customerItemsQuery = `
           SELECT si.SERIAL_NUMBER as serial_number, si.SKU as sku, si.final_amount
           FROM sales_item si
-          WHERE si.customer_id = $1 AND si.sales_type = 'wholesale' ${dateFilter}
+          WHERE si.shop_id = $1 AND si.customer_id = $2 AND si.sales_type = 'wholesale' ${b2bDateFilter}
           LIMIT 200
         `;
-        const customerParams = [row.customer_id, ...params];
+        const customerParams = [req.shop_id, row.customer_id, ...b2bDateParams];
         const customerItemsResult = await db.query(customerItemsQuery, customerParams);
         
         for (const item of customerItemsResult.rows) {
@@ -650,14 +650,13 @@ router.get('/sales/customer/b2b', requireAuth, requireShopId, requireSuperAdminO
           const serialNum = item.serial_number || item.SERIAL_NUMBER;
           const sku = item.sku || item.SKU;
           if (serialNum || sku) {
-            const purchasePrice = await getPurchasePrice(serialNum, sku);
+            const purchasePrice = await getPurchasePrice(serialNum, sku, req.shop_id);
             customerProfit += (revenue - purchasePrice);
           }
         }
         
-        // Scale profit if we limited results
         const totalCountResult = await db.query(
-          `SELECT COUNT(*) as total FROM sales_item si WHERE si.customer_id = $1 AND si.sales_type = 'wholesale' ${dateFilter}`,
+          `SELECT COUNT(*) as total FROM sales_item si WHERE si.shop_id = $1 AND si.customer_id = $2 AND si.sales_type = 'wholesale' ${b2bDateFilter}`,
           customerParams
         );
         const totalCount = parseInt(totalCountResult.rows[0]?.total || customerItemsResult.rows.length);
@@ -694,7 +693,7 @@ router.get('/sales/customer/b2b', requireAuth, requireShopId, requireSuperAdminO
 router.get('/sales/customer/b2c', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
-    const { dateFilter, params } = buildSalesDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params: dateParams } = buildSalesDateFilter(dateFrom, dateTo, period, 2);
 
     const query = `
       SELECT 
@@ -711,24 +710,26 @@ router.get('/sales/customer/b2c', requireAuth, requireShopId, requireSuperAdminO
         MIN(si.purchase_date) as first_purchase_date,
         MAX(si.purchase_date) as last_purchase_date
       FROM sales_item si
-      WHERE si.sales_type = 'retail' ${dateFilter}
+      WHERE si.shop_id = $1 AND si.sales_type = 'retail' ${dateFilter}
       GROUP BY si.customer_id, si.customer_name, si.customer_mobile_number, si.customer_vehicle_number
       ORDER BY total_revenue DESC
     `;
 
+    const params = [req.shop_id, ...dateParams];
     const { rows } = await db.query(query, params);
     
     // Calculate profit for each B2C customer
     const rowsWithProfit = await Promise.all(rows.map(async (row) => {
       let customerProfit = 0;
       try {
+        const { dateFilter: b2cDateFilter, params: b2cDateParams } = buildSalesDateFilter(dateFrom, dateTo, period, 3);
         const customerItemsQuery = `
           SELECT si.SERIAL_NUMBER as serial_number, si.SKU as sku, si.final_amount
           FROM sales_item si
-          WHERE si.customer_id = $1 AND si.sales_type = 'retail' ${dateFilter}
+          WHERE si.shop_id = $1 AND si.customer_id = $2 AND si.sales_type = 'retail' ${b2cDateFilter}
           LIMIT 200
         `;
-        const customerParams = [row.customer_id, ...params];
+        const customerParams = [req.shop_id, row.customer_id, ...b2cDateParams];
         const customerItemsResult = await db.query(customerItemsQuery, customerParams);
         
         for (const item of customerItemsResult.rows) {
@@ -736,14 +737,13 @@ router.get('/sales/customer/b2c', requireAuth, requireShopId, requireSuperAdminO
           const serialNum = item.serial_number || item.SERIAL_NUMBER;
           const sku = item.sku || item.SKU;
           if (serialNum || sku) {
-            const purchasePrice = await getPurchasePrice(serialNum, sku);
+            const purchasePrice = await getPurchasePrice(serialNum, sku, req.shop_id);
             customerProfit += (revenue - purchasePrice);
           }
         }
         
-        // Scale profit if we limited results
         const totalCountResult = await db.query(
-          `SELECT COUNT(*) as total FROM sales_item si WHERE si.customer_id = $1 AND si.sales_type = 'retail' ${dateFilter}`,
+          `SELECT COUNT(*) as total FROM sales_item si WHERE si.shop_id = $1 AND si.customer_id = $2 AND si.sales_type = 'retail' ${b2cDateFilter}`,
           customerParams
         );
         const totalCount = parseInt(totalCountResult.rows[0]?.total || customerItemsResult.rows.length);
@@ -784,9 +784,8 @@ router.get('/sales/customer/b2c', requireAuth, requireShopId, requireSuperAdminO
 router.get('/profit/overall', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
-    const { dateFilter, params } = buildSalesDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params: dateParams } = buildSalesDateFilter(dateFrom, dateTo, period, 2);
 
-    // Get sales data with purchase prices (sample for performance)
     const salesQuery = `
       SELECT 
         si.SERIAL_NUMBER,
@@ -796,11 +795,11 @@ router.get('/profit/overall', requireAuth, requireShopId, requireSuperAdminOrAdm
         si.SERIES,
         si.NAME
       FROM sales_item si
-      WHERE 1=1 ${dateFilter}
+      WHERE si.shop_id = $1 ${dateFilter}
       LIMIT 500
     `;
 
-    const { rows } = await db.query(salesQuery, params);
+    const { rows } = await db.query(salesQuery, [req.shop_id, ...dateParams]);
 
     let totalRevenue = 0;
     let totalPurchaseCost = 0;
@@ -810,7 +809,7 @@ router.get('/profit/overall', requireAuth, requireShopId, requireSuperAdminOrAdm
 
     for (const item of rows) {
       const revenue = parseFloat(item.final_amount || 0);
-      const purchasePrice = await getPurchasePrice(item.serial_number, item.sku);
+      const purchasePrice = await getPurchasePrice(item.serial_number, item.sku, req.shop_id);
       const profit = revenue - purchasePrice;
 
       totalRevenue += revenue;
@@ -858,10 +857,9 @@ router.get('/profit/overall', requireAuth, requireShopId, requireSuperAdminOrAdm
       productProfit[productKey].count += 1;
     }
 
-    // Get total count for scaling
     const totalCountResult = await db.query(
-      `SELECT COUNT(*) as total FROM sales_item si WHERE 1=1 ${dateFilter}`,
-      params
+      `SELECT COUNT(*) as total FROM sales_item si WHERE si.shop_id = $1 ${dateFilter}`,
+      [req.shop_id, ...dateParams]
     );
     const totalCount = parseInt(totalCountResult.rows[0]?.total || rows.length);
     const scaleFactor = totalCount > rows.length ? totalCount / rows.length : 1;
@@ -877,14 +875,23 @@ router.get('/profit/overall', requireAuth, requireShopId, requireSuperAdminOrAdm
         // Convert sales_item date filter to service_requests date filter
         // service_requests uses updated_at for completed services
         if (dateFilter.includes('DATE(si.purchase_date)')) {
-          serviceRequestsDateFilter = ' AND DATE(sr.updated_at) = CURRENT_DATE';
+          serviceRequestsDateFilter = ' AND sr.shop_id = $1 AND DATE(sr.updated_at) = CURRENT_DATE';
+          serviceRequestsParams = [req.shop_id];
         } else if (dateFilter.includes('>=') && dateFilter.includes('<=')) {
-          // Extract dates from params
-          const dateFrom = params[0];
-          const dateTo = params[1];
-          serviceRequestsDateFilter = ' AND DATE(sr.updated_at) >= $1::DATE AND DATE(sr.updated_at) <= $2::DATE';
-          serviceRequestsParams = [dateFrom, dateTo];
+          const df = dateParams[0];
+          const dt = dateParams[1];
+          serviceRequestsDateFilter = ' AND sr.shop_id = $1 AND DATE(sr.updated_at) >= $2::DATE AND DATE(sr.updated_at) <= $3::DATE';
+          serviceRequestsParams = [req.shop_id, df, dt];
+        } else if (dateFilter.includes('CURRENT_DATE')) {
+          serviceRequestsDateFilter = ' AND sr.shop_id = $1 AND DATE(sr.updated_at) = CURRENT_DATE';
+          serviceRequestsParams = [req.shop_id];
+        } else {
+          serviceRequestsDateFilter = ' AND sr.shop_id = $1';
+          serviceRequestsParams = [req.shop_id];
         }
+      } else {
+        serviceRequestsDateFilter = ' AND sr.shop_id = $1';
+        serviceRequestsParams = [req.shop_id];
       }
 
       const serviceRequestsQuery = `
@@ -892,7 +899,7 @@ router.get('/profit/overall', requireAuth, requireShopId, requireSuperAdminOrAdm
         FROM service_requests sr
         WHERE status = 'completed' AND amount IS NOT NULL ${serviceRequestsDateFilter}
       `;
-      const serviceRequestsResult = await db.query(serviceRequestsQuery, serviceRequestsParams.length > 0 ? serviceRequestsParams : []);
+      const serviceRequestsResult = await db.query(serviceRequestsQuery, serviceRequestsParams);
       serviceRequestsRevenue = parseFloat(serviceRequestsResult.rows[0]?.total || 0);
       // Service requests amount is pure profit (100% profit as it's service charge)
       serviceRequestsProfit = serviceRequestsRevenue;
@@ -1067,7 +1074,7 @@ router.get('/commission/details', requireAuth, requireShopId, requireSuperAdminO
 router.get('/charging/services', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
-    const { dateFilter, params } = buildChargingDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params: dateParams } = buildChargingDateFilter(dateFrom, dateTo, period, 2);
 
     const query = `
       SELECT 
@@ -1079,10 +1086,10 @@ router.get('/charging/services', requireAuth, requireShopId, requireSuperAdminOr
         MIN(cs.created_at) as first_service_date,
         MAX(cs.created_at) as last_service_date
       FROM charging_services cs
-      WHERE 1=1 ${dateFilter}
+      WHERE cs.shop_id = $1 ${dateFilter}
     `;
 
-    const { rows } = await db.query(query, params);
+    const { rows } = await db.query(query, [req.shop_id, ...dateParams]);
 
     // Estimate profit (assuming 70% profit margin on charging services)
     const totalRevenue = parseFloat(rows[0]?.total_revenue || 0);
@@ -1108,7 +1115,7 @@ router.get('/charging/services', requireAuth, requireShopId, requireSuperAdminOr
 router.get('/charging/customer', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
-    const { dateFilter, params } = buildChargingDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params: dateParams } = buildChargingDateFilter(dateFrom, dateTo, period, 2);
 
     const query = `
       SELECT 
@@ -1120,12 +1127,12 @@ router.get('/charging/customer', requireAuth, requireShopId, requireSuperAdminOr
         MIN(cs.created_at) as first_service_date,
         MAX(cs.created_at) as last_service_date
       FROM charging_services cs
-      WHERE 1=1 ${dateFilter}
+      WHERE cs.shop_id = $1 ${dateFilter}
       GROUP BY cs.customer_name, cs.customer_mobile_number, cs.customer_email
       ORDER BY total_spent DESC
     `;
 
-    const { rows } = await db.query(query, params);
+    const { rows } = await db.query(query, [req.shop_id, ...dateParams]);
     
     // Calculate totals
     const totals = {
@@ -1255,7 +1262,7 @@ router.get('/summary', requireAuth, requireShopId, requireSuperAdminOrAdmin, asy
             const serialNum = item.serial_number || item.SERIAL_NUMBER;
             const sku = item.sku || item.SKU;
             if (serialNum || sku) {
-              const purchasePrice = await getPurchasePrice(serialNum, sku);
+              const purchasePrice = await getPurchasePrice(serialNum, sku, req.shop_id);
               totalSalesProfit += (revenue - purchasePrice);
             }
           }

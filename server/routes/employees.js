@@ -8,16 +8,16 @@ const router = express.Router();
 // EMPLOYEE CRUD OPERATIONS
 // ============================================
 
-// Get all employees
+// Get all employees (shop-scoped)
 router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { is_active } = req.query;
-    let query = 'SELECT * FROM employees WHERE 1=1';
-    const params = [];
+    let query = 'SELECT * FROM employees WHERE shop_id = $1';
+    const params = [req.shop_id];
 
     if (is_active !== undefined) {
-      query += ` AND is_active = $1`;
       params.push(is_active === 'true');
+      query += ` AND is_active = $${params.length}`;
     }
 
     query += ' ORDER BY created_at DESC';
@@ -34,7 +34,7 @@ router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req
 router.get('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { rows } = await db.query('SELECT * FROM employees WHERE id = $1', [id]);
+    const { rows } = await db.query('SELECT * FROM employees WHERE id = $1 AND shop_id = $2', [id, req.shop_id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Employee not found' });
@@ -57,17 +57,16 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
     }
 
     const { rows } = await db.query(
-      `INSERT INTO employees (full_name, email, phone, address, designation, joining_date, salary)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO employees (full_name, email, phone, address, designation, joining_date, salary, shop_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [full_name, email || null, phone, address || null, designation || null, joining_date || null, salary || null]
+      [full_name, email || null, phone, address || null, designation || null, joining_date || null, salary || null, req.shop_id]
     );
 
-    // Add to history
     await db.query(
       `INSERT INTO employee_history (employee_id, history_type, description, created_by)
        VALUES ($1, 'update', 'Employee created', $2)`,
-      [rows[0].id, req.user.id]
+      [rows[0].id, req.user_id ?? req.user?.id]
     );
 
     res.status(201).json(rows[0]);
@@ -97,9 +96,9 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
            salary = COALESCE($7, salary),
            is_active = COALESCE($8, is_active),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $9
+       WHERE id = $9 AND shop_id = $10
        RETURNING *`,
-      [full_name, email, phone, address, designation, joining_date, salary, is_active, id]
+      [full_name, email, phone, address, designation, joining_date, salary, is_active, id, req.shop_id]
     );
 
     if (rows.length === 0) {
@@ -110,7 +109,7 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
     await db.query(
       `INSERT INTO employee_history (employee_id, history_type, description, created_by)
        VALUES ($1, 'update', 'Employee details updated', $2)`,
-      [id, req.user.id]
+      [id, req.user_id ?? req.user?.id]
     );
 
     res.json(rows[0]);
@@ -129,8 +128,8 @@ router.delete('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, asyn
     }
 
     const { rows } = await db.query(
-      `UPDATE employees SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1::INTEGER RETURNING *`,
-      [id]
+      `UPDATE employees SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1::INTEGER AND shop_id = $2 RETURNING *`,
+      [id, req.shop_id]
     );
 
     if (rows.length === 0) {
@@ -142,7 +141,7 @@ router.delete('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, asyn
       await db.query(
         `INSERT INTO employee_history (employee_id, history_type, description, created_by)
          VALUES ($1::INTEGER, 'update', 'Employee deactivated', $2::INTEGER)`,
-        [id, req.user.id]
+        [id, req.user_id ?? req.user?.id]
       );
     } catch (historyErr) {
       console.error('Failed to add deactivation history (non-critical):', historyErr.message);
@@ -164,8 +163,8 @@ router.patch('/:id/activate', requireAuth, requireShopId, requireSuperAdminOrAdm
     }
 
     const { rows } = await db.query(
-      `UPDATE employees SET is_active = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1::INTEGER RETURNING *`,
-      [id]
+      `UPDATE employees SET is_active = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1::INTEGER AND shop_id = $2 RETURNING *`,
+      [id, req.shop_id]
     );
 
     if (rows.length === 0) {
@@ -177,7 +176,7 @@ router.patch('/:id/activate', requireAuth, requireShopId, requireSuperAdminOrAdm
       await db.query(
         `INSERT INTO employee_history (employee_id, history_type, description, created_by)
          VALUES ($1::INTEGER, 'update', 'Employee activated', $2::INTEGER)`,
-        [id, req.user.id]
+        [id, req.user_id ?? req.user?.id]
       );
     } catch (historyErr) {
       console.error('Failed to add activation history (non-critical):', historyErr.message);
@@ -202,10 +201,9 @@ router.delete('/:id/permanent', requireAuth, requireShopId, requireSuperAdminOrA
       return res.status(400).json({ error: 'Invalid employee ID' });
     }
 
-    // Check if employee exists
     const employeeCheck = await client.query(
-      `SELECT id, full_name FROM employees WHERE id = $1::INTEGER`,
-      [id]
+      `SELECT id, full_name FROM employees WHERE id = $1::INTEGER AND shop_id = $2`,
+      [id, req.shop_id]
     );
 
     if (employeeCheck.rows.length === 0) {
@@ -226,8 +224,7 @@ router.delete('/:id/permanent', requireAuth, requireShopId, requireSuperAdminOrA
     // Delete daily attendance
     await client.query(`DELETE FROM daily_attendance WHERE employee_id = $1::INTEGER`, [id]);
     
-    // Finally delete the employee
-    await client.query(`DELETE FROM employees WHERE id = $1::INTEGER`, [id]);
+    await client.query(`DELETE FROM employees WHERE id = $1::INTEGER AND shop_id = $2`, [id, req.shop_id]);
 
     await client.query('COMMIT');
     res.json({ message: 'Employee and all related data deleted permanently', employee: employeeCheck.rows[0] });
@@ -244,11 +241,14 @@ router.delete('/:id/permanent', requireAuth, requireShopId, requireSuperAdminOrA
 // ATTENDANCE OPERATIONS
 // ============================================
 
-// Get attendance for an employee
+// Get attendance for an employee (validate employee belongs to shop)
 router.get('/:id/attendance', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { month, year } = req.query;
+
+    const empCheck = await db.query('SELECT id FROM employees WHERE id = $1 AND shop_id = $2', [id, req.shop_id]);
+    if (!empCheck.rows.length) return res.status(404).json({ error: 'Employee not found' });
 
     let query = 'SELECT * FROM employee_attendance WHERE employee_id = $1';
     const params = [id];
@@ -276,6 +276,8 @@ router.post('/:id/attendance', requireAuth, requireShopId, requireSuperAdminOrAd
     if (isNaN(id)) {
       return res.status(400).json({ error: 'Invalid employee ID' });
     }
+    const empCheck = await db.query('SELECT id FROM employees WHERE id = $1 AND shop_id = $2', [id, req.shop_id]);
+    if (!empCheck.rows.length) return res.status(404).json({ error: 'Employee not found' });
     const { attendance_month, total_days, present_days, half_days, absent_days, leave_days, notes } = req.body;
 
     if (!attendance_month) {
@@ -347,8 +349,8 @@ router.post('/:id/attendance', requireAuth, requireShopId, requireSuperAdminOrAd
       const historyDesc = `Attendance updated for ${monthFormatted}: ${finalPresent} present, ${finalHalf} half day, ${finalAbsent} absent, ${finalLeave} leave`;
       await db.query(
         `INSERT INTO employee_history (employee_id, history_type, description, created_by)
-         VALUES ($1::INTEGER, $2, $3::INTEGER)`,
-        [id, historyDesc, req.user.id]
+         VALUES ($1::INTEGER, 'update', $2, $3::INTEGER)`,
+        [id, historyDesc, req.user_id ?? req.user?.id]
       );
     } catch (historyErr) {
       console.error('Failed to add attendance history (non-critical):', historyErr.message);
@@ -371,6 +373,8 @@ router.post('/:id/attendance', requireAuth, requireShopId, requireSuperAdminOrAd
 router.get('/:id/daily-attendance', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const empCheck = await db.query('SELECT id FROM employees WHERE id = $1 AND shop_id = $2', [id, req.shop_id]);
+    if (!empCheck.rows.length) return res.status(404).json({ error: 'Employee not found' });
     const { date, month, year } = req.query;
 
     let query = `
@@ -464,6 +468,8 @@ router.post('/:id/daily-attendance', requireAuth, requireShopId, requireSuperAdm
     if (isNaN(employeeId)) {
       return res.status(400).json({ error: 'Invalid employee ID' });
     }
+    const empCheck = await db.query('SELECT id FROM employees WHERE id = $1 AND shop_id = $2', [employeeId, req.shop_id]);
+    if (!empCheck.rows.length) return res.status(404).json({ error: 'Employee not found' });
 
     const { attendance_date, status, check_in_time, check_out_time, notes } = req.body;
 
@@ -516,7 +522,7 @@ router.post('/:id/daily-attendance', requireAuth, requireShopId, requireSuperAdm
           normalizedCheckIn,
           normalizedCheckOut,
           normalizedNotes,
-          req.user.id
+          req.user_id ?? req.user?.id
         ]
       );
       
@@ -608,10 +614,18 @@ router.post('/:id/daily-attendance', requireAuth, requireShopId, requireSuperAdm
 // Bulk mark attendance for multiple employees on same date
 router.post('/daily-attendance/bulk', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
-    const { attendance_date, employees } = req.body; // employees: [{employee_id, status, check_in_time, check_out_time, notes}]
+    const { attendance_date, employees } = req.body;
 
     if (!attendance_date || !employees || !Array.isArray(employees) || employees.length === 0) {
       return res.status(400).json({ error: 'Attendance date and employees array are required' });
+    }
+    // Validate all employee IDs belong to this shop
+    const empIds = [...new Set(employees.map(e => e.employee_id).filter(Boolean))];
+    if (empIds.length > 0) {
+      const validEmps = await db.query('SELECT id FROM employees WHERE id = ANY($1::int[]) AND shop_id = $2', [empIds, req.shop_id]);
+      const validSet = new Set(validEmps.rows.map(r => r.id));
+      const invalid = empIds.filter(id => !validSet.has(parseInt(id)));
+      if (invalid.length) return res.status(404).json({ error: `Employee(s) not found: ${invalid.join(', ')}` });
     }
 
     const results = [];
@@ -650,7 +664,7 @@ router.post('/daily-attendance/bulk', requireAuth, requireShopId, requireSuperAd
             normalizedCheckIn,
             normalizedCheckOut,
             normalizedNotes,
-            req.user.id
+            req.user_id ?? req.user?.id
           ]
         );
 
@@ -734,6 +748,8 @@ router.post('/daily-attendance/bulk', requireAuth, requireShopId, requireSuperAd
 router.get('/:id/payments', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const empCheck = await db.query('SELECT id FROM employees WHERE id = $1 AND shop_id = $2', [id, req.shop_id]);
+    if (!empCheck.rows.length) return res.status(404).json({ error: 'Employee not found' });
     const { month, year } = req.query;
 
     let query = `
@@ -781,11 +797,12 @@ router.post('/:id/payments', requireAuth, requireShopId, requireSuperAdminOrAdmi
       return res.status(400).json({ error: 'Payment amount must be greater than 0' });
     }
 
-    // Parse employee id
     const employeeId = parseInt(id, 10);
     if (isNaN(employeeId)) {
       return res.status(400).json({ error: 'Invalid employee ID' });
     }
+    const empCheck = await db.query('SELECT id FROM employees WHERE id = $1 AND shop_id = $2', [employeeId, req.shop_id]);
+    if (!empCheck.rows.length) return res.status(404).json({ error: 'Employee not found' });
 
     // Insert payment with explicit type casts
     const paymentResult = await db.query(
@@ -793,7 +810,7 @@ router.post('/:id/payments', requireAuth, requireShopId, requireSuperAdminOrAdmi
        (employee_id, payment_month, amount, payment_date, payment_method, notes, created_by)
        VALUES ($1::INTEGER, $2::DATE, $3::DECIMAL, $4::DATE, $5, $6, $7::INTEGER)
        RETURNING *`,
-      [employeeId, monthStr, paymentAmount, payment_date, payment_method || null, notes || null, req.user.id]
+      [employeeId, monthStr, paymentAmount, payment_date, payment_method || null, notes || null, req.user_id ?? req.user?.id]
     );
 
     // Add to history - build description in JS to avoid PostgreSQL parameter type inference issues
@@ -803,7 +820,7 @@ router.post('/:id/payments', requireAuth, requireShopId, requireSuperAdminOrAdmi
       await db.query(
         `INSERT INTO employee_history (employee_id, history_type, description, amount, reference_id, created_by)
          VALUES ($1::INTEGER, $2, $3, $4::DECIMAL, $5::INTEGER, $6::INTEGER)`,
-        [employeeId, 'payment', historyDesc, paymentAmount, paymentResult.rows[0].id, req.user.id]
+        [employeeId, 'payment', historyDesc, paymentAmount, paymentResult.rows[0].id, req.user_id ?? req.user?.id]
       );
     } catch (historyErr) {
       console.error('Failed to add payment history (non-critical):', historyErr.message);
@@ -834,8 +851,8 @@ router.delete('/payments/:paymentId', requireAuth, requireShopId, requireSuperAd
         `SELECT ep.*, e.full_name as employee_name
          FROM employee_payments ep
          JOIN employees e ON ep.employee_id = e.id
-         WHERE ep.id = $1`,
-        [paymentId]
+         WHERE ep.id = $1 AND e.shop_id = $2`,
+        [paymentId, req.shop_id]
       );
 
       if (paymentResult.rows.length === 0) {
@@ -879,7 +896,7 @@ router.delete('/payments/:paymentId', requireAuth, requireShopId, requireSuperAd
       await client.query(
         `INSERT INTO employee_history (employee_id, history_type, description, amount, created_by)
          VALUES ($1, 'payment', $2, $3, $4)`,
-        [payment.employee_id, historyDescription, -paymentAmount, req.user.id]
+        [payment.employee_id, historyDescription, -paymentAmount, req.user_id ?? req.user?.id]
       );
 
       await client.query('COMMIT');
@@ -904,6 +921,8 @@ router.delete('/payments/:paymentId', requireAuth, requireShopId, requireSuperAd
 router.get('/:id/history', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const empCheck = await db.query('SELECT id FROM employees WHERE id = $1 AND shop_id = $2', [id, req.shop_id]);
+    if (!empCheck.rows.length) return res.status(404).json({ error: 'Employee not found' });
 
     const { rows } = await db.query(
       `SELECT eh.*, u.full_name as created_by_name

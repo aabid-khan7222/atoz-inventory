@@ -16,13 +16,14 @@ const SERVICE_TYPES = {
 const FUEL_TYPES = ['petrol', 'diesel', 'gas', 'electric'];
 const STATUS_VALUES = ['requested', 'pending', 'in_progress', 'completed', 'cancelled'];
 
-async function getCustomerContact(userId) {
+async function getCustomerContact(userId, shopId) {
+  if (!shopId) return null;
   const result = await db.query(
     `SELECT id, full_name, phone, email 
      FROM users 
-     WHERE id = $1 
+     WHERE id = $1 AND shop_id = $2
      LIMIT 1`,
-    [userId]
+    [userId, shopId]
   );
   return result.rows[0] || null;
 }
@@ -68,7 +69,7 @@ router.post('/', requireAuth, requireShopId, async (req, res) => {
     }
 
     // Fetch customer details for audit + admin visibility
-    const customer = await getCustomerContact(req.user.id);
+    const customer = await getCustomerContact(req.user_id ?? req.user?.id, req.shop_id);
     const customerName = customer?.full_name || req.user.full_name || 'Customer';
     const customerPhone = customer?.phone || req.user.phone || null;
     const customerEmail = (customer?.email || req.user.email || '').toLowerCase() || null;
@@ -89,13 +90,14 @@ router.post('/', requireAuth, requireShopId, async (req, res) => {
         battery_ampere_rating,
         notes,
         status,
+        shop_id,
         created_at,
         updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'requested', NOW(), NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'requested', $13, NOW(), NOW()
       ) RETURNING *`,
       [
-        req.user.id,
+        req.user_id ?? req.user?.id,
         customerName,
         customerPhone,
         customerEmail,
@@ -115,7 +117,8 @@ router.post('/', requireAuth, requireShopId, async (req, res) => {
     // Notify admins and super admins
     try {
       const adminUsers = await db.query(
-        `SELECT id FROM users WHERE role_id IN (1, 2) AND is_active = true`
+        `SELECT id FROM users WHERE role_id IN (1, 2) AND is_active = true AND shop_id = $1`,
+        [req.shop_id]
       );
       const adminIds = adminUsers.rows.map((row) => row.id);
 
@@ -164,9 +167,9 @@ router.get('/my', requireAuth, async (req, res) => {
       limit = 10
     } = req.query;
 
-    const filters = ['user_id = $1'];
-    const params = [req.user.id];
-    let paramIndex = params.length;
+    const filters = ['user_id = $1', 'shop_id = $2'];
+    const params = [req.user_id ?? req.user?.id, req.shop_id];
+    let paramIndex = 2;
 
     if (status && status !== 'all') {
       paramIndex += 1;
@@ -224,9 +227,9 @@ router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req
       limit = 20
     } = req.query;
 
-    const filters = ['1=1'];
-    const params = [];
-    let paramIndex = 0;
+    const filters = ['shop_id = $1'];
+    const params = [req.shop_id];
+    let paramIndex = 1;
 
     if (status && status !== 'all') {
       paramIndex += 1;
@@ -240,7 +243,7 @@ router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req
       params.push(serviceType);
     }
 
-    const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    const whereClause = `WHERE ${filters.join(' AND ')}`;
 
     const countResult = await db.query(
       `SELECT COUNT(*) AS count FROM service_requests ${whereClause}`,
@@ -281,8 +284,8 @@ router.post('/pending/:id/confirm', requireAuth, requireShopId, requireSuperAdmi
 
     // Get the pending request
     const pendingResult = await db.query(
-      `SELECT * FROM service_requests WHERE id = $1 AND status = 'requested'`,
-      [id]
+      `SELECT * FROM service_requests WHERE id = $1 AND status = 'requested' AND shop_id = $2`,
+      [id, req.shop_id]
     );
 
     if (!pendingResult.rows.length) {
@@ -291,13 +294,12 @@ router.post('/pending/:id/confirm', requireAuth, requireShopId, requireSuperAdmi
 
     const pendingRequest = pendingResult.rows[0];
 
-    // Update status from 'requested' to 'pending' (confirmed)
     const updateResult = await db.query(
       `UPDATE service_requests
        SET status = 'pending', updated_at = NOW()
-       WHERE id = $1
+       WHERE id = $1 AND shop_id = $2
        RETURNING *`,
-      [id]
+      [id, req.shop_id]
     );
 
     const confirmedService = updateResult.rows[0];
@@ -331,8 +333,8 @@ router.delete('/pending/:id/cancel', requireAuth, requireShopId, requireSuperAdm
 
     // Get the pending request before deleting (only if status is 'requested')
     const pendingResult = await db.query(
-      `SELECT * FROM service_requests WHERE id = $1 AND status = 'requested'`,
-      [id]
+      `SELECT * FROM service_requests WHERE id = $1 AND status = 'requested' AND shop_id = $2`,
+      [id, req.shop_id]
     );
 
     if (!pendingResult.rows.length) {
@@ -341,10 +343,9 @@ router.delete('/pending/:id/cancel', requireAuth, requireShopId, requireSuperAdm
 
     const pendingRequest = pendingResult.rows[0];
 
-    // Delete from service_requests (only if status is 'requested', not confirmed yet)
     await db.query(
-      `DELETE FROM service_requests WHERE id = $1 AND status = 'requested'`,
-      [id]
+      `DELETE FROM service_requests WHERE id = $1 AND status = 'requested' AND shop_id = $2`,
+      [id, req.shop_id]
     );
 
     // Notify customer
@@ -376,18 +377,17 @@ router.delete('/my/pending/:id/cancel', requireAuth, requireShopId, async (req, 
 
     // Get the pending request and verify ownership (only if status is 'requested')
     const pendingResult = await db.query(
-      `SELECT * FROM service_requests WHERE id = $1 AND user_id = $2 AND status = 'requested'`,
-      [id, req.user.id]
+      `SELECT * FROM service_requests WHERE id = $1 AND user_id = $2 AND status = 'requested' AND shop_id = $3`,
+      [id, req.user_id ?? req.user?.id, req.shop_id]
     );
 
     if (!pendingResult.rows.length) {
       return res.status(404).json({ error: 'Pending service request not found, already confirmed, or you do not have permission to cancel it' });
     }
 
-    // Delete from service_requests (only if status is 'requested', not confirmed yet)
     await db.query(
-      `DELETE FROM service_requests WHERE id = $1 AND user_id = $2 AND status = 'requested'`,
-      [id, req.user.id]
+      `DELETE FROM service_requests WHERE id = $1 AND user_id = $2 AND status = 'requested' AND shop_id = $3`,
+      [id, req.user_id ?? req.user?.id, req.shop_id]
     );
 
     res.json({ success: true, message: 'Service request cancelled successfully' });

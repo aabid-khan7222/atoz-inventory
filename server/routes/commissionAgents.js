@@ -50,17 +50,17 @@ router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req
         created_at,
         updated_at
       FROM commission_agents
-      WHERE 1=1
+      WHERE shop_id = $1
     `;
-    const params = [];
+    const params = [req.shop_id];
     
     if (search) {
-      query += ` AND (
-        ${nameColumn} ILIKE $1 OR
-        ${mobileColumn} ILIKE $1 OR
-        COALESCE(email, '') ILIKE $1
-      )`;
       params.push(`%${search}%`);
+      query += ` AND (
+        ${nameColumn} ILIKE $2 OR
+        ${mobileColumn} ILIKE $2 OR
+        COALESCE(email, '') ILIKE $2
+      )`;
     }
     
     query += ` ORDER BY ${nameColumn} ASC`;
@@ -87,8 +87,8 @@ router.get('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
     }
     
     const result = await db.query(
-      `SELECT * FROM commission_agents WHERE id = $1`,
-      [id]
+      `SELECT * FROM commission_agents WHERE id = $1 AND shop_id = $2`,
+      [id, req.shop_id]
     );
     
     if (result.rows.length === 0) {
@@ -124,8 +124,8 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
     
     // Check if agent with same mobile number already exists
     const existing = await db.query(
-      `SELECT id FROM commission_agents WHERE mobile_number = $1`,
-      [cleanMobile]
+      `SELECT id FROM commission_agents WHERE mobile_number = $1 AND shop_id = $2`,
+      [cleanMobile, req.shop_id]
     );
     
     if (existing.rows.length > 0) {
@@ -138,14 +138,15 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
     // Insert new agent
     const result = await db.query(
       `INSERT INTO commission_agents (
-        name, mobile_number, email, address
-      ) VALUES ($1, $2, $3, $4)
+        name, mobile_number, email, address, shop_id
+      ) VALUES ($1, $2, $3, $4, $5)
       RETURNING *`,
       [
         name.trim(),
         cleanMobile,
         email ? email.trim() : null,
-        address ? address.trim() : null
+        address ? address.trim() : null,
+        req.shop_id
       ]
     );
     
@@ -173,8 +174,8 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
     
     // Check if agent exists
     const existing = await db.query(
-      `SELECT id FROM commission_agents WHERE id = $1`,
-      [id]
+      `SELECT id FROM commission_agents WHERE id = $1 AND shop_id = $2`,
+      [id, req.shop_id]
     );
     
     if (existing.rows.length === 0) {
@@ -203,8 +204,8 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
       
       // Check if another agent has this mobile number
       const duplicate = await db.query(
-        `SELECT id FROM commission_agents WHERE mobile_number = $1 AND id != $2`,
-        [cleanMobile, id]
+        `SELECT id FROM commission_agents WHERE mobile_number = $1 AND id != $2 AND shop_id = $3`,
+        [cleanMobile, id, req.shop_id]
       );
       
       if (duplicate.rows.length > 0) {
@@ -233,12 +234,12 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
     }
     
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
-    params.push(id);
+    params.push(id, req.shop_id);
     
     const result = await db.query(
       `UPDATE commission_agents 
        SET ${updates.join(', ')}
-       WHERE id = $${paramCount}
+       WHERE id = $${paramCount} AND shop_id = $${paramCount + 1}
        RETURNING *`,
       params
     );
@@ -277,11 +278,11 @@ router.get('/:id/commission-history', requireAuth, requireShopId, requireSuperAd
         si.purchase_date,
         si.created_at
       FROM sales_item si
-      WHERE si.commission_agent_id = $1
+      WHERE si.commission_agent_id = $1 AND si.shop_id = $2
         AND si.has_commission = true
     `;
-    const params = [id];
-    let paramCount = 2;
+    const params = [id, req.shop_id];
+    let paramCount = 3;
     
     if (dateFrom) {
       query += ` AND si.purchase_date >= $${paramCount}`;

@@ -50,10 +50,10 @@ router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req
         discount_percent,
         created_at
       FROM purchases
-      WHERE 1=1
+      WHERE shop_id = $1
     `;
-    const params = [];
-    let paramCount = 0;
+    const params = [req.shop_id];
+    let paramCount = 1;
 
     if (productTypeId) {
       paramCount++;
@@ -109,11 +109,9 @@ router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req
 
     const { rows } = await db.query(query, params);
 
-    // OPTIMIZED: Get total count for pagination (use same filters as main query)
-    // For better performance, we can estimate if no search/filters, but for accuracy we count
-    let countQuery = `SELECT COUNT(*) as total FROM purchases WHERE 1=1`;
-    const countParams = [];
-    let countParamCount = 0;
+    let countQuery = `SELECT COUNT(*) as total FROM purchases WHERE shop_id = $1`;
+    const countParams = [req.shop_id];
+    let countParamCount = 1;
 
     if (productTypeId) {
       countParamCount++;
@@ -191,10 +189,10 @@ router.get('/stats', requireAuth, requireShopId, requireSuperAdminOrAdmin, async
         MIN(purchase_date) as first_purchase_date,
         MAX(purchase_date) as last_purchase_date
       FROM purchases
-      WHERE 1=1
+      WHERE shop_id = $1
     `;
-    const params = [];
-    let paramCount = 0;
+    const params = [req.shop_id];
+    let paramCount = 1;
 
     if (productTypeId) {
       paramCount++;

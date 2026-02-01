@@ -16,19 +16,26 @@ function getProductTypeId(category) {
   return typeMap[category] || 1;
 }
 
-// Helper function to generate purchase number
-async function generatePurchaseNumber(purchaseDate) {
+async function generatePurchaseNumber(purchaseDate, shopId) {
   const dateObj = purchaseDate ? new Date(purchaseDate) : new Date();
   const dateStr = dateObj.toISOString().slice(0, 10).replace(/-/g, '');
 
   try {
-    const result = await db.query(
-      `SELECT purchase_number FROM purchases 
-       WHERE purchase_number LIKE $1 
-       ORDER BY purchase_number DESC 
-       LIMIT 1`,
-      [`PO-${dateStr}-%`]
-    );
+    const result = shopId != null
+      ? await db.query(
+          `SELECT purchase_number FROM purchases 
+           WHERE purchase_number LIKE $1 AND shop_id = $2
+           ORDER BY purchase_number DESC 
+           LIMIT 1`,
+          [`PO-${dateStr}-%`, shopId]
+        )
+      : await db.query(
+          `SELECT purchase_number FROM purchases 
+           WHERE purchase_number LIKE $1 
+           ORDER BY purchase_number DESC 
+           LIMIT 1`,
+          [`PO-${dateStr}-%`]
+        );
 
     if (result.rows.length === 0) {
       return `PO-${dateStr}-0001`;
@@ -43,16 +50,16 @@ async function generatePurchaseNumber(purchaseDate) {
   }
 }
 
-// Helper function to get average purchase price for a SKU
-async function getAveragePurchasePrice(productSku) {
+async function getAveragePurchasePrice(productSku, shopId) {
+  if (!shopId) return 0;
   try {
     const result = await db.query(
-      `SELECT AVG(amount) as avg_amount 
+      `SELECT AVG(purchase_value) as avg_amount 
        FROM purchases 
-       WHERE product_sku = $1 
-       AND amount > 0
-       AND supplier_name != 'replace'`,
-      [productSku]
+       WHERE product_sku = $1 AND shop_id = $2
+       AND purchase_value > 0
+       AND (supplier_name IS NULL OR supplier_name != 'replace')`,
+      [productSku, shopId]
     );
 
     if (result.rows.length > 0 && result.rows[0].avg_amount) {
@@ -86,19 +93,20 @@ router.get('/sold-serial-numbers', requireAuth, requireShopId, requireSuperAdmin
       JOIN products p ON si.product_id = p.id
       WHERE si.SERIAL_NUMBER IS NOT NULL 
         AND TRIM(si.SERIAL_NUMBER) != ''
+        AND si.shop_id = $1
     `;
     
-    const params = [];
+    const params = [req.shop_id];
     if (search && search.trim()) {
-      query += ` AND (
-        si.SERIAL_NUMBER ILIKE $1 OR
-        si.customer_name ILIKE $1 OR
-        si.customer_mobile_number ILIKE $1 OR
-        si.customer_vehicle_number ILIKE $1 OR
-        p.name ILIKE $1 OR
-        p.sku ILIKE $1
-      )`;
       params.push(`%${search.trim()}%`);
+      query += ` AND (
+        si.SERIAL_NUMBER ILIKE $2 OR
+        si.customer_name ILIKE $2 OR
+        si.customer_mobile_number ILIKE $2 OR
+        si.customer_vehicle_number ILIKE $2 OR
+        p.name ILIKE $2 OR
+        p.sku ILIKE $2
+      )`;
     }
     
     query += ` ORDER BY si.purchase_date DESC, serial_number ASC LIMIT 1000`;
@@ -134,10 +142,10 @@ router.get('/sale-by-serial/:serialNumber', requireAuth, requireShopId, requireS
         p.sku as product_sku
       FROM sales_item si
       JOIN products p ON si.product_id = p.id
-      WHERE TRIM(si.SERIAL_NUMBER) = $1
+      WHERE TRIM(si.SERIAL_NUMBER) = $1 AND si.shop_id = $2
       ORDER BY si.purchase_date DESC
       LIMIT 1`,
-      [serialNumber.trim()]
+      [serialNumber.trim(), req.shop_id]
     );
     
     if (result.rows.length === 0) {
@@ -449,11 +457,11 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
               ? purchaseDate.toISOString().split('T')[0] 
               : new Date(purchaseDate).toISOString().split('T')[0];
             
-            const purchaseNumber = await generatePurchaseNumber(purchaseDateStr);
+            const purchaseNumber = await generatePurchaseNumber(purchaseDateStr, req.shop_id);
             const productTypeId = product.product_type_id;
             
             // Get average purchase price for this SKU
-            const avgPurchasePrice = await getAveragePurchasePrice(product.sku);
+            const avgPurchasePrice = await getAveragePurchasePrice(product.sku, req.shop_id);
             
             // Insert into purchases table
             await client.query(
@@ -829,11 +837,11 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
               ? purchaseDate.toISOString().split('T')[0] 
               : new Date(purchaseDate).toISOString().split('T')[0];
             
-            const purchaseNumber = await generatePurchaseNumber(purchaseDateStr);
+            const purchaseNumber = await generatePurchaseNumber(purchaseDateStr, req.shop_id);
             const productTypeId = product.product_type_id;
             
             // Get average purchase price for this SKU
-            const avgPurchasePrice = await getAveragePurchasePrice(product.sku);
+            const avgPurchasePrice = await getAveragePurchasePrice(product.sku, req.shop_id);
             
             // Insert into purchases table
             await client.query(

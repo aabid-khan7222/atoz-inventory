@@ -111,10 +111,10 @@ router.get('/battery-status/:serialNumber', requireAuth, requireShopId, async (r
       JOIN products p ON si.product_id = p.id
       JOIN users u ON si.customer_id = u.id
       LEFT JOIN customer_profiles cp ON u.id = cp.user_id
-      WHERE si.SERIAL_NUMBER = $1
+      WHERE si.SERIAL_NUMBER = $1 AND si.shop_id = $2
       ORDER BY si.purchase_date DESC
       LIMIT 1`,
-      [serialNumber]
+      [serialNumber, req.shop_id]
     );
 
     if (saleItemResult.rows.length === 0) {
@@ -141,10 +141,10 @@ router.get('/battery-status/:serialNumber', requireAuth, requireShopId, async (r
         br.new_serial_number,
         br.new_invoice_number
       FROM battery_replacements br
-      WHERE br.original_serial_number = $1
+      WHERE br.original_serial_number = $1 AND br.shop_id = $2
       ORDER BY br.replacement_date DESC
       LIMIT 1`,
-      [serialNumber]
+      [serialNumber, req.shop_id]
     );
 
     const isReplaced = replacementCheck.rows.length > 0;

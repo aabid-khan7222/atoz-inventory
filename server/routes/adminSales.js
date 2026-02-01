@@ -32,21 +32,30 @@ function isBusinessCustomerType(userType) {
   return (userType || '').toLowerCase() === 'b2b';
 }
 
-// Generate invoice number
-async function generateInvoiceNumber() {
+// Generate invoice number (shop-scoped)
+async function generateInvoiceNumber(shopId) {
   try {
+    if (shopId != null) {
+      const result = await db.query(
+        `SELECT invoice_number FROM sales_item WHERE invoice_number LIKE $1 AND shop_id = $2 ORDER BY invoice_number DESC LIMIT 1`,
+        [`INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-%`, shopId]
+      );
+      if (result.rows[0]) {
+        const last = result.rows[0].invoice_number.split('-')[2];
+        return `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(parseInt(last, 10) + 1).padStart(4, '0')}`;
+      }
+    }
     const result = await db.query('SELECT generate_invoice_number() as invoice_number');
     return result.rows[0].invoice_number;
   } catch (err) {
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-    const timestamp = Date.now();
-    return `INV-${dateStr}-${timestamp.toString().slice(-4)}`;
+    return `INV-${dateStr}-${Date.now().toString().slice(-4)}`;
   }
 }
 
-// Find or create customer account
-async function findOrCreateCustomer(email, mobileNumber, customerName, salesType, client, customerBusinessName, customerGstNumber, customerBusinessAddress) {
+// Find or create customer account (shopId required - from JWT)
+async function findOrCreateCustomer(email, mobileNumber, customerName, salesType, client, customerBusinessName, customerGstNumber, customerBusinessAddress, shopId) {
   try {
     console.log('[findOrCreateCustomer] Starting with:', { email, mobileNumber, customerName, salesType });
     
@@ -64,15 +73,16 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
     const normalizedEmail = email.toLowerCase().trim();
     const normalizedMobile = mobileNumber.trim();
 
-    // Try to find by email (only customers, role_id >= 3)
+    if (!shopId) throw new Error('shop_id required for findOrCreateCustomer');
+    
     let customerResult = await client.query(
-      `SELECT id, email, phone, user_type FROM users WHERE LOWER(email) = $1 AND role_id >= 3 LIMIT 1`,
-      [normalizedEmail]
+      `SELECT id, email, phone, user_type FROM users WHERE LOWER(email) = $1 AND role_id >= 3 AND shop_id = $2 LIMIT 1`,
+      [normalizedEmail, shopId]
     );
 
     if (customerResult.rows.length > 0) {
       const customer = customerResult.rows[0];
-    customer.was_auto_created = false;
+      customer.was_auto_created = false;
       console.log('[findOrCreateCustomer] Found existing customer by email:', customer.id);
       
       // Check if company_address column exists
@@ -145,15 +155,14 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
       return customer;
     }
 
-    // Try to find by mobile number (only customers, role_id >= 3)
     customerResult = await client.query(
-      `SELECT id, email, phone, user_type FROM users WHERE phone = $1 AND role_id >= 3 LIMIT 1`,
-      [normalizedMobile]
+      `SELECT id, email, phone, user_type FROM users WHERE phone = $1 AND role_id >= 3 AND shop_id = $2 LIMIT 1`,
+      [normalizedMobile, shopId]
     );
 
     if (customerResult.rows.length > 0) {
       const customer = customerResult.rows[0];
-    customer.was_auto_created = false;
+      customer.was_auto_created = false;
       console.log('[findOrCreateCustomer] Found existing customer by phone:', customer.id);
       
       // Check if company_address column exists
@@ -245,13 +254,12 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
     // Password = mobile number
     const hashedPassword = await bcrypt.hash(normalizedMobile, 10);
 
-    // Insert user - password column is required (NOT NULL constraint)
     const insertResult = await client.query(
       `INSERT INTO users (
-        full_name, email, phone, password, role_id, user_type, is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        full_name, email, phone, password, role_id, user_type, is_active, shop_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id, email, phone, user_type`,
-      [customerName.trim(), normalizedEmail, normalizedMobile, hashedPassword, customerRoleId, userType, true]
+      [customerName.trim(), normalizedEmail, normalizedMobile, hashedPassword, customerRoleId, userType, true, shopId]
     );
 
     if (!insertResult.rows || insertResult.rows.length === 0) {
@@ -343,15 +351,16 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
   }
 }
 
-// Get oldest available serial numbers (FIFO)
-async function getOldestSerialNumbers(productId, quantity, client) {
+// Get oldest available serial numbers (FIFO, shop-scoped)
+async function getOldestSerialNumbers(productId, quantity, client, shopId) {
+  if (!shopId) throw new Error('shop_id required');
   const result = await client.query(
     `SELECT serial_number, created_at
      FROM stock
-     WHERE product_id = $1 AND status = 'available' AND serial_number IS NOT NULL
+     WHERE product_id = $1 AND status = 'available' AND serial_number IS NOT NULL AND shop_id = $3
      ORDER BY created_at ASC, purchase_date ASC
      LIMIT $2`,
-    [productId, quantity]
+    [productId, quantity, shopId]
   );
 
   if (result.rows.length < quantity) {
@@ -378,8 +387,8 @@ function calculateGSTBreakdown(mrp, quantity) {
   };
 }
 
-// Find or create commission agent
-async function findOrCreateCommissionAgent(agentName, agentMobile, client) {
+// Find or create commission agent (shop-scoped)
+async function findOrCreateCommissionAgent(agentName, agentMobile, client, shopId) {
   if (!agentName || !agentMobile) {
     return null;
   }
@@ -420,25 +429,25 @@ async function findOrCreateCommissionAgent(agentName, agentMobile, client) {
     throw new Error('Invalid mobile number for commission agent');
   }
 
+  if (!shopId) return null;
+
   const nameColumn = hasNewSchema ? 'name' : 'full_name';
   const mobileColumn = hasNewSchema ? 'mobile_number' : 'phone';
 
-  // Try to find existing agent by mobile number
   const existingResult = await client.query(
-    `SELECT id FROM commission_agents WHERE ${mobileColumn} = $1 LIMIT 1`,
-    [cleanMobile]
+    `SELECT id FROM commission_agents WHERE ${mobileColumn} = $1 AND shop_id = $2 LIMIT 1`,
+    [cleanMobile, shopId]
   );
 
   if (existingResult.rows.length > 0) {
     return existingResult.rows[0].id;
   }
 
-  // Create new agent
   const insertResult = await client.query(
-    `INSERT INTO commission_agents (${nameColumn}, ${mobileColumn})
-     VALUES ($1, $2)
+    `INSERT INTO commission_agents (${nameColumn}, ${mobileColumn}, shop_id)
+     VALUES ($1, $2, $3)
      RETURNING id`,
-    [agentName.trim(), cleanMobile]
+    [agentName.trim(), cleanMobile, shopId]
   );
 
   return insertResult.rows[0].id;
@@ -490,7 +499,6 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
     // If email not provided, generate one from phone number
     const finalCustomerEmail = customerEmail || `${customerMobileNumber}@customer.local`;
 
-    // Find or create customer (same for both formats)
     const customer = await findOrCreateCustomer(
       finalCustomerEmail,
       customerMobileNumber,
@@ -499,7 +507,8 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
       client,
       customerBusinessName,
       customerGstNumber,
-      customerBusinessAddress
+      customerBusinessAddress,
+      req.shop_id
     );
 
     // Handle commission agent (if commission is applicable)
@@ -511,10 +520,9 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
         // Use existing agent
         finalCommissionAgentId = parseInt(commissionAgentId, 10);
         
-        // Verify agent exists
         const agentCheck = await client.query(
-          `SELECT id FROM commission_agents WHERE id = $1`,
-          [finalCommissionAgentId]
+          `SELECT id FROM commission_agents WHERE id = $1 AND shop_id = $2`,
+          [finalCommissionAgentId, req.shop_id]
         );
         
         if (agentCheck.rows.length === 0) {
@@ -527,7 +535,8 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
           finalCommissionAgentId = await findOrCreateCommissionAgent(
             commissionAgentName,
             commissionAgentMobile,
-            client
+            client,
+            req.shop_id
           );
         } catch (agentErr) {
           await client.query('ROLLBACK');
@@ -554,8 +563,7 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
       finalCommissionAmount = parsedCommissionAmount;
     }
 
-    // Generate invoice number (same for all items in the sale)
-    const invoiceNumber = await generateInvoiceNumber();
+    const invoiceNumber = await generateInvoiceNumber(req.shop_id);
     const finalSalesType = salesType || 'retail';
     const salesTypeId = finalSalesType === 'wholesale' ? 2 : 1;
 
@@ -675,12 +683,11 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
         return res.status(400).json({ error: `Invalid category for product ${productId}: ${category}` });
       }
 
-      // Get product details
       const productResult = await client.query(
         `SELECT id, sku, name, qty, mrp_price, selling_price, ah_va, warranty, series, product_type_id, category
          FROM products 
-         WHERE id = $1 AND product_type_id = $2`,
-        [productId, productTypeId]
+         WHERE id = $1 AND product_type_id = $2 AND shop_id = $3`,
+        [productId, productTypeId, req.shop_id]
       );
 
       if (productResult.rows.length === 0) {
@@ -723,7 +730,7 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
             if (serialNumber.length === 0) {
               // Empty array - auto-assign oldest
               try {
-                serialNumbers = await getOldestSerialNumbers(productId, quantity, client);
+                serialNumbers = await getOldestSerialNumbers(productId, quantity, client, req.shop_id);
               } catch (stockErr) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({ 
@@ -740,7 +747,7 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
           } else {
             // Invalid format - try auto-assign
             try {
-              serialNumbers = await getOldestSerialNumbers(productId, quantity, client);
+              serialNumbers = await getOldestSerialNumbers(productId, quantity, client, req.shop_id);
             } catch (stockErr) {
               await client.query('ROLLBACK');
               return res.status(400).json({ 
@@ -752,7 +759,7 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
         } else {
           // If no serials provided, auto-assign oldest (fallback)
           try {
-            serialNumbers = await getOldestSerialNumbers(productId, quantity, client);
+            serialNumbers = await getOldestSerialNumbers(productId, quantity, client, req.shop_id);
           } catch (stockErr) {
             await client.query('ROLLBACK');
             return res.status(400).json({ 
@@ -840,8 +847,8 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
         if (!isWaterProduct && serial) {
           await client.query(
             `DELETE FROM stock 
-             WHERE product_id = $1 AND serial_number = $2 AND status = 'available'`,
-            [productId, serial]
+             WHERE product_id = $1 AND serial_number = $2 AND status = 'available' AND shop_id = $3`,
+            [productId, serial, req.shop_id]
           );
         }
 
@@ -849,14 +856,13 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
         processedProductStocks[productId] -= 1;
         const newStock = processedProductStocks[productId];
         await client.query(
-          `UPDATE products SET qty = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-          [newStock, productId]
+          `UPDATE products SET qty = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND shop_id = $3`,
+          [newStock, productId, req.shop_id]
         );
         
-        // Build INSERT query dynamically based on available columns
         let insertColumns = `customer_id, invoice_number, customer_name, customer_mobile_number,
-            customer_vehicle_number, sales_type, sales_type_id`;
-        let insertValues = `$1, $2, $3, $4, $5, $6, $7`;
+            customer_vehicle_number, sales_type, sales_type_id, shop_id`;
+        let insertValues = `$1, $2, $3, $4, $5, $6, $7, $8`;
         let insertParams = [
           customer.id,
           invoiceNumber,
@@ -864,19 +870,19 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
           customerMobileNumber.trim(),
           vehicleNumber,
           finalSalesType,
-          salesTypeId
+          salesTypeId,
+          req.shop_id
         ];
-        let paramIndex = 8;
+        let paramIndex = 9;
         
         // Add created_by if column exists
         if (hasCreatedBy) {
           insertColumns += `, created_by`;
           insertValues += `, $${paramIndex}`;
-          insertParams.push(req.user.id);
+          insertParams.push(req.user_id ?? req.user?.id);
           paramIndex++;
         }
         
-        // Add purchase_date and product fields (16 fields total)
         insertColumns += `, purchase_date, SKU, SERIES, CATEGORY, NAME, AH_VA, QUANTITY, WARRANTY, SERIAL_NUMBER,
             MRP, discount_amount, tax, final_amount, payment_method, payment_status, product_id`;
         insertValues += `, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9}, $${paramIndex + 10}, $${paramIndex + 11}, $${paramIndex + 12}, $${paramIndex + 13}, $${paramIndex + 14}, $${paramIndex + 15}`;
@@ -964,8 +970,8 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
             `UPDATE commission_agents 
              SET total_commission_paid = total_commission_paid + $1,
                  updated_at = CURRENT_TIMESTAMP
-             WHERE id = $2`,
-            [finalCommissionAmount, finalCommissionAgentId]
+             WHERE id = $2 AND shop_id = $3`,
+            [finalCommissionAmount, finalCommissionAgentId, req.shop_id]
           );
         }
       } catch (updateErr) {
@@ -1012,7 +1018,7 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
         MIN(created_at) as created_at,
         MAX(updated_at) as updated_at
       FROM sales_item 
-      WHERE invoice_number = $1
+      WHERE invoice_number = $1 AND shop_id = $2
       GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number,
                customer_vehicle_number, sales_type, sales_type_id`;
     
@@ -1026,7 +1032,7 @@ router.post('/sell-stock', requireAuth, requireShopId, requireSuperAdminOrAdmin,
     
     selectQuery += ` LIMIT 1`;
     
-    const saleResult = await client.query(selectQuery, [invoiceNumber]);
+    const saleResult = await client.query(selectQuery, [invoiceNumber, req.shop_id]);
 
     res.status(201).json({
       success: true,
@@ -1175,13 +1181,12 @@ router.get('/sales-items', requireAuth, requireShopId, requireSuperAdminOrAdmin,
     `;
     
     if (hasCommissionAgents) {
-      query += `LEFT JOIN commission_agents ca ON si.commission_agent_id = ca.id`;
+      query += `LEFT JOIN commission_agents ca ON si.commission_agent_id = ca.id AND ca.shop_id = si.shop_id`;
     }
     
-    query += ` WHERE 1=1`;
-    // Only show confirmed sales items (exclude pending orders - those are in pending orders section)
+    query += ` WHERE si.shop_id = $1`;
     query += ` AND (si.SERIAL_NUMBER IS NOT NULL AND si.SERIAL_NUMBER != 'PENDING')`;
-    const params = [];
+    const params = [req.shop_id];
     let paramCount = 1;
 
     if (productTypeId) {
