@@ -34,27 +34,18 @@ router.post("/login", async (req, res) => {
 
     // Login: fetch by email only (no shop_id / JWT — user not authenticated yet)
     const emailLower = (email || "").trim().toLowerCase();
+    console.log("LOGIN HANDLER HIT");
+    console.log("LOGIN EMAIL:", emailLower);
 
     const query = `
-      SELECT 
-        u.id,
-        u.full_name,
-        u.email,
-        u.password,
-        u.role_id,
-        u.is_active,
-        u.avatar_url,
-        u.shop_id,
-        u.user_type,
-        r.role_name,
-        s.name AS shop_name
+      SELECT u.*, s.name AS shop_name
       FROM users u
       LEFT JOIN shops s ON s.id = u.shop_id
-      LEFT JOIN roles r ON r.id = u.role_id
       WHERE LOWER(u.email) = $1
       LIMIT 1;
     `;
     const result = await db.query(query, [emailLower]);
+    console.log("LOGIN QUERY ROW COUNT:", result.rows.length);
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: "Invalid email or password" });
@@ -65,35 +56,24 @@ router.post("/login", async (req, res) => {
       return res.status(403).json({ error: "Account is inactive" });
     }
     if (user.shop_id == null) user.shop_id = 1;
-    if (!user.shop_name) user.shop_name = 'A To Z Battery';
-    if (!user.role_name) {
-      user.role_name = user.role_id === 1 ? 'Super Admin' : user.role_id === 2 ? 'Admin' : 'Customer';
-    }
+    if (!user.shop_name) user.shop_name = "A To Z Battery";
+    user.role_name = user.role_name || (user.role_id === 1 ? "Super Admin" : user.role_id === 2 ? "Admin" : "Customer");
 
     const storedPassword = (user.password || "").trim();
-    
-    if (!storedPassword) {
-      console.error("Login: User found but password field is empty for email:", emailLower);
-      return res.status(500).json({ error: "Account configuration error" });
+    if (!storedPassword || !storedPassword.startsWith("$2")) {
+      return res.status(401).json({ error: "Invalid email or password" });
     }
-    
+
     let isMatch = false;
-
-    // plain + bcrypt dono support
-    if (storedPassword.startsWith("$2")) {
-      try {
-        isMatch = await bcrypt.compare(password, storedPassword);
-      } catch (bcryptError) {
-        console.error("Login: bcrypt.compare failed:", bcryptError);
-        return res.status(500).json({ 
-          error: "Password verification error",
-          details: process.env.NODE_ENV === 'production' ? undefined : bcryptError.message
-        });
-      }
-    } else {
-      isMatch = storedPassword === password;
+    try {
+      isMatch = await bcrypt.compare(password, user.password);
+    } catch (bcryptError) {
+      console.error("Login: bcrypt.compare failed:", bcryptError);
+      return res.status(500).json({
+        error: "Password verification error",
+        details: process.env.NODE_ENV === "production" ? undefined : bcryptError.message,
+      });
     }
-
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
