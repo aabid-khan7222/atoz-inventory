@@ -5,6 +5,7 @@ import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { useTheme } from "../../contexts/ThemeContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import api from "../../api.js";
+import Swal from "sweetalert2";
 import "./SettingsPage.css";
 
 // Import API_BASE from api.js
@@ -135,8 +136,29 @@ const SettingsPage = () => {
     try {
       await api.updateShopSettings(shopForm);
       setShopSuccess("Shop details saved. They will appear on new invoices.");
+      await Swal.fire({
+        title: "Saved!",
+        html: "Shop details successfully save ho gaye.<br><br>Ye details ab invoice aur bill par dikhengi.",
+        icon: "success",
+        confirmButtonText: "OK",
+        confirmButtonColor: "#2563eb",
+        customClass: {
+          popup: "settings-shop-swal-popup",
+          title: "settings-shop-swal-title",
+          htmlContainer: "settings-shop-swal-html",
+          confirmButton: "settings-shop-swal-btn",
+        },
+        timer: 0,
+      });
     } catch (err) {
       setShopError(err.message || "Failed to save");
+      await Swal.fire({
+        title: "Error",
+        html: err.message || "Shop details save nahi ho paye. Dobara try karein.",
+        icon: "error",
+        confirmButtonText: "OK",
+        confirmButtonColor: "#dc2626",
+      });
     } finally {
       setShopSaving(false);
     }
