@@ -205,9 +205,9 @@ const PurchaseSection = ({ onBack }) => {
                   className="filter-input purchase-date-input"
                 />
               </div>
-            </div>
+            </div>ad
             <div className="filter-group purchase-date-group">
-              <label>Date To</label>
+ad              <label>Date To</label>
               <div className="purchase-date-input-wrapper">
                 <svg className="purchase-date-calendar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>

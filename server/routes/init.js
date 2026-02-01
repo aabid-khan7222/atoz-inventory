@@ -307,6 +307,32 @@ router.post("/init", async (req, res) => {
       );
     `);
     console.log("✅ Customer profiles table ready");
+
+    // Create shop_settings table (single row for invoice/bill seller details)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS shop_settings (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        shop_name VARCHAR(255) NOT NULL,
+        address_line1 VARCHAR(255),
+        address_line2 VARCHAR(255),
+        address_line3 VARCHAR(255),
+        city VARCHAR(100),
+        pincode VARCHAR(10),
+        state VARCHAR(100),
+        state_code VARCHAR(10),
+        phone VARCHAR(20),
+        email VARCHAR(255),
+        gstin VARCHAR(50),
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT shop_settings_single_row CHECK (id = 1)
+      );
+    `);
+    await client.query(`
+      INSERT INTO shop_settings (id, shop_name, address_line1, address_line2, address_line3, city, pincode, state, state_code, phone, email, gstin)
+      VALUES (1, 'A TO Z BATTERIES & ELECTRICAL PARTS', 'Near Ajanta Chawfully,', 'Front of HP Petrol Pump,', 'Taiba Washing,', 'Jalgaon', '425001', 'Maharashtra', '27', '9890412516', 'atozbatteries7222@gmail.com', '27CHVPP1094F1ZT')
+      ON CONFLICT (id) DO NOTHING;
+    `);
+    console.log("✅ Shop settings table ready");
     
     // Check if admin exists
     const adminCheck = await client.query(
@@ -337,7 +363,7 @@ router.post("/init", async (req, res) => {
         note: "Please change password after first login"
       },
       tablesCreated: [
-        "roles", "users", "customer_profiles",
+        "roles", "users", "customer_profiles", "shop_settings",
         "product_type", "products", "stock",
         "sales_types", "sales_id", "sales_item",
         "purchases", "notifications",

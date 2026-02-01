@@ -7,7 +7,7 @@ const { Pool } = require("pg");
 // Database connections
 const localDbConfig = {
   host: process.env.LOCAL_DB_HOST || "localhost",
-  port: process.env.LOCAL_DB_PORT || 5432,
+  port: process.env.LOCAL_DB_PORT || 5432,  
   database: process.env.LOCAL_DB_NAME || "atoz_inventory",
   user: process.env.LOCAL_DB_USER || "postgres",
   password: process.env.LOCAL_DB_PASSWORD || "",

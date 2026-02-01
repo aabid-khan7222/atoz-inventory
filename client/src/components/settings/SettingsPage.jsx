@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { useTheme } from "../../contexts/ThemeContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import api from "../../api.js";
 import "./SettingsPage.css";
 
 // Import API_BASE from api.js
@@ -59,6 +60,101 @@ const SettingsPage = () => {
   });
   const [showUsernamePassword, setShowUsernamePassword] = useState(false);
 
+  // Shop details (invoice/bill seller info) - Admin / Super Admin only
+  const isAdminOrSuperAdmin = user && (user.role_id === 1 || user.role_id === 2);
+  const isSuperAdmin = user && user.role_id === 1;
+  const [shopForm, setShopForm] = useState({
+    shop_name: "",
+    address_line1: "",
+    address_line2: "",
+    address_line3: "",
+    city: "",
+    pincode: "",
+    state: "",
+    state_code: "",
+    phone: "",
+    email: "",
+    gstin: "",
+  });
+  const [shopLoading, setShopLoading] = useState(false);
+  const [shopSaving, setShopSaving] = useState(false);
+  const [shopError, setShopError] = useState("");
+  const [shopSuccess, setShopSuccess] = useState("");
+
+  // Staff & role management - Super Admin only
+  const [staffUsers, setStaffUsers] = useState([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [roleUpdating, setRoleUpdating] = useState(null);
+
+  useEffect(() => {
+    if (isAdminOrSuperAdmin) {
+      setShopLoading(true);
+      api.getShopSettings()
+        .then((data) => {
+          setShopForm({
+            shop_name: data.shop_name || "",
+            address_line1: data.address_line1 || "",
+            address_line2: data.address_line2 || "",
+            address_line3: data.address_line3 || "",
+            city: data.city || "",
+            pincode: data.pincode || "",
+            state: data.state || "",
+            state_code: data.state_code || "",
+            phone: data.phone || "",
+            email: data.email || "",
+            gstin: data.gstin || "",
+          });
+        })
+        .catch(() => setShopError("Failed to load shop details"))
+        .finally(() => setShopLoading(false));
+    }
+  }, [isAdminOrSuperAdmin]);
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      setStaffLoading(true);
+      api.getStaffUsers()
+        .then(setStaffUsers)
+        .catch(() => {})
+        .finally(() => setStaffLoading(false));
+    }
+  }, [isSuperAdmin]);
+
+  const handleShopChange = (e) => {
+    const { name, value } = e.target;
+    setShopForm((prev) => ({ ...prev, [name]: value }));
+    setShopError("");
+    setShopSuccess("");
+  };
+
+  const handleShopSubmit = async (e) => {
+    e.preventDefault();
+    setShopSaving(true);
+    setShopError("");
+    setShopSuccess("");
+    try {
+      await api.updateShopSettings(shopForm);
+      setShopSuccess("Shop details saved. They will appear on new invoices.");
+    } catch (err) {
+      setShopError(err.message || "Failed to save");
+    } finally {
+      setShopSaving(false);
+    }
+  };
+
+  const handleRoleChange = async (userId, newRoleId) => {
+    setRoleUpdating(userId);
+    try {
+      await api.updateUserRole(userId, newRoleId);
+      setStaffUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, role_id: newRoleId, role_name: newRoleId === 1 ? "Super Admin" : newRoleId === 2 ? "Admin" : "Customer" } : u))
+      );
+    } catch (err) {
+      console.error("Failed to update role:", err);
+    } finally {
+      setRoleUpdating(null);
+    }
+  };
 
   const handleBack = () => {
     window.history.back();
@@ -426,6 +522,98 @@ const SettingsPage = () => {
             </label>
           </div>
         </section>
+
+        {/* Shop / Business details (invoice bill) - Admin & Super Admin only */}
+        {isAdminOrSuperAdmin && (
+          <section className="settings-card">
+            <h2>Shop / Business details (Invoice & Bill)</h2>
+            <p className="settings-helper">
+              Ye details invoice aur bill par dikhengi: shop name, address, state, state code, mobile, email, GST number.
+            </p>
+            {shopLoading ? (
+              <p className="settings-small">Loading...</p>
+            ) : (
+              <form onSubmit={handleShopSubmit}>
+                {shopError && <p className="settings-modal-error">{shopError}</p>}
+                {shopSuccess && <p className="settings-success-text">{shopSuccess}</p>}
+                <div className="settings-form-grid">
+                  <label>Shop / Business name *</label>
+                  <input type="text" name="shop_name" value={shopForm.shop_name} onChange={handleShopChange} required placeholder="e.g. A TO Z BATTERIES & ELECTRICAL PARTS" />
+                  <label>Address line 1</label>
+                  <input type="text" name="address_line1" value={shopForm.address_line1} onChange={handleShopChange} placeholder="e.g. Near Ajanta Chawfully," />
+                  <label>Address line 2</label>
+                  <input type="text" name="address_line2" value={shopForm.address_line2} onChange={handleShopChange} placeholder="e.g. Front of HP Petrol Pump," />
+                  <label>Address line 3</label>
+                  <input type="text" name="address_line3" value={shopForm.address_line3} onChange={handleShopChange} placeholder="e.g. Taiba Washing," />
+                  <label>City</label>
+                  <input type="text" name="city" value={shopForm.city} onChange={handleShopChange} placeholder="e.g. Jalgaon" />
+                  <label>Pincode</label>
+                  <input type="text" name="pincode" value={shopForm.pincode} onChange={handleShopChange} placeholder="e.g. 425001" maxLength={6} />
+                  <label>State</label>
+                  <input type="text" name="state" value={shopForm.state} onChange={handleShopChange} placeholder="e.g. Maharashtra" />
+                  <label>State code (GST)</label>
+                  <input type="text" name="state_code" value={shopForm.state_code} onChange={handleShopChange} placeholder="e.g. 27" maxLength={2} />
+                  <label>Phone / Mobile</label>
+                  <input type="text" name="phone" value={shopForm.phone} onChange={handleShopChange} placeholder="e.g. 9890412516" maxLength={15} />
+                  <label>Email</label>
+                  <input type="email" name="email" value={shopForm.email} onChange={handleShopChange} placeholder="e.g. shop@example.com" />
+                  <label>GSTIN</label>
+                  <input type="text" name="gstin" value={shopForm.gstin} onChange={handleShopChange} placeholder="e.g. 27CHVPP1094F1ZT" />
+                </div>
+                <div className="settings-actions" style={{ marginTop: "12px" }}>
+                  <button type="submit" className="settings-save-btn" disabled={shopSaving}>
+                    {shopSaving ? "Saving..." : "Save shop details"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+        )}
+
+        {/* Staff & role (Admin / Super Admin) - Super Admin only */}
+        {isSuperAdmin && (
+          <section className="settings-card">
+            <h2>Staff & role (Admin / Super Admin)</h2>
+            <p className="settings-helper">
+              Kisi user ko Admin ya Super Admin bana sakte ho. Role change karne se us user ki access change hogi.
+            </p>
+            {staffLoading ? (
+              <p className="settings-small">Loading users...</p>
+            ) : (
+              <div className="settings-staff-table-wrap">
+                <table className="settings-staff-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email / Phone</th>
+                      <th>Role</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staffUsers.map((u) => (
+                      <tr key={u.id}>
+                        <td>{u.full_name || "—"}</td>
+                        <td>{u.email || u.phone || "—"}</td>
+                        <td>
+                          <select
+                            value={u.role_id}
+                            onChange={(e) => handleRoleChange(u.id, Number(e.target.value))}
+                            disabled={roleUpdating === u.id}
+                          >
+                            <option value={1}>Super Admin</option>
+                            <option value={2}>Admin</option>
+                            <option value={3}>Customer</option>
+                          </select>
+                          {roleUpdating === u.id && <span className="settings-small"> Updating...</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Security / password */}
         <section className="settings-card settings-card--security">

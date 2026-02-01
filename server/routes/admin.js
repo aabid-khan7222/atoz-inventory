@@ -3,7 +3,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const db = require("../db");
-const { requireAuth, requireAdmin, requireSuperAdminOrAdmin } = require("../middleware/auth");
+const { requireAuth, requireAdmin, requireRole, requireSuperAdminOrAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -1486,6 +1486,81 @@ router.delete("/customers/:id", requireAuth, requireSuperAdminOrAdmin, async (re
     if (client) {
       client.release();
     }
+  }
+});
+
+/**
+ * GET /api/admin/staff-users
+ * List all users with id, full_name, email, role_id (Super Admin only - for role management).
+ */
+router.get("/staff-users", requireAuth, requireRole(1), async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT u.id, u.full_name, u.email, u.phone, u.role_id, r.role_name
+       FROM users u
+       LEFT JOIN roles r ON r.id = u.role_id
+       ORDER BY u.role_id ASC, u.full_name ASC`
+    );
+    res.json(result.rows.map((row) => ({
+      id: row.id,
+      full_name: row.full_name || "",
+      email: row.email || "",
+      phone: row.phone || "",
+      role_id: row.role_id,
+      role_name: row.role_name || (row.role_id === 1 ? "Super Admin" : row.role_id === 2 ? "Admin" : "Customer")
+    })));
+  } catch (err) {
+    console.error("Error listing staff users:", err);
+    res.status(500).json({ error: "Failed to list users" });
+  }
+});
+
+/**
+ * PUT /api/admin/users/:id/role
+ * Update a user's role (Super Admin only). Body: { role_id: 1|2|3 }.
+ */
+router.put("/users/:id/role", requireAuth, requireRole(1), async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    const { role_id } = req.body;
+    if (!Number.isInteger(userId) || userId < 1) {
+      return res.status(400).json({ error: "Invalid user id" });
+    }
+    const newRoleId = parseInt(role_id, 10);
+    if (![1, 2, 3].includes(newRoleId)) {
+      return res.status(400).json({ error: "role_id must be 1 (Super Admin), 2 (Admin), or 3 (Customer)" });
+    }
+
+    const userCheck = await db.query(
+      "SELECT id, role_id FROM users WHERE id = $1",
+      [userId]
+    );
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const userTypeMap = { 1: "super admin", 2: "admin", 3: "b2c" };
+    const newUserType = userTypeMap[newRoleId] || "b2c";
+
+    await db.query(
+      `UPDATE users SET role_id = $1, updated_at = CURRENT_TIMESTAMP, user_type = $3 WHERE id = $2`,
+      [newRoleId, userId, newUserType]
+    );
+
+    const updated = await db.query(
+      "SELECT id, full_name, email, role_id FROM users WHERE id = $1",
+      [userId]
+    );
+    const row = updated.rows[0];
+    res.json({
+      id: row.id,
+      full_name: row.full_name,
+      email: row.email,
+      role_id: row.role_id
+    });
+  } catch (err) {
+    console.error("Error updating user role:", err);
+    res.status(500).json({ error: "Failed to update role" });
   }
 });
 

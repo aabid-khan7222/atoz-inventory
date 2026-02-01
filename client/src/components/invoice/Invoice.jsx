@@ -151,21 +151,34 @@ const Invoice = () => {
       <div className="invoice-page">
         <div className="invoice-title">GST INVOICE</div>
 
-        {/* Seller and Invoice Details */}
+        {/* Seller and Invoice Details (from Settings > Shop details) */}
         <div className="seller-buyer-section">
           <div className="seller-box">
             <img src={logo} alt="Logo" className="company-logo" />
-            <div className="section-title">A TO Z BATTERIES & ELECTRICAL PARTS</div>
+            <div className="section-title">{invoice.shop?.shop_name || 'A TO Z BATTERIES & ELECTRICAL PARTS'}</div>
             <div className="seller-info">
-              Near Ajanta Chawfully,<br />
-              Front of HP Petrol Pump,<br />
-              Taiba Washing,<br />
-              Jalgaon – 425001<br /><br />
-              <strong>State:</strong> Maharashtra<br />
-              <strong>State Code:</strong> 27<br />
-              <strong>Phone:</strong> 9890412516<br />
-              <strong>Email:</strong> atozbatteries7222@gmail.com<br />
-              <strong>GSTIN:</strong> 27CHVPP1094F1ZT
+              {invoice.shop?.address_line1 && <>{invoice.shop.address_line1}<br /></>}
+              {invoice.shop?.address_line2 && <>{invoice.shop.address_line2}<br /></>}
+              {invoice.shop?.address_line3 && <>{invoice.shop.address_line3}<br /></>}
+              {invoice.shop?.city && invoice.shop?.pincode && <>{invoice.shop.city} – {invoice.shop.pincode}<br /></>}
+              {(!invoice.shop?.address_line1 && !invoice.shop?.shop_name) && (
+                <>Near Ajanta Chawfully,<br />Front of HP Petrol Pump,<br />Taiba Washing,<br />Jalgaon – 425001<br /></>
+              )}
+              <br />
+              {invoice.shop?.state && <><strong>State:</strong> {invoice.shop.state}<br /></>}
+              {invoice.shop?.state_code && <><strong>State Code:</strong> {invoice.shop.state_code}<br /></>}
+              {invoice.shop?.phone && <><strong>Phone:</strong> {invoice.shop.phone}<br /></>}
+              {invoice.shop?.email && <><strong>Email:</strong> {invoice.shop.email}<br /></>}
+              {invoice.shop?.gstin && <><strong>GSTIN:</strong> {invoice.shop.gstin}</>}
+              {!invoice.shop && (
+                <>
+                  <strong>State:</strong> Maharashtra<br />
+                  <strong>State Code:</strong> 27<br />
+                  <strong>Phone:</strong> 9890412516<br />
+                  <strong>Email:</strong> atozbatteries7222@gmail.com<br />
+                  <strong>GSTIN:</strong> 27CHVPP1094F1ZT
+                </>
+              )}
             </div>
           </div>
           <div className="invoice-details-box">

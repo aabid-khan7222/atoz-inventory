@@ -513,3 +513,98 @@ input:checked + .slider::before {
 .password-eye-toggle:hover {
   opacity: 1;
 }
+
+/* Shop details form grid */
+.settings-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px 16px;
+  align-items: center;
+  max-width: 560px;
+}
+
+.settings-form-grid label {
+  font-weight: 500;
+  color: #374151;
+}
+
+[data-theme="dark"] .settings-form-grid label {
+  color: #e2e8f0;
+}
+
+.settings-form-grid input {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+[data-theme="dark"] .settings-form-grid input {
+  background: #374151;
+  border-color: #4b5563;
+  color: #f8fafc;
+}
+
+.settings-save-btn {
+  padding: 10px 20px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-save-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.settings-save-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Staff & role table */
+.settings-staff-table-wrap {
+  overflow-x: auto;
+}
+
+.settings-staff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.settings-staff-table th,
+.settings-staff-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+[data-theme="dark"] .settings-staff-table th,
+[data-theme="dark"] .settings-staff-table td {
+  border-bottom-color: #4b5563;
+}
+
+.settings-staff-table th {
+  font-weight: 600;
+  color: #374151;
+}
+
+[data-theme="dark"] .settings-staff-table th {
+  color: #e2e8f0;
+}
+
+.settings-staff-table select {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  font-size: 13px;
+}
+
+[data-theme="dark"] .settings-staff-table select {
+  background: #374151;
+  border-color: #4b5563;
+  color: #f8fafc;
+}

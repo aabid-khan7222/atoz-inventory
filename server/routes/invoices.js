@@ -2,11 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const invoiceService = require('../services/invoiceService');
+const { getShop } = require('./shopSettings');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 
-// Get invoice data by invoice number
+// Get invoice data by invoice number (includes shop details for bill)
 router.get('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params; // invoice number
@@ -25,7 +26,8 @@ router.get('/:id', requireAuth, async (req, res) => {
       }
     }
 
-    res.json(invoice);
+    const shop = await getShop();
+    res.json({ ...invoice, shop });
   } catch (error) {
     console.error('Error fetching invoice:', error);
     res.status(error.message === 'Invoice not found' ? 404 : 500).json({
@@ -71,8 +73,8 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
       // Continue without logo if file can't be read
     }
 
-    // Generate HTML for invoice
-    const html = generateInvoiceHTML(invoice, logoBase64);
+    const shop = await getShop();
+    const html = generateInvoiceHTML(invoice, logoBase64, shop);
 
     // Generate PDF using Puppeteer
     // Set cache directory for Render.com BEFORE any Puppeteer calls
@@ -207,8 +209,23 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
   }
 });
 
-// Generate invoice HTML
-function generateInvoiceHTML(invoice, logoBase64 = '') {
+// Generate invoice HTML (shop = seller details from shop_settings)
+function generateInvoiceHTML(invoice, logoBase64 = '', shop = null) {
+  const s = shop || {
+    shop_name: 'A TO Z BATTERIES & ELECTRICAL PARTS',
+    address_line1: 'Near Ajanta Chawfully,',
+    address_line2: 'Front of HP Petrol Pump,',
+    address_line3: 'Taiba Washing,',
+    city: 'Jalgaon',
+    pincode: '425001',
+    state: 'Maharashtra',
+    state_code: '27',
+    phone: '9890412516',
+    email: 'atozbatteries7222@gmail.com',
+    gstin: '27CHVPP1094F1ZT'
+  };
+  const addressBlock = [s.address_line1, s.address_line2, s.address_line3].filter(Boolean).join('<br>\n          ');
+  const cityPincode = [s.city, s.pincode].filter(Boolean).join(' – ');
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -470,17 +487,15 @@ function generateInvoiceHTML(invoice, logoBase64 = '') {
     <div class="seller-buyer-section">
       <div class="seller-box">
         ${logoBase64 ? `<img src="data:image/png;base64,${logoBase64}" alt="Logo" class="company-logo" />` : ''}
-        <div class="section-title">A TO Z BATTERIES & ELECTRICAL PARTS</div>
+        <div class="section-title">${(s.shop_name || '').replace(/</g, '&lt;')}</div>
         <div class="seller-info">
-          Near Ajanta Chawfully,<br>
-          Front of HP Petrol Pump,<br>
-          Taiba Washing,<br>
-          Jalgaon – 425001<br><br>
-          <strong>State:</strong> Maharashtra<br>
-          <strong>State Code:</strong> 27<br>
-          <strong>Phone:</strong> 9890412516<br>
-          <strong>Email:</strong> atozbatteries7222@gmail.com<br>
-          <strong>GSTIN:</strong> 27CHVPP1094F1ZT
+          ${addressBlock}<br>
+          ${cityPincode ? cityPincode + '<br>' : ''}<br>
+          ${s.state ? `<strong>State:</strong> ${String(s.state).replace(/</g, '&lt;')}<br>` : ''}
+          ${s.state_code ? `<strong>State Code:</strong> ${String(s.state_code).replace(/</g, '&lt;')}<br>` : ''}
+          ${s.phone ? `<strong>Phone:</strong> ${String(s.phone).replace(/</g, '&lt;')}<br>` : ''}
+          ${s.email ? `<strong>Email:</strong> ${String(s.email).replace(/</g, '&lt;')}<br>` : ''}
+          ${s.gstin ? `<strong>GSTIN:</strong> ${String(s.gstin).replace(/</g, '&lt;')}` : ''}
         </div>
       </div>
       <div class="invoice-details-box">

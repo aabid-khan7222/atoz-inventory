@@ -880,6 +880,50 @@ export async function getInvoicePDF(invoiceNumber) {
   }
 }
 
+// Shop settings (invoice/bill seller details) - Admin / Super Admin only
+export async function getShopSettings() {
+  try {
+    return await request('/shop-settings');
+  } catch (error) {
+    console.error('Failed to fetch shop settings:', error);
+    throw error;
+  }
+}
+
+export async function updateShopSettings(data) {
+  try {
+    return await request('/shop-settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  } catch (error) {
+    console.error('Failed to update shop settings:', error);
+    throw error;
+  }
+}
+
+// Staff / role management - Super Admin only
+export async function getStaffUsers() {
+  try {
+    return await request('/admin/staff-users');
+  } catch (error) {
+    console.error('Failed to fetch staff users:', error);
+    throw error;
+  }
+}
+
+export async function updateUserRole(userId, roleId) {
+  try {
+    return await request(`/admin/users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role_id: roleId }),
+    });
+  } catch (error) {
+    console.error('Failed to update user role:', error);
+    throw error;
+  }
+}
+
 // User profile API functions
 export async function updateUserProfile(profileData) {
   try {
@@ -1843,6 +1887,10 @@ const api = {
   getCustomerById,
   getInvoiceById,
   getInvoicePDF,
+  getShopSettings,
+  updateShopSettings,
+  getStaffUsers,
+  updateUserRole,
   getBatteryStatus,
   getReplacementHistory,
   getAllReplacementHistory,
