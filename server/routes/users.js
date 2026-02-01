@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const db = require('../db');
-const { requireAdmin, requireAuth } = require('../middleware/auth');
+const { requireAdmin, requireAuth, requireShopId } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -10,7 +10,7 @@ const router = express.Router();
 //  - Create a new customer user in the `users` table
 //  - Admin / Super Admin only (protected by requireAdmin)
 // ------------------------------------------------------
-router.post('/', requireAuth, requireAdmin, async (req, res) => {
+router.post('/', requireAuth, requireAdmin, requireShopId, async (req, res) => {
   try {
     const {
       full_name,
@@ -73,6 +73,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    const shopId = req.shop_id;
     const insertQuery = `
       INSERT INTO users (
         full_name,
@@ -85,9 +86,10 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
         gst_number,
         company_name,
         company_address,
-        is_active
+        is_active,
+        shop_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING
         id,
         full_name,
@@ -113,6 +115,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
       hasGstBool ? company_name : null,
       hasGstBool ? company_address : null,
       true, // is_active
+      shopId
     ];
 
     const result = await db.query(insertQuery, values);

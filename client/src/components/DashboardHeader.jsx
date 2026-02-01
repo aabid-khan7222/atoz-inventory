@@ -179,7 +179,7 @@ const DashboardHeader = ({ onMenuToggle, isSidebarOpen }) => {
             className="dashboard-logo"
           />
         </div>
-        <h1 className="dashboard-title">A TO Z BATTERY</h1>
+        <h1 className="dashboard-title">{user?.shop_name || 'A TO Z BATTERY'}</h1>
       </div>
 
       <div className="dashboard-header-right" ref={menuRef}>

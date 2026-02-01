@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requireAdmin, requireShopId } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -28,15 +28,15 @@ function getCategoryFromTypeId(typeId) {
   return categoryMap[typeId] || 'car-truck-tractor';
 }
 
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, requireShopId, async (req, res) => {
   try {
     const { category } = req.query;
+    const shopId = req.shop_id;
     
     let query;
     let params = [];
 
     if (category) {
-      // Get products by category (using product_type_id)
       const productTypeId = getProductTypeId(category);
       query = `
         SELECT 
@@ -44,23 +44,24 @@ router.get('/', async (req, res) => {
           pt.name as product_type_name
         FROM products p
         JOIN product_type pt ON p.product_type_id = pt.id
-        WHERE p.product_type_id = $1
+        WHERE p.product_type_id = $1 AND p.shop_id = $2
         ORDER BY 
           CASE WHEN p.order_index IS NOT NULL THEN p.order_index ELSE p.id END ASC
       `;
-      params = [productTypeId];
+      params = [productTypeId, shopId];
     } else {
-      // Get all products, ordered by product_type_id then order_index
       query = `
         SELECT 
           p.*,
           pt.name as product_type_name
         FROM products p
         JOIN product_type pt ON p.product_type_id = pt.id
+        WHERE p.shop_id = $1
         ORDER BY 
           p.product_type_id ASC,
           CASE WHEN p.order_index IS NOT NULL THEN p.order_index ELSE p.id END ASC
       `;
+      params = [shopId];
     }
 
     const { rows } = await db.query(query, params);
@@ -82,10 +83,10 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAuth, requireShopId, async (req, res) => {
   const { id } = req.params;
+  const shopId = req.shop_id;
 
-  // Validate ID is numeric
   if (!id || isNaN(parseInt(id, 10))) {
     return res.status(400).json({ error: 'Invalid product ID' });
   }
@@ -97,8 +98,8 @@ router.get('/:id', async (req, res) => {
         pt.name as product_type_name
       FROM products p
       JOIN product_type pt ON p.product_type_id = pt.id
-      WHERE p.id = $1
-    `, [id]);
+      WHERE p.id = $1 AND p.shop_id = $2
+    `, [id, shopId]);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Product not found' });
@@ -123,19 +124,26 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Helper: purchase number generator (PO-YYYYMMDD-XXXX)
-async function generatePurchaseNumber(purchaseDate) {
+// Helper: purchase number generator (PO-YYYYMMDD-XXXX), per shop
+async function generatePurchaseNumber(purchaseDate, shopId) {
   const dateObj = purchaseDate ? new Date(purchaseDate) : new Date();
   const dateStr = dateObj.toISOString().slice(0, 10).replace(/-/g, '');
 
   try {
-    const result = await db.query(
-      `SELECT purchase_number FROM purchases 
-       WHERE purchase_number LIKE $1 
-       ORDER BY purchase_number DESC 
-       LIMIT 1`,
-      [`PO-${dateStr}-%`]
-    );
+    const hasShopId = shopId != null;
+    const result = hasShopId
+      ? await db.query(
+          `SELECT purchase_number FROM purchases 
+           WHERE purchase_number LIKE $1 AND shop_id = $2
+           ORDER BY purchase_number DESC LIMIT 1`,
+          [`PO-${dateStr}-%`, shopId]
+        )
+      : await db.query(
+          `SELECT purchase_number FROM purchases 
+           WHERE purchase_number LIKE $1
+           ORDER BY purchase_number DESC LIMIT 1`,
+          [`PO-${dateStr}-%`]
+        );
 
     if (result.rows.length === 0) {
       return `PO-${dateStr}-0001`;
@@ -151,7 +159,7 @@ async function generatePurchaseNumber(purchaseDate) {
   }
 }
 
-router.post('/', requireAuth, requireAdmin, async (req, res) => {
+router.post('/', requireAuth, requireAdmin, requireShopId, async (req, res) => {
   const { 
     sku, 
     name, 
@@ -213,7 +221,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   }
 
   try {
-    // Get product_type_id from category
+    const shopId = req.shop_id;
     const productTypeId = getProductTypeId(category || 'car-truck-tractor');
 
     // Single MRP for both B2C and B2B
@@ -245,12 +253,11 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
       : (b2bDiscountPercent > 0 ? b2bDiscountPercent : 0);
     const b2bSellingPrice = Math.round((finalMrp - finalB2bDiscountAmount) * 100) / 100;
     
-    // Get max order_index for this product_type to set new product order
     const orderResult = await db.query(`
       SELECT MAX(order_index) as max_order 
       FROM products 
-      WHERE product_type_id = $1
-    `, [productTypeId]);
+      WHERE product_type_id = $1 AND shop_id = $2
+    `, [productTypeId, shopId]);
     const maxOrder = (orderResult.rows[0]?.max_order || 0) + 1;
 
     // Extract guarantee_period_months from warranty field
@@ -268,15 +275,13 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
     // Get DP (Dealer Price) - default to MRP if not provided
     const finalDp = dp !== undefined && dp !== null ? parseFloat(dp) : finalMrp;
     
-    // Insert product with single MRP and B2C/B2B pricing
-    // Note: We use single MRP (mrp_price) for both B2C and B2B customers
     const { rows } = await db.query(`
       INSERT INTO products (
         sku, series, category, name, qty, 
         dp, mrp_price, selling_price, discount, discount_percent,
         b2b_mrp, b2b_selling_price, b2b_discount, b2b_discount_percent,
-        ah_va, warranty, guarantee_period_months, order_index, product_type_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) 
+        ah_va, warranty, guarantee_period_months, order_index, product_type_id, shop_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) 
       RETURNING *
     `, [
       sku.trim(),
@@ -297,7 +302,8 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
       warranty ? warranty.trim().slice(0, 50) : null,
       guaranteePeriodMonths,
       maxOrder,
-      productTypeId
+      productTypeId,
+      shopId
     ]);
 
     const product = rows[0];
@@ -322,7 +328,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
         : (purchaseDp > 0 ? Math.round((finalDiscountAmount / purchaseDp) * 10000) / 100 : 0);
       
       // Generate purchase number
-      const purchaseNumber = await generatePurchaseNumber(purchaseDate);
+      const purchaseNumber = await generatePurchaseNumber(purchaseDate, shopId);
       const purchaseDateStr = purchaseDate.toISOString().split('T')[0];
       
       // Create stock entries and purchase entries - one row per item
@@ -331,12 +337,11 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
         const serialNumber = serials[i] || `AUTO-${product.id}-${Date.now()}-${i + 1}`;
         
         try {
-          // Create stock entry
           await db.query(`
             INSERT INTO stock (
               purchase_date, sku, series, category, name, ah_va, quantity,
-              purchased_from, warranty, product_type_id, product_id, serial_number, status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'available')
+              purchased_from, warranty, product_type_id, product_id, serial_number, status, shop_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'available', $13)
           `, [
             purchaseDate,
             product.sku,
@@ -349,16 +354,16 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
             product.warranty,
             product.product_type_id,
             product.id,
-            serialNumber
+            serialNumber,
+            shopId
           ]);
           
-          // Create purchase entry
           await db.query(`
             INSERT INTO purchases (
               product_type_id, purchase_date, purchase_number, product_series,
               product_sku, serial_number, supplier_name,
-              dp, purchase_value, discount_amount, discount_percent
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+              dp, purchase_value, discount_amount, discount_percent, shop_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             ON CONFLICT (product_sku, serial_number) DO UPDATE SET
               purchase_date = EXCLUDED.purchase_date,
               purchase_number = EXCLUDED.purchase_number,
@@ -367,6 +372,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
               purchase_value = EXCLUDED.purchase_value,
               discount_amount = EXCLUDED.discount_amount,
               discount_percent = EXCLUDED.discount_percent,
+              shop_id = EXCLUDED.shop_id,
               updated_at = CURRENT_TIMESTAMP
           `, [
             product.product_type_id,
@@ -379,7 +385,8 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
             purchaseDp,
             finalPurchaseValue,
             finalDiscountAmount,
-            finalDiscountPercent
+            finalDiscountPercent,
+            shopId
           ]);
         } catch (stockErr) {
           // Log error but don't fail the product creation
@@ -409,7 +416,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/:id', requireAuth, requireAdmin, requireShopId, async (req, res) => {
   const { id } = req.params;
   
   // Validate ID is numeric
@@ -479,8 +486,8 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 
   try {
-    // Get existing product
-    const existingResult = await db.query('SELECT * FROM products WHERE id = $1', [id]);
+    const shopId = req.shop_id;
+    const existingResult = await db.query('SELECT * FROM products WHERE id = $1 AND shop_id = $2', [id, shopId]);
     
     if (existingResult.rows.length === 0) {
       return res.status(404).json({ error: 'Product not found' });
@@ -585,7 +592,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
         order_index = COALESCE($18, order_index),
         product_type_id = $19,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
+      WHERE id = $1 AND shop_id = $2
       RETURNING *
     `, [
       id,
@@ -606,7 +613,8 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
       ah_va !== undefined ? (ah_va ? ah_va.trim().slice(0, 20) : null) : existingProduct.ah_va,
       warranty !== undefined ? (warranty ? warranty.trim().slice(0, 50) : null) : existingProduct.warranty,
       order_index !== undefined ? order_index : null,
-      finalProductTypeId
+      finalProductTypeId,
+      shopId
     ]);
 
     if (rows.length === 0) {
@@ -637,7 +645,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/:id', requireAuth, requireAdmin, requireShopId, async (req, res) => {
   const { id } = req.params;
 
   // Validate ID is numeric
@@ -646,7 +654,8 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 
   try {
-    const result = await db.query('DELETE FROM products WHERE id = $1', [id]);
+    const shopId = req.shop_id;
+    const result = await db.query('DELETE FROM products WHERE id = $1 AND shop_id = $2', [id, shopId]);
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Product not found' });

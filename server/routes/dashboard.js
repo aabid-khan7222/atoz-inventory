@@ -1,36 +1,53 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireSuperAdminOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireSuperAdminOrAdmin, requireShopId } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Batch fetch purchase prices by serial numbers and SKUs (avoids N+1)
-async function getPurchasePricesBatch(serials, skus) {
+async function getPurchasePricesBatch(serials, skus, shopId) {
   const bySerial = {};
   const bySku = {};
   try {
     if (serials.length > 0) {
-      const serialRows = await db.query(
-        `SELECT DISTINCT ON (TRIM(serial_number)) TRIM(serial_number) as sn, purchase_value
-         FROM purchases
-         WHERE TRIM(serial_number) = ANY($1) AND purchase_value > 0
-         ORDER BY TRIM(serial_number), purchase_date DESC`,
-        [serials]
-      );
+      const serialRows = shopId != null
+        ? await db.query(
+            `SELECT DISTINCT ON (TRIM(serial_number)) TRIM(serial_number) as sn, purchase_value
+             FROM purchases
+             WHERE TRIM(serial_number) = ANY($1) AND purchase_value > 0 AND shop_id = $2
+             ORDER BY TRIM(serial_number), purchase_date DESC`,
+            [serials, shopId]
+          )
+        : await db.query(
+            `SELECT DISTINCT ON (TRIM(serial_number)) TRIM(serial_number) as sn, purchase_value
+             FROM purchases
+             WHERE TRIM(serial_number) = ANY($1) AND purchase_value > 0
+             ORDER BY TRIM(serial_number), purchase_date DESC`,
+            [serials]
+          );
       for (const r of serialRows.rows) {
         const v = parseFloat(r.purchase_value);
         if (r.sn && v > 0) bySerial[r.sn] = v;
       }
     }
     if (skus.length > 0) {
-      const skuRows = await db.query(
-        `SELECT TRIM(product_sku) as sku, AVG(amount) as avg_amount
-         FROM purchases
-         WHERE TRIM(product_sku) = ANY($1) AND amount > 0
-         AND COALESCE(supplier_name, '') != 'replace'
-         GROUP BY TRIM(product_sku)`,
-        [skus]
-      );
+      const skuRows = shopId != null
+        ? await db.query(
+            `SELECT TRIM(product_sku) as sku, AVG(amount) as avg_amount
+             FROM purchases
+             WHERE TRIM(product_sku) = ANY($1) AND amount > 0 AND shop_id = $2
+             AND COALESCE(supplier_name, '') != 'replace'
+             GROUP BY TRIM(product_sku)`,
+            [skus, shopId]
+          )
+        : await db.query(
+            `SELECT TRIM(product_sku) as sku, AVG(amount) as avg_amount
+             FROM purchases
+             WHERE TRIM(product_sku) = ANY($1) AND amount > 0
+             AND COALESCE(supplier_name, '') != 'replace'
+             GROUP BY TRIM(product_sku)`,
+            [skus]
+          );
       for (const r of skuRows.rows) {
         const v = parseFloat(r.avg_amount);
         if (r.sku && v > 0) bySku[r.sku] = v;
@@ -55,9 +72,10 @@ function getProductTypeId(category) {
 }
 
 // Get dashboard overview metrics (optimized: batch queries, no N+1, parallel fetches)
-router.get('/overview', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/overview', requireAuth, requireSuperAdminOrAdmin, requireShopId, async (req, res) => {
   try {
     const { period = 'today' } = req.query;
+    const shopId = req.shop_id;
 
     // Run all independent overview queries in parallel (no N+1)
     const [
@@ -73,17 +91,17 @@ router.get('/overview', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
       totalProductsRes,
       customersRes,
     ] = await Promise.all([
-      db.query(`SELECT COALESCE(SUM(qty * COALESCE(selling_price, 0)), 0) as total_value FROM products`).catch(() => ({ rows: [{ total_value: 0 }] })),
-      db.query(`SELECT COALESCE(SUM(si.final_amount), 0) as total FROM sales_item si WHERE DATE(si.created_at) = CURRENT_DATE`).catch(() => ({ rows: [{ total: 0 }] })),
-      db.query(`SELECT si.SERIAL_NUMBER as serial_number, si.SKU as sku, si.final_amount, si.product_id FROM sales_item si WHERE DATE(si.created_at) = CURRENT_DATE LIMIT 500`).catch(() => ({ rows: [] })),
-      db.query(`SELECT COUNT(*) as total FROM sales_item si WHERE DATE(si.created_at) = CURRENT_DATE`).catch(() => ({ rows: [{ total: 0 }] })),
-      db.query(`SELECT COALESCE(SUM(amount), 0) as total FROM service_requests WHERE DATE(updated_at) = CURRENT_DATE AND status = 'completed' AND amount IS NOT NULL`).catch(() => ({ rows: [{ total: 0 }] })),
-      db.query(`SELECT COALESCE(SUM(si.final_amount), 0) as total FROM sales_item si WHERE si.created_at >= DATE_TRUNC('month', CURRENT_DATE)`).catch(() => ({ rows: [{ total: 0 }] })),
-      db.query(`SELECT COALESCE(SUM(amount), 0) as total FROM service_requests WHERE updated_at >= DATE_TRUNC('month', CURRENT_DATE) AND status = 'completed' AND amount IS NOT NULL`).catch(() => ({ rows: [{ total: 0 }] })),
-      db.query(`SELECT COUNT(*) as count FROM products WHERE qty < 5`).catch(() => ({ rows: [{ count: 0 }] })),
-      db.query(`SELECT COUNT(*) as count FROM service_requests WHERE status IN ('pending', 'in_progress')`).catch(() => ({ rows: [{ count: 0 }] })),
-      db.query(`SELECT COUNT(*) as count FROM products`).catch(() => ({ rows: [{ count: 0 }] })),
-      db.query(`SELECT COUNT(*) as count FROM users u JOIN roles r ON u.role_id = r.id WHERE LOWER(r.role_name) = 'customer'`).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COALESCE(SUM(qty * COALESCE(selling_price, 0)), 0) as total_value FROM products WHERE shop_id = $1`, [shopId]).catch(() => ({ rows: [{ total_value: 0 }] })),
+      db.query(`SELECT COALESCE(SUM(si.final_amount), 0) as total FROM sales_item si WHERE DATE(si.created_at) = CURRENT_DATE AND si.shop_id = $1`, [shopId]).catch(() => ({ rows: [{ total: 0 }] })),
+      db.query(`SELECT si.SERIAL_NUMBER as serial_number, si.SKU as sku, si.final_amount, si.product_id FROM sales_item si WHERE DATE(si.created_at) = CURRENT_DATE AND si.shop_id = $1 LIMIT 500`, [shopId]).catch(() => ({ rows: [] })),
+      db.query(`SELECT COUNT(*) as total FROM sales_item si WHERE DATE(si.created_at) = CURRENT_DATE AND si.shop_id = $1`, [shopId]).catch(() => ({ rows: [{ total: 0 }] })),
+      db.query(`SELECT COALESCE(SUM(amount), 0) as total FROM service_requests WHERE DATE(updated_at) = CURRENT_DATE AND status = 'completed' AND amount IS NOT NULL AND shop_id = $1`, [shopId]).catch(() => ({ rows: [{ total: 0 }] })),
+      db.query(`SELECT COALESCE(SUM(si.final_amount), 0) as total FROM sales_item si WHERE si.created_at >= DATE_TRUNC('month', CURRENT_DATE) AND si.shop_id = $1`, [shopId]).catch(() => ({ rows: [{ total: 0 }] })),
+      db.query(`SELECT COALESCE(SUM(amount), 0) as total FROM service_requests WHERE updated_at >= DATE_TRUNC('month', CURRENT_DATE) AND status = 'completed' AND amount IS NOT NULL AND shop_id = $1`, [shopId]).catch(() => ({ rows: [{ total: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM products WHERE qty < 5 AND shop_id = $1`, [shopId]).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM service_requests WHERE status IN ('pending', 'in_progress') AND shop_id = $1`, [shopId]).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM products WHERE shop_id = $1`, [shopId]).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM users u JOIN roles r ON u.role_id = r.id WHERE LOWER(r.role_name) = 'customer' AND u.shop_id = $1`, [shopId]).catch(() => ({ rows: [{ count: 0 }] })),
     ]);
 
     let totalInventoryValue = parseFloat(inventoryRes.rows[0]?.total_value || 0);
@@ -115,11 +133,11 @@ router.get('/overview', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
     const uniqSkus = [...new Set(skus)];
     const uniqProductIds = [...new Set(productIds)];
 
-    const { bySerial, bySku } = await getPurchasePricesBatch(uniqSerials, uniqSkus);
+    const { bySerial, bySku } = await getPurchasePricesBatch(uniqSerials, uniqSkus, shopId);
     let byProductId = {};
     if (uniqProductIds.length > 0) {
       try {
-        const productRows = await db.query(`SELECT id, selling_price, mrp_price FROM products WHERE id = ANY($1)`, [uniqProductIds]);
+        const productRows = await db.query(`SELECT id, selling_price, mrp_price FROM products WHERE id = ANY($1) AND shop_id = $2`, [uniqProductIds, shopId]);
         for (const r of productRows.rows) {
           const v = parseFloat(r.selling_price || r.mrp_price || 0);
           if (v > 0) byProductId[r.id] = v * 0.7;
@@ -166,9 +184,10 @@ router.get('/overview', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
 });
 
 // Get sales analytics
-router.get('/sales-analytics', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+router.get('/sales-analytics', requireAuth, requireSuperAdminOrAdmin, requireShopId, async (req, res) => {
   try {
     const { period = 'month' } = req.query;
+    const shopId = req.shop_id;
     
     let dateFilter = '';
     if (period === 'week') {
@@ -182,16 +201,20 @@ router.get('/sales-analytics', requireAuth, requireSuperAdminOrAdmin, async (req
     // Sales by type (retail vs wholesale)
     let salesByType = [];
     try {
+      const whereClause = [
+        dateFilter ? dateFilter.replace('created_at', 'si.created_at') : null,
+        'si.shop_id = $1'
+      ].filter(Boolean).join(' AND ');
       const salesByTypeQuery = `
         SELECT 
           si.sales_type as sale_type,
           COUNT(DISTINCT si.invoice_number) as count,
           COALESCE(SUM(si.final_amount), 0) as total
         FROM sales_item si
-        ${dateFilter ? `WHERE ${dateFilter.replace('created_at', 'si.created_at')}` : ''}
+        WHERE ${whereClause}
         GROUP BY si.sales_type
       `;
-      const salesByTypeResult = await db.query(salesByTypeQuery);
+      const salesByTypeResult = await db.query(salesByTypeQuery, [shopId]);
       salesByType = salesByTypeResult.rows.map(row => ({
         type: row.sale_type,
         count: parseInt(row.count),

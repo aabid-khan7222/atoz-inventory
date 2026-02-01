@@ -22,6 +22,8 @@ function normalizeUser(rawUser) {
   return {
     ...rawUser,
     role_id: roleId,
+    shop_id: rawUser.shop_id != null ? Number(rawUser.shop_id) : 1,
+    shop_name: rawUser.shop_name || 'A To Z Battery',
     // agar backend ne role_name bheja hai to use hi use karo
     role_name: rawUser.role_name || (roleId === 1
       ? "Super Admin"

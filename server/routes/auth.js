@@ -49,9 +49,12 @@ router.post("/login", async (req, res) => {
           u.role_id,
           u.is_active,
           u.avatar_url,
-          r.role_name
+          u.shop_id,
+          r.role_name,
+          s.name as shop_name
         FROM users u
         JOIN roles r ON u.role_id = r.id
+        LEFT JOIN shops s ON u.shop_id = s.id
         WHERE LOWER(u.email) = $1
         LIMIT 1;
       `;
@@ -62,21 +65,27 @@ router.post("/login", async (req, res) => {
       }
       
       user = result.rows[0];
+      // Multi-shop: ensure shop_id/shop_name for legacy users
+      if (user.shop_id == null) user.shop_id = 1;
+      if (!user.shop_name) user.shop_name = 'A To Z Battery';
     } catch (dbError) {
       // If JOIN fails (roles table might not exist), try without JOIN
       console.warn("Login: Roles JOIN failed, trying without JOIN:", dbError.message);
       try {
         const simpleQuery = `
           SELECT 
-            id,
-            full_name,
-            email,
-            password,
-            role_id,
-            is_active,
-            avatar_url
-          FROM users
-          WHERE LOWER(email) = $1
+            u.id,
+            u.full_name,
+            u.email,
+            u.password,
+            u.role_id,
+            u.is_active,
+            u.avatar_url,
+            u.shop_id,
+            s.name as shop_name
+          FROM users u
+          LEFT JOIN shops s ON u.shop_id = s.id
+          WHERE LOWER(u.email) = $1
           LIMIT 1;
         `;
         result = await db.query(simpleQuery, [trimmedEmail]);
@@ -88,6 +97,9 @@ router.post("/login", async (req, res) => {
         user = result.rows[0];
         // Set default role_name if not available
         user.role_name = user.role_id === 1 ? 'Super Admin' : user.role_id === 2 ? 'Admin' : 'Customer';
+        // shop_id/shop_name may be null for legacy users; default to shop 1
+        if (user.shop_id == null) user.shop_id = 1;
+        if (!user.shop_name) user.shop_name = 'A To Z Battery';
       } catch (simpleError) {
         console.error("Login: Database query failed:", simpleError);
         return res.status(500).json({ 
@@ -176,12 +188,18 @@ router.post("/login", async (req, res) => {
       console.warn('Could not fetch customer profile:', profileErr.message);
     }
 
+    // Multi-shop: ensure shop_id and shop_name for JWT and response
+    const shopId = user.shop_id != null ? Number(user.shop_id) : 1;
+    const shopName = user.shop_name || 'A To Z Battery';
+
     const payload = {
       id: user.id,
       full_name: user.full_name,
       email: user.email,
       role_id: user.role_id,
       role_name: user.role_name, // <-- yaha se frontend ko exact role milega
+      shop_id: shopId,
+      shop_name: shopName,
       avatar_url: user.avatar_url || null, // Include avatar URL if available
       // Include profile data if available
       ...(customerProfile ? {
@@ -443,9 +461,12 @@ router.get("/me", optionalAuth, async (req, res) => {
           u.role_id,
           u.is_active,
           u.avatar_url,
-          r.role_name
+          u.shop_id,
+          r.role_name,
+          s.name as shop_name
        FROM users u
        JOIN roles r ON u.role_id = r.id
+       LEFT JOIN shops s ON u.shop_id = s.id
        WHERE u.id = $1`,
       [userId]
     );
@@ -476,9 +497,11 @@ router.get("/me", optionalAuth, async (req, res) => {
       console.warn('Could not fetch customer profile:', profileErr.message);
     }
 
-    // Merge profile data with user data
+    // Merge profile data with user data (include shop for multi-tenant)
     const userWithProfile = {
       ...user,
+      shop_id: user.shop_id != null ? Number(user.shop_id) : 1,
+      shop_name: user.shop_name || 'A To Z Battery',
       avatar_url: user.avatar_url || null, // Include avatar URL
       ...(customerProfile ? {
         phone: customerProfile.phone,
@@ -614,12 +637,12 @@ router.post("/signup/create", async (req, res) => {
     client = await db.pool.connect();
     await client.query("BEGIN");
 
-    // Insert into users table (GST details NOT in users table, only in customer_profiles)
+    // Insert into users table (shop_id defaults to 1 for public signup - main shop)
     const userResult = await client.query(
       `INSERT INTO users (
         full_name, email, phone, password, role_id, is_active,
-        state, city, address
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        state, city, address, shop_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE((SELECT MIN(id) FROM shops), 1))
       RETURNING id, full_name, email, phone, role_id`,
       [
         full_name.trim(),

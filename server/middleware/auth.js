@@ -20,6 +20,8 @@ function signAuthToken(user) {
     role_id: Number(user.role_id) || 3,
     // Include role_name if available
     ...(user.role_name && { role_name: user.role_name }),
+    // Multi-shop: shop_id from user record
+    ...(user.shop_id != null && { shop_id: Number(user.shop_id) }),
   };
 
   try {
@@ -41,9 +43,11 @@ function optionalAuth(req, res, next) {
     if (bearerToken) {
       const decoded = jwt.verify(bearerToken, JWT_SECRET);
       req.user = decoded;
+      if (decoded.shop_id != null) req.shop_id = Number(decoded.shop_id);
     } else if (req.cookies && req.cookies.token) {
       const decoded = jwt.verify(req.cookies.token, JWT_SECRET);
       req.user = decoded;
+      if (decoded.shop_id != null) req.shop_id = Number(decoded.shop_id);
     }
   } catch (err) {
     // Swallow errors here so optional auth does not block the request path.
@@ -90,6 +94,10 @@ function requireAuth(req, res, next) {
     }
 
     req.user = decoded;
+    // Multi-shop: attach shop_id for route filtering
+    if (decoded.shop_id != null) {
+      req.shop_id = Number(decoded.shop_id);
+    }
     next();
   } catch (err) {
     console.error("[requireAuth] Error:", err);
@@ -139,6 +147,20 @@ const requireAdmin = (req, res, next) => {
 // TODO: Currently unused - may be useful in future for routes requiring ONLY Super Admin (not Admin)
 // const requireSuperAdmin = requireRole(1);
 
+// Multi-shop: require shop_id from JWT (user must belong to a shop)
+const requireShopId = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+  if (req.shop_id == null || req.shop_id === undefined) {
+    return res.status(403).json({
+      error: "Shop context required",
+      details: "Your session does not have shop context. Please log in again.",
+    });
+  }
+  next();
+};
+
 // Allow Super Admin (role_id = 1) OR Admin (role_id >= 2)
 const requireSuperAdminOrAdmin = (req, res, next) => {
   if (!req.user) {
@@ -161,6 +183,7 @@ module.exports = {
   optionalAuth,
   requireRole,
   requireAdmin,
+  requireShopId,
   // requireSuperAdmin, // Currently unused - commented out but kept for potential future use
   requireSuperAdminOrAdmin,
 };

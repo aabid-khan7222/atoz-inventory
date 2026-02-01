@@ -155,7 +155,7 @@ const Invoice = () => {
         <div className="seller-buyer-section">
           <div className="seller-box">
             <img src={logo} alt="Logo" className="company-logo" />
-            <div className="section-title">{invoice.shop?.shop_name || 'A TO Z BATTERIES & ELECTRICAL PARTS'}</div>
+            <div className="section-title">{invoice.shop?.shop_name || user?.shop_name || 'A TO Z BATTERIES & ELECTRICAL PARTS'}</div>
             <div className="seller-info">
               {invoice.shop?.address_line1 && <>{invoice.shop.address_line1}<br /></>}
               {invoice.shop?.address_line2 && <>{invoice.shop.address_line2}<br /></>}

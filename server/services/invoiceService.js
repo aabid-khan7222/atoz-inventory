@@ -102,9 +102,12 @@ function formatDate(date) {
   return `${day}-${month}-${year}`;
 }
 
-// Get invoice by invoice number
-async function getInvoiceByNumber(invoiceNumber) {
+// Get invoice by invoice number (shopId for multi-tenant isolation)
+async function getInvoiceByNumber(invoiceNumber, shopId) {
   try {
+    const shopFilter = shopId != null ? ' AND shop_id = $2' : '';
+    const params = shopId != null ? [invoiceNumber, shopId] : [invoiceNumber];
+
     // Get sale header info
     const saleResult = await db.query(
       `SELECT 
@@ -122,12 +125,12 @@ async function getInvoiceByNumber(invoiceNumber) {
         MIN(created_at) as created_at,
         MAX(updated_at) as updated_at
       FROM sales_item 
-      WHERE invoice_number = $1
+      WHERE invoice_number = $1${shopFilter}
       GROUP BY invoice_number, customer_id, customer_name, customer_mobile_number, 
                customer_vehicle_number, sales_type, sales_type_id, created_by,
                customer_business_name, customer_gst_number, customer_business_address
       LIMIT 1`,
-      [invoiceNumber]
+      params
     );
 
     if (saleResult.rows.length === 0) {
@@ -158,9 +161,9 @@ async function getInvoiceByNumber(invoiceNumber) {
         final_amount,
         customer_vehicle_number
       FROM sales_item 
-      WHERE invoice_number = $1 
+      WHERE invoice_number = $1${shopFilter}
       ORDER BY id`,
-      [invoiceNumber]
+      params
     );
 
     const items = itemsResult.rows;

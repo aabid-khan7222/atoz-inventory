@@ -314,8 +314,8 @@ const checkExpiringGuaranteesDaily = async () => {
     const salesItemsResult = await db.query(
       `SELECT si.id, si.customer_id, si.customer_name, si.customer_mobile_number,
               si.SERIAL_NUMBER, si.invoice_number, si.purchase_date,
-              si.WARRANTY as sales_item_warranty, p.name as product_name,
-              p.warranty as product_warranty, p.guarantee_period_months
+              si.WARRANTY as sales_item_warranty, si.shop_id,
+              p.name as product_name, p.warranty as product_warranty, p.guarantee_period_months
        FROM sales_item si
        JOIN products p ON si.product_id = p.id
        WHERE si.purchase_date IS NOT NULL AND si.purchase_date >= $1
@@ -340,7 +340,7 @@ const checkExpiringGuaranteesDaily = async () => {
 
       if (daysUntilExpiration >= 0 && daysUntilExpiration <= daysAhead && item.SERIAL_NUMBER) {
         expiringSerials.push(item.SERIAL_NUMBER);
-        expiringMap.set(item.SERIAL_NUMBER, { ...item, daysUntilExpiration, guaranteeEndDate });
+        expiringMap.set(item.SERIAL_NUMBER, { ...item, daysUntilExpiration, guaranteeEndDate, shop_id: item.shop_id });
       }
     }
 
@@ -368,12 +368,6 @@ const checkExpiringGuaranteesDaily = async () => {
       }
     }
 
-    const adminUsers = await db.query(
-      `SELECT id FROM users WHERE role_id IN (1, 2) AND is_active = true`
-    );
-    const adminUserIds = adminUsers.rows.map((u) => u.id);
-    if (adminUserIds.length === 0) return;
-
     const toNotify = [];
     const seen = new Set();
     for (const sn of expiringSerials) {
@@ -384,20 +378,37 @@ const checkExpiringGuaranteesDaily = async () => {
       toNotify.push(item);
     }
 
+    // Group by shop_id and notify only that shop's admins
+    const byShop = new Map();
     for (const item of toNotify) {
-      const daysText = item.daysUntilExpiration === 0 ? 'today'
-        : item.daysUntilExpiration === 1 ? 'in 1 day'
-        : `in ${item.daysUntilExpiration} days`;
-      const expirationDateStr = item.guaranteeEndDate.toLocaleDateString('en-IN', {
-        day: 'numeric', month: 'short', year: 'numeric'
-      });
-      await createNotification(
-        adminUserIds,
-        'Guarantee Expiring Soon',
-        `Customer ${item.customer_name} (${item.customer_mobile_number}) - Battery ${item.SERIAL_NUMBER} (${item.product_name}) guarantee expires ${daysText} (${expirationDateStr}). Invoice: ${item.invoice_number}`,
-        'warning',
-        null
+      const shopId = item.shop_id != null ? item.shop_id : 1;
+      if (!byShop.has(shopId)) byShop.set(shopId, []);
+      byShop.get(shopId).push(item);
+    }
+
+    for (const [shopId, items] of byShop) {
+      const adminUsers = await db.query(
+        `SELECT id FROM users WHERE role_id IN (1, 2) AND is_active = true AND shop_id = $1`,
+        [shopId]
       );
+      const adminUserIds = adminUsers.rows.map((u) => u.id);
+      if (adminUserIds.length === 0) continue;
+
+      for (const item of items) {
+        const daysText = item.daysUntilExpiration === 0 ? 'today'
+          : item.daysUntilExpiration === 1 ? 'in 1 day'
+          : `in ${item.daysUntilExpiration} days`;
+        const expirationDateStr = item.guaranteeEndDate.toLocaleDateString('en-IN', {
+          day: 'numeric', month: 'short', year: 'numeric'
+        });
+        await createNotification(
+          adminUserIds,
+          'Guarantee Expiring Soon',
+          `Customer ${item.customer_name} (${item.customer_mobile_number}) - Battery ${item.SERIAL_NUMBER} (${item.product_name}) guarantee expires ${daysText} (${expirationDateStr}). Invoice: ${item.invoice_number}`,
+          'warning',
+          null
+        );
+      }
     }
 
     if (toNotify.length > 0) {

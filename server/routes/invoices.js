@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireShopId } = require('../middleware/auth');
 const invoiceService = require('../services/invoiceService');
 const { getShop } = require('./shopSettings');
 const puppeteer = require('puppeteer');
@@ -8,10 +8,11 @@ const fs = require('fs');
 const path = require('path');
 
 // Get invoice data by invoice number (includes shop details for bill)
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', requireAuth, requireShopId, async (req, res) => {
   try {
     const { id } = req.params; // invoice number
-    const invoice = await invoiceService.getInvoiceByNumber(id);
+    const shopId = req.shop_id;
+    const invoice = await invoiceService.getInvoiceByNumber(id, shopId);
 
     // Check permissions
     // If customer, only allow access to their own invoices
@@ -26,7 +27,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       }
     }
 
-    const shop = await getShop();
+    const shop = await getShop(shopId);
     res.json({ ...invoice, shop });
   } catch (error) {
     console.error('Error fetching invoice:', error);
@@ -37,10 +38,11 @@ router.get('/:id', requireAuth, async (req, res) => {
 });
 
 // Generate PDF for invoice
-router.get('/:id/pdf', requireAuth, async (req, res) => {
+router.get('/:id/pdf', requireAuth, requireShopId, async (req, res) => {
   try {
     const { id } = req.params; // invoice number
-    const invoice = await invoiceService.getInvoiceByNumber(id);
+    const shopId = req.shop_id;
+    const invoice = await invoiceService.getInvoiceByNumber(id, shopId);
 
     // Check permissions (same as above)
     if (req.user.role_id >= 3) {
@@ -73,7 +75,7 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
       // Continue without logo if file can't be read
     }
 
-    const shop = await getShop();
+    const shop = await getShop(shopId);
     const html = generateInvoiceHTML(invoice, logoBase64, shop);
 
     // Generate PDF using Puppeteer

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requireAdmin, requireShopId } = require('../middleware/auth');
 const db = require('../db');
 
 // Default shop object when table is missing or empty (fallback for invoice)
@@ -21,13 +21,20 @@ function getDefaultShop() {
 }
 
 // GET shop settings (admin/super admin only - for Settings page)
-router.get('/', requireAuth, requireAdmin, async (req, res) => {
+router.get('/', requireAuth, requireAdmin, requireShopId, async (req, res) => {
   try {
+    const shopId = req.shop_id;
     const result = await db.query(
       `SELECT id, shop_name, address_line1, address_line2, address_line3, city, pincode, state, state_code, phone, email, gstin, updated_at
-       FROM shop_settings WHERE id = 1`
+       FROM shop_settings WHERE shop_id = $1`,
+      [shopId]
     );
     if (result.rows.length === 0) {
+      // New shop without settings - return shop name from shops table
+      const shopRow = await db.query(`SELECT name FROM shops WHERE id = $1`, [shopId]);
+      if (shopRow.rows.length > 0) {
+        return res.json({ ...getDefaultShop(), shop_name: shopRow.rows[0].name });
+      }
       return res.json(getDefaultShop());
     }
     const row = result.rows[0];
@@ -56,7 +63,7 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT shop settings (admin/super admin only)
-router.put('/', requireAuth, requireAdmin, async (req, res) => {
+router.put('/', requireAuth, requireAdmin, requireShopId, async (req, res) => {
   try {
     const {
       shop_name,
@@ -76,10 +83,11 @@ router.put('/', requireAuth, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Shop name is required' });
     }
 
+    const shopId = req.shop_id;
     await db.query(
-      `INSERT INTO shop_settings (id, shop_name, address_line1, address_line2, address_line3, city, pincode, state, state_code, phone, email, gstin, updated_at)
-       VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)
-       ON CONFLICT (id) DO UPDATE SET
+      `INSERT INTO shop_settings (id, shop_id, shop_name, address_line1, address_line2, address_line3, city, pincode, state, state_code, phone, email, gstin, updated_at)
+       VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP)
+       ON CONFLICT (shop_id) DO UPDATE SET
          shop_name = EXCLUDED.shop_name,
          address_line1 = EXCLUDED.address_line1,
          address_line2 = EXCLUDED.address_line2,
@@ -93,6 +101,7 @@ router.put('/', requireAuth, requireAdmin, async (req, res) => {
          gstin = EXCLUDED.gstin,
          updated_at = CURRENT_TIMESTAMP`,
       [
+        shopId,
         (shop_name || '').trim(),
         (address_line1 || '').trim(),
         (address_line2 || '').trim(),
@@ -109,7 +118,8 @@ router.put('/', requireAuth, requireAdmin, async (req, res) => {
 
     const result = await db.query(
       `SELECT id, shop_name, address_line1, address_line2, address_line3, city, pincode, state, state_code, phone, email, gstin, updated_at
-       FROM shop_settings WHERE id = 1`
+       FROM shop_settings WHERE shop_id = $1`,
+      [shopId]
     );
     const row = result.rows[0];
     res.json({
@@ -136,14 +146,29 @@ router.put('/', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// Get shop for invoice (used by invoices route). Returns promise.
-async function getShop() {
+// Get shop for invoice (used by invoices route). Returns promise. Pass shopId for multi-tenant.
+async function getShop(shopId) {
   try {
-    const result = await db.query(
-      `SELECT shop_name, address_line1, address_line2, address_line3, city, pincode, state, state_code, phone, email, gstin
-       FROM shop_settings WHERE id = 1`
-    );
-    if (result.rows.length === 0) return getDefaultShop();
+    const result = shopId != null
+      ? await db.query(
+          `SELECT shop_name, address_line1, address_line2, address_line3, city, pincode, state, state_code, phone, email, gstin
+           FROM shop_settings WHERE shop_id = $1`,
+          [shopId]
+        )
+      : await db.query(
+          `SELECT shop_name, address_line1, address_line2, address_line3, city, pincode, state, state_code, phone, email, gstin
+           FROM shop_settings WHERE id = 1`
+        );
+    if (result.rows.length === 0) {
+      // For new shops without shop_settings, use name from shops table
+      if (shopId != null) {
+        const shopRow = await db.query(`SELECT name FROM shops WHERE id = $1`, [shopId]);
+        if (shopRow.rows.length > 0) {
+          return { shop_name: shopRow.rows[0].name, address_line1: '', address_line2: '', address_line3: '', city: '', pincode: '', state: '', state_code: '', phone: '', email: '', gstin: '' };
+        }
+      }
+      return getDefaultShop();
+    }
     const row = result.rows[0];
     return {
       shop_name: row.shop_name || '',
