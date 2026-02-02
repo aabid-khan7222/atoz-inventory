@@ -228,58 +228,6 @@ if (!isMatch) {
 });
 
 // ------------------------------------------------------
-// POST /api/auth/fix-shop-passwords (ONE-TIME USE — remove after fixing)
-//  - Only works when FIX_SHOP_PASSWORDS_TOKEN is set in env.
-//  - Call with header: X-Fix-Token: <FIX_SHOP_PASSWORDS_TOKEN>
-//  - Updates Sahara & Anand user passwords in the SAME DB as login.
-//  - After use: remove FIX_SHOP_PASSWORDS_TOKEN from Render env and redeploy.
-// ------------------------------------------------------
-const FIX_SHOP_EMAILS = [
-  { email: "superadmin@saharabattery.com", password: "Sahara@123" },
-  { email: "admin@saharabattery.com", password: "Sahara@123" },
-  { email: "superadmin@anandbattery.com", password: "Anand@123" },
-  { email: "admin@anandbattery.com", password: "Anand@123" },
-];
-router.post("/fix-shop-passwords", async (req, res) => {
-  try {
-    const secret = process.env.FIX_SHOP_PASSWORDS_TOKEN;
-    if (!secret || secret.trim() === "") {
-      return res.status(404).json({ error: "Not found" });
-    }
-    const token = (req.headers["x-fix-token"] || req.body?.token || "").trim();
-    if (token !== secret) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-    const updated = [];
-    for (const u of FIX_SHOP_EMAILS) {
-      const email = u.email.toLowerCase();
-      const { rows } = await db.query(
-        "SELECT id FROM users WHERE LOWER(email) = $1",
-        [email]
-      );
-      if (rows.length === 0) {
-        continue;
-      }
-      const hashed = await bcrypt.hash(u.password, 10);
-      await db.query(
-        "UPDATE users SET password = $1 WHERE LOWER(email) = $2",
-        [hashed, email]
-      );
-      updated.push(u.email);
-    }
-    console.log("[fix-shop-passwords] Updated:", updated.join(", "));
-    return res.json({
-      success: true,
-      message: "Passwords updated. Remove FIX_SHOP_PASSWORDS_TOKEN from env and redeploy.",
-      updated,
-    });
-  } catch (err) {
-    console.error("POST /api/auth/fix-shop-passwords error:", err);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// ------------------------------------------------------
 // POST /api/auth/change-password
 //  - Authenticated users only (Bearer token)
 //  - Frontend se body: { currentPassword, newPassword }
