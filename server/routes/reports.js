@@ -959,11 +959,13 @@ router.get('/profit/overall', requireAuth, requireShopId, requireSuperAdminOrAdm
 // COMMISSION REPORTS
 // ============================================
 
-// Agent-wise Commission Report
+// Agent-wise Commission Report (shop-scoped)
 router.get('/commission/agent', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all', agentId } = req.query;
-    const { dateFilter, params, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period, 2);
+    let queryParams = [req.shop_id, ...params];
+    let paramIndex = nextParamIndex;
 
     let query = `
       SELECT 
@@ -977,12 +979,10 @@ router.get('/commission/agent', requireAuth, requireShopId, requireSuperAdminOrA
         MIN(si.purchase_date) FILTER (WHERE si.has_commission = true) as first_commission_date,
         MAX(si.purchase_date) FILTER (WHERE si.has_commission = true) as last_commission_date
       FROM commission_agents ca
-      LEFT JOIN sales_item si ON ca.id = si.commission_agent_id 
+      LEFT JOIN sales_item si ON ca.id = si.commission_agent_id AND si.shop_id = ca.shop_id
         AND si.has_commission = true ${dateFilter}
-      WHERE 1=1
+      WHERE ca.shop_id = $1
     `;
-    let queryParams = [...params];
-    let paramIndex = nextParamIndex;
 
     if (agentId && agentId !== 'all') {
       query += ` AND ca.id = $${paramIndex}`;
@@ -1013,11 +1013,13 @@ router.get('/commission/agent', requireAuth, requireShopId, requireSuperAdminOrA
   }
 });
 
-// Commission Details Report
+// Commission Details Report (shop-scoped)
 router.get('/commission/details', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all', agentId } = req.query;
-    const { dateFilter, params, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params, nextParamIndex } = buildSalesDateFilter(dateFrom, dateTo, period, 2);
+    let queryParams = [req.shop_id, ...params];
+    let paramIndex = nextParamIndex;
 
     let query = `
       SELECT 
@@ -1035,11 +1037,9 @@ router.get('/commission/details', requireAuth, requireShopId, requireSuperAdminO
         ca.name as agent_name,
         ca.mobile_number as agent_mobile
       FROM sales_item si
-      INNER JOIN commission_agents ca ON si.commission_agent_id = ca.id
-      WHERE si.has_commission = true ${dateFilter}
+      INNER JOIN commission_agents ca ON si.commission_agent_id = ca.id AND ca.shop_id = si.shop_id
+      WHERE si.shop_id = $1 AND si.has_commission = true ${dateFilter}
     `;
-    let queryParams = [...params];
-    let paramIndex = nextParamIndex;
 
     if (agentId && agentId !== 'all') {
       query += ` AND ca.id = $${paramIndex}`;
@@ -1152,12 +1152,14 @@ router.get('/charging/customer', requireAuth, requireShopId, requireSuperAdminOr
 // SUMMARY REPORT
 // ============================================
 
-// Get comprehensive summary report
+// Get comprehensive summary report (shop-scoped)
 router.get('/summary', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
-    const { dateFilter: salesDateFilter, params: salesParams } = buildSalesDateFilter(dateFrom, dateTo, period);
-    const { dateFilter: chargingDateFilter, params: chargingParams } = buildChargingDateFilter(dateFrom, dateTo, period);
+    const { dateFilter: salesDateFilter, params: salesDateParams } = buildSalesDateFilter(dateFrom, dateTo, period, 2);
+    const { dateFilter: chargingDateFilter, params: chargingDateParams } = buildChargingDateFilter(dateFrom, dateTo, period, 2);
+    const salesParams = [req.shop_id, ...salesDateParams];
+    const chargingParams = [req.shop_id, ...chargingDateParams];
 
     // Sales summary
     const salesSummary = await db.query(`
@@ -1171,7 +1173,7 @@ router.get('/summary', requireAuth, requireShopId, requireSuperAdminOrAdmin, asy
         COALESCE(SUM(si.tax), 0) as total_tax,
         COALESCE(SUM(si.QUANTITY), 0) as total_quantity_sold
       FROM sales_item si
-      WHERE 1=1 ${salesDateFilter}
+      WHERE si.shop_id = $1 ${salesDateFilter}
     `, salesParams);
 
         // Commission summary - check if commission columns exist
@@ -1193,7 +1195,7 @@ router.get('/summary', requireAuth, requireShopId, requireSuperAdminOrAdmin, asy
                 COALESCE(SUM(si.commission_amount), 0) as total_commission_paid,
                 COUNT(DISTINCT si.commission_agent_id) FILTER (WHERE si.has_commission = true) as unique_agents
               FROM sales_item si
-              WHERE si.has_commission = true ${salesDateFilter}
+              WHERE si.shop_id = $1 AND si.has_commission = true ${salesDateFilter}
             `, salesParams);
           } else {
             // Return empty commission summary if columns don't exist
@@ -1235,7 +1237,7 @@ router.get('/summary', requireAuth, requireShopId, requireSuperAdminOrAdmin, asy
                 COUNT(*) as total_services,
                 COALESCE(SUM(cs.${priceColumn}) FILTER (WHERE cs.status IN ('completed', 'collected')), 0) as total_revenue
               FROM charging_services cs
-              WHERE 1=1 ${chargingDateFilter}
+              WHERE cs.shop_id = $1 ${chargingDateFilter}
             `, chargingParams);
           }
         } catch (chargingErr) {
@@ -1252,7 +1254,7 @@ router.get('/summary', requireAuth, requireShopId, requireSuperAdminOrAdmin, asy
               si.SKU as sku,
               si.final_amount
             FROM sales_item si
-            WHERE 1=1 ${salesDateFilter}
+            WHERE si.shop_id = $1 ${salesDateFilter}
             LIMIT 1000
           `;
           const salesItemsResult = await db.query(salesItemsQuery, salesParams);
@@ -1269,7 +1271,7 @@ router.get('/summary', requireAuth, requireShopId, requireSuperAdminOrAdmin, asy
           
           // Scale profit if we limited results
           const totalCountResult = await db.query(
-            `SELECT COUNT(*) as total FROM sales_item si WHERE 1=1 ${salesDateFilter}`,
+            `SELECT COUNT(*) as total FROM sales_item si WHERE si.shop_id = $1 ${salesDateFilter}`,
             salesParams
           );
           const totalCount = parseInt(totalCountResult.rows[0]?.total || salesItemsResult.rows.length);
@@ -1286,30 +1288,30 @@ router.get('/summary', requireAuth, requireShopId, requireSuperAdminOrAdmin, asy
         const chargingRevenue = parseFloat(chargingSummary.rows[0]?.total_revenue || 0);
         const chargingProfit = chargingRevenue * 0.7; // 70% profit margin
     
-    // Calculate services profit (service_requests - 100% profit as it's service charge)
+    // Calculate services profit (service_requests - 100% profit, shop-scoped)
     let servicesProfit = 0;
     try {
-      // Build date filter for service_requests
+      // Build date filter for service_requests (paramStart 2 so $2,$3 for dates after shop_id $1)
       let serviceRequestsDateFilter = '';
-      let serviceRequestsParams = [];
+      let serviceRequestsParams = [req.shop_id];
       
       if (dateFrom && dateTo) {
-        serviceRequestsDateFilter = ' AND DATE(sr.updated_at) >= $1::DATE AND DATE(sr.updated_at) <= $2::DATE';
-        serviceRequestsParams = [dateFrom, dateTo];
+        serviceRequestsDateFilter = ' AND DATE(sr.updated_at) >= $2::DATE AND DATE(sr.updated_at) <= $3::DATE';
+        serviceRequestsParams = [req.shop_id, dateFrom, dateTo];
       } else if (period && period !== 'all') {
         if (period === 'today') {
           serviceRequestsDateFilter = ' AND DATE(sr.updated_at) = CURRENT_DATE';
         } else {
           const dateRange = getDateRangeFromPeriod(period);
-          serviceRequestsDateFilter = ' AND DATE(sr.updated_at) >= $1::DATE AND DATE(sr.updated_at) <= $2::DATE';
-          serviceRequestsParams = [dateRange.startDate, dateRange.endDate];
+          serviceRequestsDateFilter = ' AND DATE(sr.updated_at) >= $2::DATE AND DATE(sr.updated_at) <= $3::DATE';
+          serviceRequestsParams = [req.shop_id, dateRange.startDate, dateRange.endDate];
         }
       }
 
       const serviceRequestsQuery = `
         SELECT COALESCE(SUM(amount), 0) as total
         FROM service_requests sr
-        WHERE status = 'completed' AND amount IS NOT NULL ${serviceRequestsDateFilter}
+        WHERE sr.shop_id = $1 AND status = 'completed' AND amount IS NOT NULL ${serviceRequestsDateFilter}
       `;
       const serviceRequestsResult = await db.query(serviceRequestsQuery, serviceRequestsParams);
       const servicesRevenue = parseFloat(serviceRequestsResult.rows[0]?.total || 0);
@@ -1323,29 +1325,29 @@ router.get('/summary', requireAuth, requireShopId, requireSuperAdminOrAdmin, asy
     // Total profit (sales + charging services + services)
     const totalProfit = totalSalesProfit + chargingProfit + servicesProfit;
 
-    // Calculate total employee payments (within date range if specified)
+    // Calculate total employee payments for this shop only (within date range if specified)
     let totalEmployeePayments = 0;
     try {
       let employeePaymentsDateFilter = '';
-      let employeePaymentsParams = [];
+      let employeePaymentsParams = [req.shop_id];
       
       if (dateFrom && dateTo) {
-        employeePaymentsDateFilter = ' AND ep.payment_date >= $1::DATE AND ep.payment_date <= $2::DATE';
-        employeePaymentsParams = [dateFrom, dateTo];
+        employeePaymentsDateFilter = ' AND ep.payment_date >= $2::DATE AND ep.payment_date <= $3::DATE';
+        employeePaymentsParams = [req.shop_id, dateFrom, dateTo];
       } else if (period && period !== 'all') {
         if (period === 'today') {
           employeePaymentsDateFilter = ' AND ep.payment_date = CURRENT_DATE';
         } else {
           const dateRange = getDateRangeFromPeriod(period);
-          employeePaymentsDateFilter = ' AND ep.payment_date >= $1::DATE AND ep.payment_date <= $2::DATE';
-          employeePaymentsParams = [dateRange.startDate, dateRange.endDate];
+          employeePaymentsDateFilter = ' AND ep.payment_date >= $2::DATE AND ep.payment_date <= $3::DATE';
+          employeePaymentsParams = [req.shop_id, dateRange.startDate, dateRange.endDate];
         }
       }
 
       const employeePaymentsQuery = `
         SELECT COALESCE(SUM(ep.amount), 0) as total_payments
         FROM employee_payments ep
-        WHERE 1=1 ${employeePaymentsDateFilter}
+        WHERE ep.employee_id IN (SELECT id FROM employees WHERE shop_id = $1) ${employeePaymentsDateFilter}
       `;
       const employeePaymentsResult = await db.query(employeePaymentsQuery, employeePaymentsParams);
       totalEmployeePayments = parseFloat(employeePaymentsResult.rows[0]?.total_payments || 0);
@@ -1407,7 +1409,7 @@ function buildCustomerSalesDateFilter(dateFrom, dateTo, period, customerId, para
   return { dateFilter, params, nextParamIndex: paramCount + 1 };
 }
 
-// Customer Category-wise Sales Report
+// Customer Category-wise Sales Report (shop-scoped: only current shop's sales for this customer)
 router.get('/customer/sales/category', requireAuth, requireShopId, async (req, res) => {
   try {
     // Only allow customers (role_id >= 3) to access their own data
@@ -1417,7 +1419,8 @@ router.get('/customer/sales/category', requireAuth, requireShopId, async (req, r
 
     const customerId = req.user.id;
     const { dateFrom, dateTo, period = 'all' } = req.query;
-    const { dateFilter, params } = buildCustomerSalesDateFilter(dateFrom, dateTo, period, customerId);
+    const { dateFilter, params: dateParams } = buildCustomerSalesDateFilter(dateFrom, dateTo, period, customerId, 2);
+    const params = [req.shop_id, customerId, ...(dateParams.length > 1 ? dateParams.slice(1) : [])];
 
     const query = `
       SELECT 
@@ -1430,7 +1433,7 @@ router.get('/customer/sales/category', requireAuth, requireShopId, async (req, r
         SUM(si.tax) as total_tax,
         AVG(si.final_amount) as avg_sale_amount
       FROM sales_item si
-      WHERE si.customer_id = $1 ${dateFilter}
+      WHERE si.shop_id = $1 AND si.customer_id = $2 ${dateFilter}
       GROUP BY si.CATEGORY
       ORDER BY total_revenue DESC
     `;
@@ -1451,7 +1454,7 @@ router.get('/customer/sales/category', requireAuth, requireShopId, async (req, r
   }
 });
 
-// Customer Product-wise Sales Report
+// Customer Product-wise Sales Report (shop-scoped)
 router.get('/customer/sales/product', requireAuth, requireShopId, async (req, res) => {
   try {
     if (req.user.role_id < 3) {
@@ -1460,7 +1463,9 @@ router.get('/customer/sales/product', requireAuth, requireShopId, async (req, re
 
     const customerId = req.user.id;
     const { dateFrom, dateTo, period = 'all', category, series } = req.query;
-    const { dateFilter, params, nextParamIndex } = buildCustomerSalesDateFilter(dateFrom, dateTo, period, customerId);
+    const { dateFilter, params: dateParams, nextParamIndex } = buildCustomerSalesDateFilter(dateFrom, dateTo, period, customerId, 2);
+    let queryParams = [req.shop_id, customerId, ...(dateParams.length > 1 ? dateParams.slice(1) : [])];
+    let paramIndex = nextParamIndex + 1; // +1 because we prepended shop_id
 
     let query = `
       SELECT 
@@ -1475,10 +1480,8 @@ router.get('/customer/sales/product', requireAuth, requireShopId, async (req, re
         SUM(si.discount_amount) as total_discount,
         AVG(si.final_amount) as avg_sale_amount
       FROM sales_item si
-      WHERE si.customer_id = $1 ${dateFilter}
+      WHERE si.shop_id = $1 AND si.customer_id = $2 ${dateFilter}
     `;
-    let queryParams = [...params];
-    let paramIndex = nextParamIndex;
 
     if (category && category !== 'all') {
       query += ` AND si.CATEGORY = $${paramIndex}`;
@@ -1513,7 +1516,7 @@ router.get('/customer/sales/product', requireAuth, requireShopId, async (req, re
   }
 });
 
-// Customer Series-wise Sales Report
+// Customer Series-wise Sales Report (shop-scoped)
 router.get('/customer/sales/series', requireAuth, requireShopId, async (req, res) => {
   try {
     if (req.user.role_id < 3) {
@@ -1522,7 +1525,9 @@ router.get('/customer/sales/series', requireAuth, requireShopId, async (req, res
 
     const customerId = req.user.id;
     const { dateFrom, dateTo, period = 'all', category } = req.query;
-    const { dateFilter, params, nextParamIndex } = buildCustomerSalesDateFilter(dateFrom, dateTo, period, customerId);
+    const { dateFilter, params: dateParams, nextParamIndex } = buildCustomerSalesDateFilter(dateFrom, dateTo, period, customerId, 2);
+    let queryParams = [req.shop_id, customerId, ...(dateParams.length > 1 ? dateParams.slice(1) : [])];
+    let paramIndex = nextParamIndex + 1;
 
     let query = `
       SELECT 
@@ -1536,10 +1541,8 @@ router.get('/customer/sales/series', requireAuth, requireShopId, async (req, res
         SUM(si.discount_amount) as total_discount,
         AVG(si.final_amount) as avg_sale_amount
       FROM sales_item si
-      WHERE si.customer_id = $1 AND si.SERIES IS NOT NULL ${dateFilter}
+      WHERE si.shop_id = $1 AND si.customer_id = $2 AND si.SERIES IS NOT NULL ${dateFilter}
     `;
-    let queryParams = [...params];
-    let paramIndex = nextParamIndex;
 
     if (category && category !== 'all') {
       query += ` AND si.CATEGORY = $${paramIndex}`;
@@ -1568,7 +1571,7 @@ router.get('/customer/sales/series', requireAuth, requireShopId, async (req, res
   }
 });
 
-// Customer Charging Services Report
+// Customer Charging Services Report (shop-scoped)
 router.get('/customer/charging/services', requireAuth, requireShopId, async (req, res) => {
   try {
     if (req.user.role_id < 3) {
@@ -1596,10 +1599,10 @@ router.get('/customer/charging/services', requireAuth, requireShopId, async (req
 
     const customerMobile = customerResult.rows[0].phone;
 
-    // Build date filter with customer mobile as first param
+    // Build date filter (shop_id=$1, customer_mobile=$2, dates=$3,$4)
     let chargingDateFilter = '';
-    const chargingParams = [customerMobile];
-    let paramIndex = 2;
+    const chargingParams = [req.shop_id, customerMobile];
+    let paramIndex = 3;
 
     if (dateFrom && dateTo) {
       chargingDateFilter = ` AND cs.created_at >= $${paramIndex} AND cs.created_at <= $${paramIndex + 1}`;
@@ -1620,7 +1623,7 @@ router.get('/customer/charging/services', requireAuth, requireShopId, async (req
         MIN(cs.created_at) as first_service_date,
         MAX(cs.created_at) as last_service_date
       FROM charging_services cs
-      WHERE cs.customer_mobile_number = $1 ${chargingDateFilter}
+      WHERE cs.shop_id = $1 AND cs.customer_mobile_number = $2 ${chargingDateFilter}
     `;
 
     const { rows } = await db.query(query, chargingParams);
@@ -1646,7 +1649,8 @@ router.get('/customer/summary', requireAuth, requireShopId, async (req, res) => 
 
     const customerId = req.user.id;
     const { dateFrom, dateTo, period = 'all' } = req.query;
-    const { dateFilter: salesDateFilter, params: salesParams } = buildCustomerSalesDateFilter(dateFrom, dateTo, period, customerId);
+    const { dateFilter: salesDateFilter, params: dateParams } = buildCustomerSalesDateFilter(dateFrom, dateTo, period, customerId, 2);
+    const salesParams = [req.shop_id, customerId, ...(dateParams.length > 1 ? dateParams.slice(1) : [])];
     
     // Get customer phone number for charging services
     const customerResult = await db.query(
@@ -1655,7 +1659,7 @@ router.get('/customer/summary', requireAuth, requireShopId, async (req, res) => 
     );
     const customerMobile = customerResult.rows.length > 0 ? customerResult.rows[0].phone : null;
 
-    // Sales summary
+    // Sales summary (shop-scoped: only current shop's sales for this customer)
     const salesSummary = await db.query(`
       SELECT 
         COUNT(DISTINCT si.invoice_number) as total_sales,
@@ -1666,15 +1670,15 @@ router.get('/customer/summary', requireAuth, requireShopId, async (req, res) => 
         COALESCE(SUM(si.tax), 0) as total_tax,
         COALESCE(SUM(si.QUANTITY), 0) as total_quantity_sold
       FROM sales_item si
-      WHERE si.customer_id = $1 ${salesDateFilter}
+      WHERE si.shop_id = $1 AND si.customer_id = $2 ${salesDateFilter}
     `, salesParams);
 
-    // Charging services summary
+    // Charging services summary (shop-scoped)
     let chargingSummary = { total_services: 0, total_revenue: 0 };
     if (customerMobile) {
       let chargingDateFilter = '';
-      const chargingParams = [customerMobile];
-      let paramIndex = 2;
+      const chargingParams = [req.shop_id, customerMobile];
+      let paramIndex = 3;
 
       if (dateFrom && dateTo) {
         chargingDateFilter = ` AND cs.created_at >= $${paramIndex} AND cs.created_at <= $${paramIndex + 1}`;
@@ -1690,7 +1694,7 @@ router.get('/customer/summary', requireAuth, requireShopId, async (req, res) => 
           COUNT(*) as total_services,
           COALESCE(SUM(cs.service_price) FILTER (WHERE cs.status IN ('completed', 'collected')), 0) as total_revenue
         FROM charging_services cs
-        WHERE cs.customer_mobile_number = $1 ${chargingDateFilter}
+        WHERE cs.shop_id = $1 AND cs.customer_mobile_number = $2 ${chargingDateFilter}
       `, chargingParams);
       chargingSummary = chargingResult.rows[0] || chargingSummary;
     }
@@ -1720,10 +1724,10 @@ router.get('/customer/services', requireAuth, requireShopId, async (req, res) =>
     const customerId = req.user.id;
     const { dateFrom, dateTo, period = 'all', serviceType } = req.query;
 
-    // Build date filter
+    // Build date filter (shop-scoped: shop_id=$1, user_id=$2, dates=$3,$4,...)
     let dateFilter = '';
-    const params = [customerId];
-    let paramIndex = 2;
+    const params = [req.shop_id, customerId];
+    let paramIndex = 3;
 
     if (dateFrom && dateTo) {
       dateFilter = ` AND sr.created_at >= $${paramIndex} AND sr.created_at <= $${paramIndex + 1}`;
@@ -1743,7 +1747,7 @@ router.get('/customer/services', requireAuth, requireShopId, async (req, res) =>
       paramIndex++;
     }
 
-    // Get service requests summary grouped by service type
+    // Get service requests summary grouped by service type (shop-scoped)
     const summaryQuery = `
       SELECT 
         sr.service_type,
@@ -1755,14 +1759,14 @@ router.get('/customer/services', requireAuth, requireShopId, async (req, res) =>
         MIN(sr.created_at) as first_request_date,
         MAX(sr.created_at) as last_request_date
       FROM service_requests sr
-      WHERE sr.user_id = $1 ${dateFilter}
+      WHERE sr.shop_id = $1 AND sr.user_id = $2 ${dateFilter}
       GROUP BY sr.service_type
       ORDER BY total_requests DESC
     `;
 
     const { rows: summaryRows } = await db.query(summaryQuery, params);
 
-    // Get detailed service requests
+    // Get detailed service requests (shop-scoped)
     const detailsQuery = `
       SELECT 
         sr.id,
@@ -1778,7 +1782,7 @@ router.get('/customer/services', requireAuth, requireShopId, async (req, res) =>
         sr.created_at,
         sr.updated_at
       FROM service_requests sr
-      WHERE sr.user_id = $1 ${dateFilter}
+      WHERE sr.shop_id = $1 AND sr.user_id = $2 ${dateFilter}
       ORDER BY sr.created_at DESC
     `;
 
@@ -1798,7 +1802,8 @@ router.get('/customer/services', requireAuth, requireShopId, async (req, res) =>
 router.get('/services/type', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
-    const { dateFilter, params } = buildServiceRequestDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params } = buildServiceRequestDateFilter(dateFrom, dateTo, period, 2);
+    const queryParams = [req.shop_id, ...params];
 
     // Service type labels mapping
     const SERVICE_TYPES = {
@@ -1822,12 +1827,12 @@ router.get('/services/type', requireAuth, requireShopId, requireSuperAdminOrAdmi
         MIN(sr.created_at) as first_request_date,
         MAX(sr.created_at) as last_request_date
       FROM service_requests sr
-      WHERE 1=1 ${dateFilter}
+      WHERE sr.shop_id = $1 ${dateFilter}
       GROUP BY sr.service_type
       ORDER BY total_requests DESC
     `;
 
-    const { rows } = await db.query(query, params);
+    const { rows } = await db.query(query, queryParams);
 
     // Format the response with service type labels
     const formattedRows = rows.map(row => ({
@@ -1861,18 +1866,20 @@ router.get('/services/type', requireAuth, requireShopId, requireSuperAdminOrAdmi
   }
 });
 
-// Employee-wise Report - Shows all employee details and their performance
+// Employee-wise Report - Shows all employee details and their performance (shop-scoped)
 router.get('/employees', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
-    const { dateFilter, params } = buildSalesDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params: dateParams } = buildSalesDateFilter(dateFrom, dateTo, period, 2);
+    const salesParamsBase = [req.shop_id, ...dateParams];
 
-    // Get all employees
+    // Get all employees for this shop only
     const employeesResult = await db.query(`
       SELECT id, full_name, email, phone, address, designation, joining_date, salary, is_active, created_at
       FROM employees
+      WHERE shop_id = $1
       ORDER BY full_name
-    `);
+    `, [req.shop_id]);
 
     const employees = employeesResult.rows;
 
@@ -1914,14 +1921,12 @@ router.get('/employees', requireAuth, requireShopId, requireSuperAdminOrAdmin, a
       };
 
       if (userId) {
-        const salesParams = [...params];
+        const salesParams = [...salesParamsBase, userId];
         let salesDateFilter = dateFilter;
         if (salesDateFilter) {
-          salesDateFilter = `${salesDateFilter} AND si.created_by = $${salesParams.length + 1}`;
-          salesParams.push(userId);
+          salesDateFilter = `${salesDateFilter} AND si.created_by = $${salesParams.length}`;
         } else {
-          salesDateFilter = ` AND si.created_by = $${salesParams.length + 1}`;
-          salesParams.push(userId);
+          salesDateFilter = ` AND si.created_by = $${salesParams.length}`;
         }
 
         const salesQuery = `
@@ -1934,7 +1939,7 @@ router.get('/employees', requireAuth, requireShopId, requireSuperAdminOrAdmin, a
             MIN(si.purchase_date) as first_sale_date,
             MAX(si.purchase_date) as last_sale_date
           FROM sales_item si
-          WHERE 1=1 ${salesDateFilter}
+          WHERE si.shop_id = $1 ${salesDateFilter}
         `;
 
         const salesResult = await db.query(salesQuery, salesParams);
@@ -1952,7 +1957,7 @@ router.get('/employees', requireAuth, requireShopId, requireSuperAdminOrAdmin, a
         }
       }
 
-      // Get attendance summary
+      // Get attendance summary (employee is already shop-scoped)
       const attendanceResult = await db.query(`
         SELECT 
           COUNT(*) as total_months,
@@ -2039,9 +2044,10 @@ router.get('/employees', requireAuth, requireShopId, requireSuperAdminOrAdmin, a
 router.get('/water', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { dateFrom, dateTo, period = 'all' } = req.query;
-    const { dateFilter, params } = buildSalesDateFilter(dateFrom, dateTo, period);
+    const { dateFilter, params: dateParams } = buildSalesDateFilter(dateFrom, dateTo, period, 2);
+    const params = [req.shop_id, ...dateParams];
 
-    // Get water products (product_type_id = 4)
+    // Get water products (product_type_id = 4) for this shop only
     const waterProductsQuery = `
       SELECT 
         si.SERIAL_NUMBER,
@@ -2061,8 +2067,8 @@ router.get('/water', requireAuth, requireShopId, requireSuperAdminOrAdmin, async
         p.b2b_selling_price as b2b_price,
         p.mrp_price
       FROM sales_item si
-      JOIN products p ON si.SKU = p.sku
-      WHERE p.product_type_id = 4 ${dateFilter}
+      JOIN products p ON si.SKU = p.sku AND p.shop_id = si.shop_id
+      WHERE si.shop_id = $1 AND p.product_type_id = 4 ${dateFilter}
       ORDER BY si.purchase_date DESC, si.NAME ASC
     `;
 
@@ -2108,18 +2114,18 @@ router.get('/water', requireAuth, requireShopId, requireSuperAdminOrAdmin, async
       const customerType = (item.customer_type || '').toLowerCase();
       
       // Get purchase price
-      const purchasePrice = await getPurchasePrice(item.SERIAL_NUMBER, sku);
+      const purchasePrice = await getPurchasePrice(item.SERIAL_NUMBER, sku, req.shop_id);
       // If no purchase price found, use product's purchase price from purchases table average
       let finalPurchasePrice = purchasePrice;
       if (finalPurchasePrice === 0) {
-        // Try to get average purchase price for this SKU
+        // Try to get average purchase price for this SKU (shop-scoped)
         const avgPurchaseResult = await db.query(
-          `SELECT AVG(amount) as avg_amount 
+          `SELECT AVG(purchase_value) as avg_amount 
            FROM purchases 
-           WHERE TRIM(product_sku) = TRIM($1) 
-           AND amount > 0
-           AND supplier_name != 'replace'`,
-          [sku]
+           WHERE TRIM(product_sku) = TRIM($1) AND shop_id = $2
+           AND purchase_value > 0
+           AND (supplier_name IS NULL OR supplier_name != 'replace')`,
+          [sku, req.shop_id]
         );
         if (avgPurchaseResult.rows.length > 0 && avgPurchaseResult.rows[0].avg_amount) {
           finalPurchasePrice = parseFloat(avgPurchaseResult.rows[0].avg_amount || 0);

@@ -223,8 +223,8 @@ router.get('/battery-status/:serialNumber', requireAuth, requireShopId, async (r
   }
 });
 
-// Get replacement history for a customer (with customerId parameter)
-router.get('/history/:customerId', requireAuth, async (req, res) => {
+// Get replacement history for a customer (with customerId parameter, shop-scoped)
+router.get('/history/:customerId', requireAuth, requireShopId, async (req, res) => {
   try {
     const customerId = parseInt(req.params.customerId, 10);
 
@@ -272,9 +272,9 @@ router.get('/history/:customerId', requireAuth, async (req, res) => {
       LEFT JOIN users u_customer ON br.customer_id = u_customer.id
       LEFT JOIN sales_item si ON br.original_sale_item_id = si.id
       LEFT JOIN customer_profiles cp ON u_customer.id = cp.user_id
-      WHERE br.customer_id = $1
+      WHERE br.customer_id = $1 AND br.shop_id = $2
       ORDER BY br.replacement_date DESC, br.created_at DESC`,
-      [customerId]
+      [customerId, req.shop_id]
     );
 
     res.json(result.rows);
@@ -284,8 +284,8 @@ router.get('/history/:customerId', requireAuth, async (req, res) => {
   }
 });
 
-// Get replacement history for all customers (admin / super-admin view)
-router.get('/history-all', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+// Get replacement history for all customers (admin / super-admin view, shop-scoped)
+router.get('/history-all', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT 
@@ -322,7 +322,9 @@ router.get('/history-all', requireAuth, requireSuperAdminOrAdmin, async (req, re
       LEFT JOIN users u_created ON br.created_by = u_created.id
       LEFT JOIN sales_item si ON br.original_sale_item_id = si.id
       LEFT JOIN customer_profiles cp ON u_customer.id = cp.user_id
-      ORDER BY br.replacement_date DESC, br.created_at DESC`
+      WHERE br.shop_id = $1
+      ORDER BY br.replacement_date DESC, br.created_at DESC`,
+      [req.shop_id]
     );
 
     res.json(result.rows);
@@ -332,10 +334,10 @@ router.get('/history-all', requireAuth, requireSuperAdminOrAdmin, async (req, re
   }
 });
 
-// Get replacement history for current user (no customerId parameter)
+// Get replacement history for current user (no customerId parameter, shop-scoped)
 router.get('/history', requireAuth, requireShopId, async (req, res) => {
   try {
-    const customerId = req.user.id;
+    const customerId = req.user_id ?? req.user?.id;
 
     const result = await db.query(
       `SELECT 
@@ -372,9 +374,9 @@ router.get('/history', requireAuth, requireShopId, async (req, res) => {
       LEFT JOIN users u_customer ON br.customer_id = u_customer.id
       LEFT JOIN sales_item si ON br.original_sale_item_id = si.id
       LEFT JOIN customer_profiles cp ON u_customer.id = cp.user_id
-      WHERE br.customer_id = $1
+      WHERE br.customer_id = $1 AND br.shop_id = $2
       ORDER BY br.replacement_date DESC, br.created_at DESC`,
-      [customerId]
+      [customerId, req.shop_id]
     );
 
     res.json(result.rows);
@@ -384,9 +386,8 @@ router.get('/history', requireAuth, requireShopId, async (req, res) => {
   }
 });
 
-// Create replacement (guarantee only - warranty functionality removed)
-// Allow both Super Admin (role_id = 1) and Admin (role_id >= 2)
-router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+// Create replacement (guarantee only - warranty functionality removed, shop-scoped)
+router.post('/replace', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   const client = await db.pool.connect();
   
   try {
@@ -430,7 +431,7 @@ router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
       return res.status(400).json({ error: 'Only guarantee replacements are supported' });
     }
 
-    // Get original sale item (use saleItemId for reliable lookup)
+    // Get original sale item (use saleItemId for reliable lookup, shop-scoped)
     const originalSaleResult = await client.query(
       `SELECT 
         si.id,
@@ -447,9 +448,9 @@ router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
         p.name as product_name
       FROM sales_item si
       JOIN products p ON si.product_id = p.id
-      WHERE si.id = $1
+      WHERE si.id = $1 AND si.shop_id = $2
       LIMIT 1`,
-      [saleItemId]
+      [saleItemId, req.shop_id]
     );
 
     if (originalSaleResult.rows.length === 0) {
@@ -618,13 +619,12 @@ router.post('/replace', requireAuth, requireSuperAdminOrAdmin, async (req, res) 
   }
 });
 
-// Check for expiring guarantees and create notifications for admins
-// This should be called periodically (e.g., daily via cron job or scheduled task)
-router.post('/check-expiring-guarantees', requireAuth, requireSuperAdminOrAdmin, async (req, res) => {
+// Check for expiring guarantees and create notifications for admins (shop-scoped)
+router.post('/check-expiring-guarantees', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { daysAhead = 7 } = req.body; // Default to 7 days ahead
     
-    // Get all sales items with active guarantees
+    // Get all sales items with active guarantees for this shop only
     const salesItemsResult = await db.query(
       `SELECT 
         si.id,
@@ -640,8 +640,9 @@ router.post('/check-expiring-guarantees', requireAuth, requireSuperAdminOrAdmin,
         p.guarantee_period_months
       FROM sales_item si
       JOIN products p ON si.product_id = p.id
-      WHERE si.purchase_date IS NOT NULL
-      ORDER BY si.purchase_date DESC`
+      WHERE si.shop_id = $1 AND si.purchase_date IS NOT NULL
+      ORDER BY si.purchase_date DESC`,
+      [req.shop_id]
     );
 
     const now = new Date();
@@ -667,12 +668,12 @@ router.post('/check-expiring-guarantees', requireAuth, requireSuperAdminOrAdmin,
 
       // Check if guarantee is expiring within the specified days and hasn't expired yet
       if (daysUntilExpiration >= 0 && daysUntilExpiration <= daysAhead) {
-        // Check if this serial number was already replaced (no need to notify for replaced batteries)
+        // Check if this serial number was already replaced (shop-scoped)
         const replacementCheck = await db.query(
           `SELECT id FROM battery_replacements 
-           WHERE original_serial_number = $1 
+           WHERE original_serial_number = $1 AND shop_id = $2
            LIMIT 1`,
-          [item.SERIAL_NUMBER]
+          [item.SERIAL_NUMBER, req.shop_id]
         );
 
         if (replacementCheck.rows.length === 0 && !notifiedSerialNumbers.has(item.SERIAL_NUMBER)) {
@@ -686,9 +687,10 @@ router.post('/check-expiring-guarantees', requireAuth, requireSuperAdminOrAdmin,
       }
     }
 
-    // Get admin and super admin user IDs
+    // Get admin and super admin user IDs for this shop only
     const adminUsers = await db.query(
-      `SELECT id FROM users WHERE role_id IN (1, 2) AND is_active = true`
+      `SELECT id FROM users WHERE role_id IN (1, 2) AND is_active = true AND shop_id = $1`,
+      [req.shop_id]
     );
     const adminUserIds = adminUsers.rows.map(u => u.id);
 

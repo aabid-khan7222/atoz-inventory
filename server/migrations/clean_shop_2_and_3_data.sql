@@ -26,8 +26,18 @@ DELETE FROM battery_replacements WHERE shop_id IN (2, 3);
 -- 5. company_returns
 DELETE FROM company_returns WHERE shop_id IN (2, 3);
 
--- 6. purchase_items (by purchase_id; table may not have shop_id)
-DELETE FROM purchase_items WHERE purchase_id IN (SELECT id FROM purchases WHERE shop_id IN (2, 3));
+-- 6. purchase_items (table/column may not exist in all DBs; skip if missing)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'purchase_items') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'purchase_items' AND column_name = 'purchase_id') THEN
+      DELETE FROM purchase_items WHERE purchase_id IN (SELECT id FROM purchases WHERE shop_id IN (2, 3));
+    ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'purchase_items' AND column_name = 'purchases_id') THEN
+      DELETE FROM purchase_items WHERE purchases_id IN (SELECT id FROM purchases WHERE shop_id IN (2, 3));
+    END IF;
+  END IF;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipped purchase_items: %', SQLERRM;
+END $$;
 
 -- 7. purchases
 DELETE FROM purchases WHERE shop_id IN (2, 3);
@@ -41,14 +51,62 @@ DELETE FROM charging_services WHERE shop_id IN (2, 3);
 -- 10. service_requests
 DELETE FROM service_requests WHERE shop_id IN (2, 3);
 
--- 11. daily_attendance (by employee_id for shop 2,3 employees)
-DELETE FROM daily_attendance WHERE employee_id IN (SELECT id FROM employees WHERE shop_id IN (2, 3));
+-- 11. daily_attendance (use actual FK column name from schema)
+DO $$
+DECLARE
+  col TEXT;
+  emp_pk TEXT;
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'daily_attendance') THEN
+    SELECT constraint_name INTO emp_pk FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = 'employees' AND constraint_type = 'PRIMARY KEY' LIMIT 1;
+    SELECT kcu.column_name INTO col FROM information_schema.key_column_usage kcu
+    JOIN information_schema.referential_constraints rc ON rc.constraint_name = kcu.constraint_name AND rc.constraint_schema = kcu.table_schema
+    WHERE kcu.table_schema = 'public' AND kcu.table_name = 'daily_attendance' AND rc.unique_constraint_name = emp_pk
+    LIMIT 1;
+    IF col IS NOT NULL THEN
+      EXECUTE format('DELETE FROM daily_attendance WHERE %I IN (SELECT id FROM employees WHERE shop_id IN (2, 3))', col);
+    END IF;
+  END IF;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipped daily_attendance: %', SQLERRM;
+END $$;
 
--- 12. employee_payments (by employee_id)
-DELETE FROM employee_payments WHERE employee_id IN (SELECT id FROM employees WHERE shop_id IN (2, 3));
+-- 12. employee_payments
+DO $$
+DECLARE
+  col TEXT;
+  emp_pk TEXT;
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'employee_payments') THEN
+    SELECT constraint_name INTO emp_pk FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = 'employees' AND constraint_type = 'PRIMARY KEY' LIMIT 1;
+    SELECT kcu.column_name INTO col FROM information_schema.key_column_usage kcu
+    JOIN information_schema.referential_constraints rc ON rc.constraint_name = kcu.constraint_name AND rc.constraint_schema = kcu.table_schema
+    WHERE kcu.table_schema = 'public' AND kcu.table_name = 'employee_payments' AND rc.unique_constraint_name = emp_pk
+    LIMIT 1;
+    IF col IS NOT NULL THEN
+      EXECUTE format('DELETE FROM employee_payments WHERE %I IN (SELECT id FROM employees WHERE shop_id IN (2, 3))', col);
+    END IF;
+  END IF;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipped employee_payments: %', SQLERRM;
+END $$;
 
--- 13. employee_history (by employee_id)
-DELETE FROM employee_history WHERE employee_id IN (SELECT id FROM employees WHERE shop_id IN (2, 3));
+-- 13. employee_history
+DO $$
+DECLARE
+  col TEXT;
+  emp_pk TEXT;
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'employee_history') THEN
+    SELECT constraint_name INTO emp_pk FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = 'employees' AND constraint_type = 'PRIMARY KEY' LIMIT 1;
+    SELECT kcu.column_name INTO col FROM information_schema.key_column_usage kcu
+    JOIN information_schema.referential_constraints rc ON rc.constraint_name = kcu.constraint_name AND rc.constraint_schema = kcu.table_schema
+    WHERE kcu.table_schema = 'public' AND kcu.table_name = 'employee_history' AND rc.unique_constraint_name = emp_pk
+    LIMIT 1;
+    IF col IS NOT NULL THEN
+      EXECUTE format('DELETE FROM employee_history WHERE %I IN (SELECT id FROM employees WHERE shop_id IN (2, 3))', col);
+    END IF;
+  END IF;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skipped employee_history: %', SQLERRM;
+END $$;
 
 -- 14. employees
 DELETE FROM employees WHERE shop_id IN (2, 3);

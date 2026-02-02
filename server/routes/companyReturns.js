@@ -197,10 +197,10 @@ router.get('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req
       LEFT JOIN products p_returned ON cr.returned_product_id = p_returned.id
       LEFT JOIN products p_received ON cr.received_product_id = p_received.id
       LEFT JOIN users u ON cr.created_by = u.id
-      WHERE 1=1
+      WHERE cr.shop_id = $1
     `;
-    const params = [];
-    let paramCount = 0;
+    const params = [req.shop_id];
+    let paramCount = 1;
 
     if (status && status !== 'all') {
       paramCount++;
@@ -271,8 +271,8 @@ router.get('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
       LEFT JOIN products p_returned ON cr.returned_product_id = p_returned.id
       LEFT JOIN products p_received ON cr.received_product_id = p_received.id
       LEFT JOIN users u ON cr.created_by = u.id
-      WHERE cr.id = $1`,
-      [id]
+      WHERE cr.id = $1 AND cr.shop_id = $2`,
+      [id, req.shop_id]
     );
 
     if (result.rows.length === 0) {
@@ -355,7 +355,7 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
       initialStatus = status || 'received';
     }
 
-    // Create the return record
+    // Create the return record (shop-scoped)
     // Note: quantity defaults to 1 for company returns (typically one battery per return)
     const result = await client.query(
       `INSERT INTO company_returns (
@@ -374,8 +374,9 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
         created_by,
         quantity,
         sku,
-        product_name
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        product_name,
+        shop_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *`,
       [
         returnedSerialNumber ? returnedSerialNumber.trim() : null,
@@ -393,7 +394,8 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
         req.user?.id || null,
         1, // quantity - default to 1 for company returns
         product.sku || null, // SKU from product
-        product.name || null // Product name from product
+        product.name || null, // Product name from product
+        req.shop_id
       ]
     );
 
@@ -463,12 +465,12 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
             // Get average purchase price for this SKU
             const avgPurchasePrice = await getAveragePurchasePrice(product.sku, req.shop_id);
             
-            // Insert into purchases table
+            // Insert into purchases table (shop-scoped)
             await client.query(
               `INSERT INTO purchases (
                 product_type_id, purchase_date, purchase_number, product_series,
-                product_sku, serial_number, supplier_name, purchase_value
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                product_sku, serial_number, supplier_name, purchase_value, shop_id
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
               ON CONFLICT (product_sku, serial_number) DO UPDATE SET
                 purchase_date = EXCLUDED.purchase_date,
                 purchase_number = EXCLUDED.purchase_number,
@@ -483,7 +485,8 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
                 product.sku,
                 receivedSerialNumber.trim(),
                 'replace',
-                avgPurchasePrice
+                avgPurchasePrice,
+                req.shop_id
               ]
             );
             console.log(`[COMPANY RETURNS CREATE] Added purchase record for replacement battery: ${receivedSerialNumber.trim()}, Price: ${avgPurchasePrice}`);
@@ -494,7 +497,7 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
         }
       } else {
         // addToStock is false - create warranty/replacement record for customer
-        // Find the original sale_item by returned_serial_number to get customer details
+        // Find the original sale_item by returned_serial_number to get customer details (shop-scoped)
         if (returnedSerialNumber && returnedSerialNumber.trim()) {
           const originalSaleResult = await client.query(
             `SELECT 
@@ -504,10 +507,10 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
               invoice_number,
               product_id
             FROM sales_item 
-            WHERE TRIM(SERIAL_NUMBER) = $1
+            WHERE TRIM(SERIAL_NUMBER) = $1 AND shop_id = $2
             ORDER BY purchase_date DESC
             LIMIT 1`,
-            [returnedSerialNumber.trim()]
+            [returnedSerialNumber.trim(), req.shop_id]
           );
 
           if (originalSaleResult.rows.length > 0) {
@@ -526,8 +529,9 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
                 new_serial_number,
                 product_id,
                 notes,
-                created_by
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                created_by,
+                shop_id
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
               [
                 originalSale.customer_id,
                 originalSale.id,
@@ -539,7 +543,8 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
                 receivedSerialNumber.trim(),
                 receivedProductId,
                 reason ? `Company Return: ${reason}` : 'Battery replaced via Exide company return',
-                req.user?.id || null
+                req.user?.id || null,
+                req.shop_id
               ]
             );
 
@@ -571,8 +576,9 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
                   new_serial_number,
                   product_id,
                   notes,
-                  created_by
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                  created_by,
+                  shop_id
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                 [
                   customerId,
                   returnedSerialNumber.trim(),
@@ -582,7 +588,8 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
                   receivedSerialNumber.trim(),
                   receivedProductId,
                   reason ? `Company Return: ${reason}. Customer: ${customerName || 'N/A'}, Mobile: ${customerMobileNumber || 'N/A'}` : `Battery replaced via Exide company return. Customer: ${customerName || 'N/A'}, Mobile: ${customerMobileNumber || 'N/A'}`,
-                  req.user?.id || null
+                  req.user?.id || null,
+                  req.shop_id
                 ]
               );
 
@@ -597,7 +604,7 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
 
     await client.query('COMMIT');
 
-    // Fetch the complete record with product details
+    // Fetch the complete record with product details (shop-scoped)
     const completeResult = await client.query(
       `SELECT 
         cr.*,
@@ -607,8 +614,8 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
       FROM company_returns cr
       LEFT JOIN products p_returned ON cr.returned_product_id = p_returned.id
       LEFT JOIN users u ON cr.created_by = u.id
-      WHERE cr.id = $1`,
-      [result.rows[0].id]
+      WHERE cr.id = $1 AND cr.shop_id = $2`,
+      [result.rows[0].id, req.shop_id]
     );
 
     res.status(201).json(completeResult.rows[0]);
@@ -675,10 +682,10 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
       status
     });
 
-    // Get the current record
+    // Get the current record (shop-scoped)
     const currentResult = await client.query(
-      'SELECT * FROM company_returns WHERE id = $1',
-      [id]
+      'SELECT * FROM company_returns WHERE id = $1 AND shop_id = $2',
+      [id, req.shop_id]
     );
 
     if (currentResult.rows.length === 0) {
@@ -760,14 +767,16 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
     // Always update updated_at (doesn't need a parameter, so don't increment paramCount)
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
     
-    // Add id parameter for WHERE clause
+    // Add id and shop_id for WHERE clause
     paramCount++;
     params.push(id);
+    paramCount++;
+    params.push(req.shop_id);
 
     const updateQuery = `
       UPDATE company_returns 
       SET ${updates.join(', ')}
-      WHERE id = $${paramCount}
+      WHERE id = $${paramCount - 1} AND shop_id = $${paramCount}
       RETURNING *
     `;
 
@@ -843,12 +852,12 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
             // Get average purchase price for this SKU
             const avgPurchasePrice = await getAveragePurchasePrice(product.sku, req.shop_id);
             
-            // Insert into purchases table
+            // Insert into purchases table (shop-scoped)
             await client.query(
               `INSERT INTO purchases (
                 product_type_id, purchase_date, purchase_number, product_series,
-                product_sku, serial_number, supplier_name, purchase_value
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                product_sku, serial_number, supplier_name, purchase_value, shop_id
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
               ON CONFLICT (product_sku, serial_number) DO UPDATE SET
                 purchase_date = EXCLUDED.purchase_date,
                 purchase_number = EXCLUDED.purchase_number,
@@ -863,7 +872,8 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
                 product.sku,
                 receivedSerialNumber.trim(),
                 'replace',
-                avgPurchasePrice
+                avgPurchasePrice,
+                req.shop_id
               ]
             );
             console.log(`[COMPANY RETURNS UPDATE] Added purchase record for replacement battery: ${receivedSerialNumber.trim()}, Price: ${avgPurchasePrice}`);
@@ -880,7 +890,7 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
         const customerMobileNumber = current.customer_mobile_number;
         const reason = current.reason;
 
-        // Find the original sale_item by returned_serial_number to get customer details
+        // Find the original sale_item by returned_serial_number to get customer details (shop-scoped)
         if (returnedSerialNumber && returnedSerialNumber.trim()) {
           const originalSaleResult = await client.query(
             `SELECT 
@@ -890,10 +900,10 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
               invoice_number,
               product_id
             FROM sales_item 
-            WHERE TRIM(SERIAL_NUMBER) = $1
+            WHERE TRIM(SERIAL_NUMBER) = $1 AND shop_id = $2
             ORDER BY purchase_date DESC
             LIMIT 1`,
-            [returnedSerialNumber.trim()]
+            [returnedSerialNumber.trim(), req.shop_id]
           );
 
           if (originalSaleResult.rows.length > 0) {
@@ -908,7 +918,7 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
             );
 
             if (existingReplacement.rows.length === 0) {
-              // Create battery replacement record
+              // Create battery replacement record (shop-scoped)
               await client.query(
                 `INSERT INTO battery_replacements (
                   customer_id,
@@ -921,8 +931,9 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
                   new_serial_number,
                   product_id,
                   notes,
-                  created_by
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                  created_by,
+                  shop_id
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
                 [
                   originalSale.customer_id,
                   originalSale.id,
@@ -934,7 +945,8 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
                   receivedSerialNumber.trim(),
                   receivedProductIdInt,
                   reason ? `Company Return: ${reason}` : 'Battery replaced via Exide company return',
-                  req.user?.id || null
+                  req.user?.id || null,
+                  req.shop_id
                 ]
               );
 
@@ -964,7 +976,7 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
               );
 
               if (existingReplacement.rows.length === 0) {
-                // Create replacement record with available information
+                // Create replacement record with available information (shop-scoped)
                 await client.query(
                   `INSERT INTO battery_replacements (
                     customer_id,
@@ -975,8 +987,9 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
                     new_serial_number,
                     product_id,
                     notes,
-                    created_by
-                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                    created_by,
+                    shop_id
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                   [
                     customerId,
                     returnedSerialNumber.trim(),
@@ -986,7 +999,8 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
                     receivedSerialNumber.trim(),
                     receivedProductIdInt,
                     reason ? `Company Return: ${reason}. Customer: ${customerName || 'N/A'}, Mobile: ${customerMobileNumber || 'N/A'}` : `Battery replaced via Exide company return. Customer: ${customerName || 'N/A'}, Mobile: ${customerMobileNumber || 'N/A'}`,
-                    req.user?.id || null
+                    req.user?.id || null,
+                    req.shop_id
                   ]
                 );
 
@@ -1002,7 +1016,7 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
 
     await client.query('COMMIT');
 
-    // Fetch the complete record with product details
+    // Fetch the complete record with product details (shop-scoped)
     const completeResult = await client.query(
       `SELECT 
         cr.*,
@@ -1015,8 +1029,8 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
       LEFT JOIN products p_returned ON cr.returned_product_id = p_returned.id
       LEFT JOIN products p_received ON cr.received_product_id = p_received.id
       LEFT JOIN users u ON cr.created_by = u.id
-      WHERE cr.id = $1`,
-      [id]
+      WHERE cr.id = $1 AND cr.shop_id = $2`,
+      [id, req.shop_id]
     );
 
     res.json(completeResult.rows[0]);
