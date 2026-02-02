@@ -9,45 +9,28 @@ async function getPurchasePricesBatch(serials, skus, shopId) {
   const bySerial = {};
   const bySku = {};
   try {
-    if (serials.length > 0) {
-      const serialRows = shopId != null
-        ? await db.query(
-            `SELECT DISTINCT ON (TRIM(serial_number)) TRIM(serial_number) as sn, purchase_value
-             FROM purchases
-             WHERE TRIM(serial_number) = ANY($1) AND purchase_value > 0 AND shop_id = $2
-             ORDER BY TRIM(serial_number), purchase_date DESC`,
-            [serials, shopId]
-          )
-        : await db.query(
-            `SELECT DISTINCT ON (TRIM(serial_number)) TRIM(serial_number) as sn, purchase_value
-             FROM purchases
-             WHERE TRIM(serial_number) = ANY($1) AND purchase_value > 0
-             ORDER BY TRIM(serial_number), purchase_date DESC`,
-            [serials]
-          );
+    if (serials.length > 0 && shopId != null) {
+      const serialRows = await db.query(
+        `SELECT DISTINCT ON (TRIM(serial_number)) TRIM(serial_number) as sn, purchase_value
+         FROM purchases
+         WHERE TRIM(serial_number) = ANY($1) AND purchase_value > 0 AND shop_id = $2
+         ORDER BY TRIM(serial_number), purchase_date DESC`,
+        [serials, shopId]
+      );
       for (const r of serialRows.rows) {
         const v = parseFloat(r.purchase_value);
         if (r.sn && v > 0) bySerial[r.sn] = v;
       }
     }
-    if (skus.length > 0) {
-      const skuRows = shopId != null
-        ? await db.query(
-            `SELECT TRIM(product_sku) as sku, AVG(amount) as avg_amount
-             FROM purchases
-             WHERE TRIM(product_sku) = ANY($1) AND amount > 0 AND shop_id = $2
-             AND COALESCE(supplier_name, '') != 'replace'
-             GROUP BY TRIM(product_sku)`,
-            [skus, shopId]
-          )
-        : await db.query(
-            `SELECT TRIM(product_sku) as sku, AVG(amount) as avg_amount
-             FROM purchases
-             WHERE TRIM(product_sku) = ANY($1) AND amount > 0
-             AND COALESCE(supplier_name, '') != 'replace'
-             GROUP BY TRIM(product_sku)`,
-            [skus]
-          );
+    if (skus.length > 0 && shopId != null) {
+      const skuRows = await db.query(
+        `SELECT TRIM(product_sku) as sku, AVG(amount) as avg_amount
+         FROM purchases
+         WHERE TRIM(product_sku) = ANY($1) AND amount > 0 AND shop_id = $2
+         AND COALESCE(supplier_name, '') != 'replace'
+         GROUP BY TRIM(product_sku)`,
+        [skus, shopId]
+      );
       for (const r of skuRows.rows) {
         const v = parseFloat(r.avg_amount);
         if (r.sku && v > 0) bySku[r.sku] = v;
@@ -226,9 +209,10 @@ router.get('/sales-analytics', requireAuth, requireSuperAdminOrAdmin, requireSho
       }
     }
 
-    // Top selling products
+    // Top selling products (shop-scoped)
     let topProducts = [];
     try {
+      const topWhere = ['si.shop_id = $1'].concat(dateFilter ? [dateFilter.replace('created_at', 'si.created_at')] : []).join(' AND ');
       const topProductsQuery = `
         SELECT 
           COALESCE(si.NAME, p.name) as product_name,
@@ -237,12 +221,12 @@ router.get('/sales-analytics', requireAuth, requireSuperAdminOrAdmin, requireSho
           SUM(si.final_amount) as total_revenue
         FROM sales_item si
         LEFT JOIN products p ON si.product_id = p.id
-        ${dateFilter ? `WHERE ${dateFilter.replace('created_at', 'si.created_at')}` : ''}
+        WHERE ${topWhere}
         GROUP BY COALESCE(si.NAME, p.name), si.CATEGORY
         ORDER BY total_quantity DESC
         LIMIT 10
       `;
-      const topProductsResult = await db.query(topProductsQuery);
+      const topProductsResult = await db.query(topProductsQuery, [shopId]);
       topProducts = topProductsResult.rows.map(row => ({
         name: row.product_name,
         category: row.product_category,
@@ -255,7 +239,7 @@ router.get('/sales-analytics', requireAuth, requireSuperAdminOrAdmin, requireSho
       }
     }
 
-    // Sales trend (daily for last 30 days)
+    // Sales trend (daily for last 30 days, shop-scoped)
     let salesTrend = [];
     try {
       const salesTrendQuery = `
@@ -264,11 +248,11 @@ router.get('/sales-analytics', requireAuth, requireSuperAdminOrAdmin, requireSho
           COUNT(DISTINCT si.invoice_number) as count,
           COALESCE(SUM(si.final_amount), 0) as total
         FROM sales_item si
-        WHERE si.created_at >= CURRENT_DATE - INTERVAL '30 days'
+        WHERE si.created_at >= CURRENT_DATE - INTERVAL '30 days' AND si.shop_id = $1
         GROUP BY DATE(si.created_at)
         ORDER BY date ASC
       `;
-      const salesTrendResult = await db.query(salesTrendQuery);
+      const salesTrendResult = await db.query(salesTrendQuery, [shopId]);
       salesTrend = salesTrendResult.rows.map(row => ({
         date: row.date,
         count: parseInt(row.count),
@@ -280,20 +264,21 @@ router.get('/sales-analytics', requireAuth, requireSuperAdminOrAdmin, requireSho
       }
     }
 
-    // Category performance
+    // Category performance (shop-scoped)
     let categoryPerformance = [];
     try {
+      const catWhere = ['si.shop_id = $1'].concat(dateFilter ? [dateFilter.replace('created_at', 'si.created_at')] : []).join(' AND ');
       const categoryPerformanceQuery = `
         SELECT 
           si.CATEGORY as product_category,
           SUM(si.QUANTITY) as total_quantity,
           SUM(si.final_amount) as total_revenue
         FROM sales_item si
-        ${dateFilter ? `WHERE ${dateFilter.replace('created_at', 'si.created_at')}` : ''}
+        WHERE ${catWhere}
         GROUP BY si.CATEGORY
         ORDER BY total_revenue DESC
       `;
-      const categoryPerformanceResult = await db.query(categoryPerformanceQuery);
+      const categoryPerformanceResult = await db.query(categoryPerformanceQuery, [shopId]);
       categoryPerformance = categoryPerformanceResult.rows.map(row => ({
         category: row.product_category,
         quantity: parseInt(row.total_quantity),
@@ -305,19 +290,20 @@ router.get('/sales-analytics', requireAuth, requireSuperAdminOrAdmin, requireSho
       }
     }
 
-    // Payment methods
+    // Payment methods (shop-scoped)
     let paymentMethods = [];
     try {
+      const payWhere = ['si.shop_id = $1'].concat(dateFilter ? [dateFilter.replace('created_at', 'si.created_at')] : []).join(' AND ');
       const paymentMethodsQuery = `
         SELECT 
           si.payment_method,
           COUNT(*) as count,
           COALESCE(SUM(si.final_amount), 0) as total
         FROM sales_item si
-        ${dateFilter ? `WHERE ${dateFilter.replace('created_at', 'si.created_at')}` : ''}
+        WHERE ${payWhere}
         GROUP BY si.payment_method
       `;
-      const paymentMethodsResult = await db.query(paymentMethodsQuery);
+      const paymentMethodsResult = await db.query(paymentMethodsQuery, [shopId]);
       paymentMethods = paymentMethodsResult.rows.map(row => ({
         method: row.payment_method || 'unknown',
         count: parseInt(row.count),
@@ -342,10 +328,11 @@ router.get('/sales-analytics', requireAuth, requireSuperAdminOrAdmin, requireSho
   }
 });
 
-// Detailed sales list: per customer, per product, series-wise
+// Detailed sales list: per customer, per product, series-wise (shop-scoped)
 router.get('/sales-detail', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { period = 'all' } = req.query;
+    const shopId = req.shop_id;
 
     let dateFilter = '';
     if (period === 'week') {
@@ -414,8 +401,8 @@ router.get('/sales-detail', requireAuth, requireShopId, requireSuperAdminOrAdmin
         FROM sales_item si
         LEFT JOIN products p ON si.product_id = p.id
         LEFT JOIN product_type pt ON p.product_type_id = pt.id
-        ${hasCommissionAgents ? `LEFT JOIN commission_agents ca ON si.commission_agent_id = ca.id` : ''}
-        ${dateFilter ? `WHERE ${dateFilter}` : ''}
+        ${hasCommissionAgents ? `LEFT JOIN commission_agents ca ON si.commission_agent_id = ca.id AND ca.shop_id = si.shop_id` : ''}
+        WHERE si.shop_id = $1 ${dateFilter ? `AND ${dateFilter}` : ''}
       )
       SELECT
         sale_item_id,
@@ -449,7 +436,7 @@ router.get('/sales-detail', requireAuth, requireShopId, requireSuperAdminOrAdmin
 
     let items = [];
     try {
-      const { rows } = await db.query(salesDetailQuery);
+      const { rows } = await db.query(salesDetailQuery, [shopId]);
       items = rows.map((row) => ({
         saleId: row.sale_id,
         invoiceNumber: row.invoice_number,
@@ -484,9 +471,10 @@ router.get('/sales-detail', requireAuth, requireShopId, requireSuperAdminOrAdmin
   }
 });
 
-// Get inventory insights
+// Get inventory insights (shop-scoped)
 router.get('/inventory-insights', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
+    const shopId = req.shop_id;
     const categories = ['car-truck-tractor', 'bike', 'ups-inverter'];
     const stockByCategory = [];
     const lowStockItems = [];
@@ -502,8 +490,8 @@ router.get('/inventory-insights', requireAuth, requireShopId, requireSuperAdminO
             COALESCE(SUM(qty), 0) as total_qty,
             COALESCE(SUM(qty * COALESCE(selling_price, 0)), 0) as total_value
           FROM products
-          WHERE product_type_id = $1
-        `, [productTypeId]);
+          WHERE product_type_id = $1 AND shop_id = $2
+        `, [productTypeId, shopId]);
         
         if (rows[0]) {
           stockByCategory.push({
@@ -519,10 +507,10 @@ router.get('/inventory-insights', requireAuth, requireShopId, requireSuperAdminO
         const lowStockRows = await db.query(`
           SELECT id, sku, name, qty, selling_price, category
           FROM products
-          WHERE product_type_id = $1 AND qty < 5
+          WHERE product_type_id = $1 AND shop_id = $2 AND qty < 5
           ORDER BY qty ASC
           LIMIT 20
-        `, [productTypeId]);
+        `, [productTypeId, shopId]);
         
         lowStockItems.push(...lowStockRows.rows.map(row => ({
           id: row.id,
@@ -548,9 +536,10 @@ router.get('/inventory-insights', requireAuth, requireShopId, requireSuperAdminO
   }
 });
 
-// Get service management data
+// Get service management data (shop-scoped)
 router.get('/services', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
+    const shopId = req.shop_id;
     // Service status breakdown
     let statusBreakdown = [];
     try {
@@ -559,9 +548,10 @@ router.get('/services', requireAuth, requireShopId, requireSuperAdminOrAdmin, as
           status,
           COUNT(*) as count
         FROM service_requests
+        WHERE shop_id = $1
         GROUP BY status
       `;
-      const statusBreakdownResult = await db.query(statusBreakdownQuery);
+      const statusBreakdownResult = await db.query(statusBreakdownQuery, [shopId]);
       statusBreakdown = statusBreakdownResult.rows.map(row => ({
         status: row.status,
         count: parseInt(row.count)
@@ -581,9 +571,10 @@ router.get('/services', requireAuth, requireShopId, requireSuperAdminOrAdmin, as
           COUNT(*) as count,
           COALESCE(SUM(amount) FILTER (WHERE status = 'completed' AND amount IS NOT NULL), 0) as total_revenue
         FROM service_requests
+        WHERE shop_id = $1
         GROUP BY service_type
       `;
-      const servicesByTypeResult = await db.query(servicesByTypeQuery);
+      const servicesByTypeResult = await db.query(servicesByTypeQuery, [shopId]);
       servicesByType = servicesByTypeResult.rows.map(row => ({
         type: row.service_type,
         count: parseInt(row.count),
@@ -603,11 +594,11 @@ router.get('/services', requireAuth, requireShopId, requireSuperAdminOrAdmin, as
           id, customer_name, service_type, 
           status, amount, created_at
         FROM service_requests
-        WHERE status IN ('pending', 'in_progress')
+        WHERE shop_id = $1 AND status IN ('pending', 'in_progress')
         ORDER BY created_at DESC
         LIMIT 20
       `;
-      const activeServicesResult = await db.query(activeServicesQuery);
+      const activeServicesResult = await db.query(activeServicesQuery, [shopId]);
       activeServices = activeServicesResult.rows.map(row => ({
         id: row.id,
         serviceNumber: `SR-${row.id}`,
@@ -635,8 +626,9 @@ router.get('/services', requireAuth, requireShopId, requireSuperAdminOrAdmin, as
           COUNT(*) FILTER (WHERE updated_at >= DATE_TRUNC('month', CURRENT_DATE) AND status = 'completed' AND amount IS NOT NULL) as month_count,
           COALESCE(SUM(amount) FILTER (WHERE updated_at >= DATE_TRUNC('month', CURRENT_DATE) AND status = 'completed' AND amount IS NOT NULL), 0) as month_revenue
         FROM service_requests
+        WHERE shop_id = $1
       `;
-      const serviceRevenueResult = await db.query(serviceRevenueQuery);
+      const serviceRevenueResult = await db.query(serviceRevenueQuery, [shopId]);
       if (serviceRevenueResult.rows[0]) {
         serviceRevenue = {
           today: {
@@ -671,10 +663,11 @@ router.get('/services', requireAuth, requireShopId, requireSuperAdminOrAdmin, as
   }
 });
 
-// Get recent transactions (optimized: date filter to avoid full table scan)
+// Get recent transactions (shop-scoped)
 router.get('/recent-transactions', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { limit = 10 } = req.query;
+    const shopId = req.shop_id;
     const lim = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50);
 
     let recentSales = [];
@@ -689,12 +682,12 @@ router.get('/recent-transactions', requireAuth, requireShopId, requireSuperAdmin
           COALESCE(SUM(si.final_amount), 0) as final_amount,
           MAX(si.payment_status) as payment_status
         FROM sales_item si
-        WHERE si.created_at >= CURRENT_DATE - INTERVAL '90 days'
+        WHERE si.shop_id = $1 AND si.created_at >= CURRENT_DATE - INTERVAL '90 days'
         GROUP BY si.invoice_number, si.customer_name, si.sales_type
         ORDER BY MIN(si.created_at) DESC
-        LIMIT $1
+        LIMIT $2
       `;
-      const recentSalesResult = await db.query(recentSalesQuery, [lim]);
+      const recentSalesResult = await db.query(recentSalesQuery, [shopId, lim]);
       recentSales = recentSalesResult.rows.map(row => ({
         id: row.id,
         invoiceNumber: row.invoice_number,
@@ -719,10 +712,11 @@ router.get('/recent-transactions', requireAuth, requireShopId, requireSuperAdmin
           id, customer_name, service_type, 
           amount, status, created_at
         FROM service_requests
+        WHERE shop_id = $1
         ORDER BY created_at DESC
-        LIMIT $1
+        LIMIT $2
       `;
-      const recentServicesResult = await db.query(recentServicesQuery, [lim]);
+      const recentServicesResult = await db.query(recentServicesQuery, [shopId, lim]);
       recentServices = recentServicesResult.rows.map(row => ({
         id: row.id,
         invoiceNumber: `SR-${row.id}`,
@@ -750,10 +744,11 @@ router.get('/recent-transactions', requireAuth, requireShopId, requireSuperAdmin
   }
 });
 
-// Get financial overview
+// Get financial overview (shop-scoped)
 router.get('/financial', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
   try {
     const { period = 'month' } = req.query;
+    const shopId = req.shop_id;
     
     let dateFilter = '';
     if (period === 'week') {
@@ -769,12 +764,13 @@ router.get('/financial', requireAuth, requireShopId, requireSuperAdminOrAdmin, a
     try {
       let salesRevenue = 0;
       try {
+        const salesWhere = ['si.shop_id = $1'].concat(dateFilter ? [dateFilter.replace('created_at', 'si.created_at')] : []).join(' AND ');
         const salesQuery = `
           SELECT COALESCE(SUM(si.final_amount), 0) as total 
           FROM sales_item si
-          ${dateFilter ? `WHERE ${dateFilter.replace('created_at', 'si.created_at')}` : ''}
+          WHERE ${salesWhere}
         `;
-        const salesResult = await db.query(salesQuery);
+        const salesResult = await db.query(salesQuery, [shopId]);
         salesRevenue = parseFloat(salesResult.rows[0]?.total || 0);
       } catch (err) {
         if (err.code !== '42P01') {
@@ -784,8 +780,11 @@ router.get('/financial', requireAuth, requireShopId, requireSuperAdminOrAdmin, a
 
       let servicesRevenue = 0;
       try {
-        const servicesQuery = `SELECT COALESCE(SUM(amount), 0) as total FROM service_requests ${dateFilter ? `WHERE ${dateFilter.replace('created_at', 'updated_at')} AND status = 'completed' AND amount IS NOT NULL` : 'WHERE status = \'completed\' AND amount IS NOT NULL'}`;
-        const servicesResult = await db.query(servicesQuery);
+        const svcWhere = dateFilter
+          ? `shop_id = $1 AND ${dateFilter.replace('created_at', 'updated_at')} AND status = 'completed' AND amount IS NOT NULL`
+          : 'shop_id = $1 AND status = \'completed\' AND amount IS NOT NULL';
+        const servicesQuery = `SELECT COALESCE(SUM(amount), 0) as total FROM service_requests WHERE ${svcWhere}`;
+        const servicesResult = await db.query(servicesQuery, [shopId]);
         servicesRevenue = parseFloat(servicesResult.rows[0]?.total || 0);
       } catch (err) {
         if (err.code !== '42P01') {
@@ -808,9 +807,9 @@ router.get('/financial', requireAuth, requireShopId, requireSuperAdminOrAdmin, a
       const outstandingQuery = `
         SELECT COALESCE(SUM(si.final_amount), 0) as total
         FROM sales_item si
-        WHERE si.payment_status IN ('pending', 'partial')
+        WHERE si.shop_id = $1 AND si.payment_status IN ('pending', 'partial')
       `;
-      const outstandingResult = await db.query(outstandingQuery);
+      const outstandingResult = await db.query(outstandingQuery, [shopId]);
       outstandingReceivables = parseFloat(outstandingResult.rows[0]?.total || 0);
     } catch (err) {
       if (err.code !== '42P01') {
@@ -819,17 +818,17 @@ router.get('/financial', requireAuth, requireShopId, requireSuperAdminOrAdmin, a
     }
 
     // Profit analysis (simplified - would need purchase cost data)
-    // For now, we'll calculate based on a rough margin estimate
     let estimatedProfit = 0;
     let revenue = 0;
     try {
+      const profitWhere = ['si.shop_id = $1'].concat(dateFilter ? [dateFilter.replace('created_at', 'si.created_at')] : []).join(' AND ');
       const profitQuery = `
         SELECT 
           COALESCE(SUM(si.final_amount), 0) as revenue
         FROM sales_item si
-        ${dateFilter ? `WHERE ${dateFilter.replace('created_at', 'si.created_at')}` : ''}
+        WHERE ${profitWhere}
       `;
-      const profitResult = await db.query(profitQuery);
+      const profitResult = await db.query(profitQuery, [shopId]);
       revenue = parseFloat(profitResult.rows[0]?.revenue || 0);
       // Assuming 20% profit margin (this should be calculated from actual purchase costs)
       estimatedProfit = revenue * 0.2;
