@@ -207,11 +207,11 @@ router.get(
       u.user_type
         FROM customer_profiles cp
         LEFT JOIN users u ON cp.user_id = u.id
-        WHERE cp.user_id = $1 AND u.role_id >= 3
+        WHERE cp.user_id = $1 AND u.role_id >= 3 AND u.shop_id = $2
         LIMIT 1
       `;
       
-      const { rows } = await db.query(query, [customerId]);
+      const { rows } = await db.query(query, [customerId, req.shop_id]);
   
       if (!rows.length) {
         return res.status(404).json({ error: "Customer not found" });
@@ -576,6 +576,18 @@ router.post("/customers", requireAuth, requireShop, requireSuperAdminOrAdmin, as
   let client;
 
   try {
+    // CRITICAL: Get shop_id from DB (source of truth) - JWT may have null for Sahara/Anand
+    let shopId = req.shop_id;
+    if (shopId == null || shopId === undefined) {
+      const userShopResult = await db.query(
+        'SELECT shop_id FROM users WHERE id = $1 LIMIT 1',
+        [req.user_id]
+      );
+      shopId = userShopResult.rows[0]?.shop_id ?? 1;
+    }
+    shopId = Number(shopId) || 1;
+    console.log('[POST /customers] shop_id for insert:', shopId, '(req.shop_id:', req.shop_id, ', user_id:', req.user_id, ')');
+
     client = await db.pool.connect();
     await client.query("BEGIN");
 
@@ -600,7 +612,7 @@ router.post("/customers", requireAuth, requireShop, requireSuperAdminOrAdmin, as
       LIMIT 1
     `)).rows.length > 0;
 
-    // ----- INSERT users -----
+    // ----- INSERT users (shop_id from above - fetched from DB if JWT had null) -----
     let userInsertQuery = `
       INSERT INTO users (
         full_name,
@@ -611,9 +623,10 @@ router.post("/customers", requireAuth, requireShop, requireSuperAdminOrAdmin, as
         address,
         password,
         role_id,
-        is_active
+        is_active,
+        shop_id
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       RETURNING id, full_name, email, phone, state, city, address, role_id, is_active;
     `;
 
@@ -627,6 +640,7 @@ router.post("/customers", requireAuth, requireShop, requireSuperAdminOrAdmin, as
       hashedPassword,
       customerRoleId,
       true,
+      shopId,
     ];
 
     if (usersHasUserType) {
@@ -641,9 +655,10 @@ router.post("/customers", requireAuth, requireShop, requireSuperAdminOrAdmin, as
           password,
           role_id,
           user_type,
-          is_active
+          is_active,
+          shop_id
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
         RETURNING id, full_name, email, phone, state, city, address, role_id, user_type, is_active;
       `;
       userValues = [
@@ -657,6 +672,7 @@ router.post("/customers", requireAuth, requireShop, requireSuperAdminOrAdmin, as
         customerRoleId,
         finalIsBusiness ? 'b2b' : 'b2c',
         true,
+        shopId,
       ];
     }
 
@@ -695,9 +711,10 @@ router.post("/customers", requireAuth, requireShop, requireSuperAdminOrAdmin, as
           is_business_customer,
           company_name,
           gst_number,
-          company_address
+          company_address,
+          shop_id
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
         RETURNING *;
       `;
       customerValues = [
@@ -713,6 +730,7 @@ router.post("/customers", requireAuth, requireShop, requireSuperAdminOrAdmin, as
         company,
         gst_number,
         company_address || null,
+        shopId,
       ];
       
       console.log('[POST /customers] Inserting customer_profiles with pincode:', {
@@ -734,9 +752,10 @@ router.post("/customers", requireAuth, requireShop, requireSuperAdminOrAdmin, as
           address,
           is_business_customer,
           company_name,
-          gst_number
+          gst_number,
+          shop_id
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
         RETURNING *;
       `;
       customerValues = [
@@ -751,6 +770,7 @@ router.post("/customers", requireAuth, requireShop, requireSuperAdminOrAdmin, as
         isBusiness,
         company,
         gst_number,
+        shopId,
       ];
       
       console.log('[POST /customers] Inserting customer_profiles (no company_address) with pincode:', {

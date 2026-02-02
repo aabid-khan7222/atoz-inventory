@@ -526,6 +526,7 @@ router.post('/admin', requireAuth, requireShopId, requireSuperAdminOrAdmin, asyn
     let customerNameFinal = customerName;
     let customerPhoneFinal = customerPhone;
     let customerEmailFinal = customerEmail;
+    const shopId = req.shop_id || 1;
 
     // If new customer, create user and customer profile
     if (isNewCustomer) {
@@ -533,7 +534,7 @@ router.post('/admin', requireAuth, requireShopId, requireSuperAdminOrAdmin, asyn
         return res.status(400).json({ error: 'Customer name, phone, and email are required for new customer' });
       }
 
-      // Check if customer already exists
+      // Check if customer already exists (email/phone unique globally)
       const existingUser = await db.query(
         `SELECT id FROM users WHERE email = $1 OR phone = $2 LIMIT 1`,
         [customerEmail.toLowerCase(), customerPhone]
@@ -557,13 +558,13 @@ router.post('/admin', requireAuth, requireShopId, requireSuperAdminOrAdmin, asyn
       // Use mobile number as password (hash it)
       const hashedPassword = await bcrypt.hash(customerPhone, 10);
 
-      // Create user
+      // Create user (shop_id for multi-shop - Sahara/Anand)
       const userResult = await db.query(
         `INSERT INTO users (
-          full_name, email, phone, password, role_id, is_active
-        ) VALUES ($1, $2, $3, $4, $5, $6)
+          full_name, email, phone, password, role_id, is_active, shop_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id, email, phone`,
-        [customerName.trim(), customerEmail.toLowerCase(), customerPhone, hashedPassword, customerRoleId, true]
+        [customerName.trim(), customerEmail.toLowerCase(), customerPhone, hashedPassword, customerRoleId, true, shopId]
       );
 
       userId = userResult.rows[0].id;
@@ -571,16 +572,17 @@ router.post('/admin', requireAuth, requireShopId, requireSuperAdminOrAdmin, asyn
       customerPhoneFinal = customerPhone;
       customerEmailFinal = customerEmail.toLowerCase();
 
-      // Create customer profile
+      // Create customer profile (shop_id for multi-shop)
       await db.query(
         `INSERT INTO customer_profiles (
-          user_id, full_name, email, phone, is_business_customer
-        ) VALUES ($1, $2, $3, $4, $5)
+          user_id, full_name, email, phone, is_business_customer, shop_id
+        ) VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (user_id) DO UPDATE SET
           full_name = EXCLUDED.full_name,
           email = EXCLUDED.email,
-          phone = EXCLUDED.phone`,
-        [userId, customerNameFinal, customerEmailFinal, customerPhoneFinal, false]
+          phone = EXCLUDED.phone,
+          shop_id = EXCLUDED.shop_id`,
+        [userId, customerNameFinal, customerEmailFinal, customerPhoneFinal, false, shopId]
       );
     } else {
       // Existing customer - verify and get details
@@ -592,9 +594,9 @@ router.post('/admin', requireAuth, requireShopId, requireSuperAdminOrAdmin, asyn
         `SELECT u.id, u.full_name, u.phone, u.email, cp.full_name as profile_name, cp.phone as profile_phone, cp.email as profile_email
          FROM users u
          LEFT JOIN customer_profiles cp ON u.id = cp.user_id
-         WHERE u.id = $1 AND u.role_id >= 3
+         WHERE u.id = $1 AND u.role_id >= 3 AND u.shop_id = $2
          LIMIT 1`,
-        [customerId]
+        [customerId, shopId]
       );
 
       if (!customerResult.rows.length) {
@@ -608,7 +610,7 @@ router.post('/admin', requireAuth, requireShopId, requireSuperAdminOrAdmin, asyn
       customerEmailFinal = customer.profile_email || customer.email;
     }
 
-    // Create service request
+    // Create service request (shop_id for multi-shop)
     const insertResult = await db.query(
       `INSERT INTO service_requests (
         user_id,
@@ -624,10 +626,11 @@ router.post('/admin', requireAuth, requireShopId, requireSuperAdminOrAdmin, asyn
         battery_ampere_rating,
         notes,
         status,
+        shop_id,
         created_at,
         updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'requested', NOW(), NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'requested', $13, NOW(), NOW()
       ) RETURNING *`,
       [
         userId,
@@ -641,7 +644,8 @@ router.post('/admin', requireAuth, requireShopId, requireSuperAdminOrAdmin, asyn
         inverterVa || null,
         inverterVoltage || null,
         batteryAmpereRating || null,
-        notes || null
+        notes || null,
+        shopId
       ]
     );
 

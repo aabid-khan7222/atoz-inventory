@@ -108,8 +108,8 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
       if (hasCompanyAddressCol) {
         await client.query(
           `INSERT INTO customer_profiles (
-            user_id, full_name, email, phone, is_business_customer, company_name, gst_number, company_address
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            user_id, full_name, email, phone, is_business_customer, company_name, gst_number, company_address, shop_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           ON CONFLICT (user_id) DO UPDATE SET
             full_name = EXCLUDED.full_name,
             email = EXCLUDED.email,
@@ -117,7 +117,8 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
             is_business_customer = customer_profiles.is_business_customer,
             company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), customer_profiles.company_name),
             gst_number = COALESCE(NULLIF(EXCLUDED.gst_number, ''), customer_profiles.gst_number),
-            company_address = COALESCE(NULLIF(EXCLUDED.company_address, ''), customer_profiles.company_address)`,
+            company_address = COALESCE(NULLIF(EXCLUDED.company_address, ''), customer_profiles.company_address),
+            shop_id = COALESCE(customer_profiles.shop_id, EXCLUDED.shop_id)`,
           [
             customer.id,
             customerName,
@@ -126,21 +127,23 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
             isBusinessCustomer,
             customerBusinessName || null,
             customerGstNumber || null,
-            customerBusinessAddress || null
+            customerBusinessAddress || null,
+            shopId
           ]
         );
       } else {
         await client.query(
           `INSERT INTO customer_profiles (
-            user_id, full_name, email, phone, is_business_customer, company_name, gst_number
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            user_id, full_name, email, phone, is_business_customer, company_name, gst_number, shop_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           ON CONFLICT (user_id) DO UPDATE SET
             full_name = EXCLUDED.full_name,
             email = EXCLUDED.email,
             phone = EXCLUDED.phone,
             is_business_customer = COALESCE(EXCLUDED.is_business_customer, customer_profiles.is_business_customer),
             company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), customer_profiles.company_name),
-            gst_number = COALESCE(NULLIF(EXCLUDED.gst_number, ''), customer_profiles.gst_number)`,
+            gst_number = COALESCE(NULLIF(EXCLUDED.gst_number, ''), customer_profiles.gst_number),
+            shop_id = COALESCE(customer_profiles.shop_id, EXCLUDED.shop_id)`,
           [
             customer.id,
             customerName,
@@ -148,7 +151,8 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
             customer.phone || normalizedMobile,
             isBusinessCustomer,
             customerBusinessName || null,
-            customerGstNumber || null
+            customerGstNumber || null,
+            shopId
           ]
         );
       }
@@ -188,8 +192,8 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
       if (hasCompanyAddressCol) {
         await client.query(
           `INSERT INTO customer_profiles (
-            user_id, full_name, email, phone, is_business_customer, company_name, gst_number, company_address
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            user_id, full_name, email, phone, is_business_customer, company_name, gst_number, company_address, shop_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           ON CONFLICT (user_id) DO UPDATE SET
             full_name = EXCLUDED.full_name,
             email = EXCLUDED.email,
@@ -197,7 +201,8 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
             is_business_customer = customer_profiles.is_business_customer,
             company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), customer_profiles.company_name),
             gst_number = COALESCE(NULLIF(EXCLUDED.gst_number, ''), customer_profiles.gst_number),
-            company_address = COALESCE(NULLIF(EXCLUDED.company_address, ''), customer_profiles.company_address)`,
+            company_address = COALESCE(NULLIF(EXCLUDED.company_address, ''), customer_profiles.company_address),
+            shop_id = COALESCE(customer_profiles.shop_id, EXCLUDED.shop_id)`,
           [
             customer.id,
             customerName,
@@ -206,21 +211,23 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
             isBusinessCustomer,
             customerBusinessName || null,
             customerGstNumber || null,
-            customerBusinessAddress || null
+            customerBusinessAddress || null,
+            shopId
           ]
         );
       } else {
         await client.query(
           `INSERT INTO customer_profiles (
-            user_id, full_name, email, phone, is_business_customer, company_name, gst_number
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            user_id, full_name, email, phone, is_business_customer, company_name, gst_number, shop_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           ON CONFLICT (user_id) DO UPDATE SET
             full_name = EXCLUDED.full_name,
             email = EXCLUDED.email,
             phone = EXCLUDED.phone,
             is_business_customer = customer_profiles.is_business_customer,
             company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), customer_profiles.company_name),
-            gst_number = COALESCE(NULLIF(EXCLUDED.gst_number, ''), customer_profiles.gst_number)`,
+            gst_number = COALESCE(NULLIF(EXCLUDED.gst_number, ''), customer_profiles.gst_number),
+            shop_id = COALESCE(customer_profiles.shop_id, EXCLUDED.shop_id)`,
           [
             customer.id,
             customerName,
@@ -228,7 +235,8 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
             customer.phone || normalizedMobile,
             isBusinessCustomer,
             customerBusinessName || null,
-            customerGstNumber || null
+            customerGstNumber || null,
+            shopId
           ]
         );
       }
@@ -294,8 +302,8 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
     if (hasCompanyAddressCol) {
       profileInsertResult = await client.query(
         `INSERT INTO customer_profiles (
-          user_id, full_name, email, phone, is_business_customer, company_name, gst_number, company_address
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          user_id, full_name, email, phone, is_business_customer, company_name, gst_number, company_address, shop_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (user_id) DO UPDATE SET
           full_name = EXCLUDED.full_name,
           email = EXCLUDED.email,
@@ -303,7 +311,8 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
           is_business_customer = customer_profiles.is_business_customer,
           company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), customer_profiles.company_name),
           gst_number = COALESCE(NULLIF(EXCLUDED.gst_number, ''), customer_profiles.gst_number),
-          company_address = COALESCE(NULLIF(EXCLUDED.company_address, ''), customer_profiles.company_address)
+          company_address = COALESCE(NULLIF(EXCLUDED.company_address, ''), customer_profiles.company_address),
+          shop_id = COALESCE(customer_profiles.shop_id, EXCLUDED.shop_id)
         RETURNING *`,
         [
           newUser.id,
@@ -313,21 +322,23 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
           isBusinessCustomer,
           customerBusinessName || null,
           customerGstNumber || null,
-          customerBusinessAddress || null
+          customerBusinessAddress || null,
+          shopId
         ]
       );
     } else {
       profileInsertResult = await client.query(
         `INSERT INTO customer_profiles (
-          user_id, full_name, email, phone, is_business_customer, company_name, gst_number
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+          user_id, full_name, email, phone, is_business_customer, company_name, gst_number, shop_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         ON CONFLICT (user_id) DO UPDATE SET
           full_name = EXCLUDED.full_name,
           email = EXCLUDED.email,
           phone = EXCLUDED.phone,
           is_business_customer = customer_profiles.is_business_customer,
           company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), customer_profiles.company_name),
-          gst_number = COALESCE(NULLIF(EXCLUDED.gst_number, ''), customer_profiles.gst_number)
+          gst_number = COALESCE(NULLIF(EXCLUDED.gst_number, ''), customer_profiles.gst_number),
+          shop_id = COALESCE(customer_profiles.shop_id, EXCLUDED.shop_id)
         RETURNING *`,
         [
           newUser.id,
@@ -336,7 +347,8 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
           normalizedMobile,
           isBusinessCustomer,
           customerBusinessName || null,
-          customerGstNumber || null
+          customerGstNumber || null,
+          shopId
         ]
       );
     }

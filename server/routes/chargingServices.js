@@ -106,7 +106,9 @@ router.get('/my-services', requireAuth, requireShopId, async (req, res) => {
 
 // Helper function to find or create customer account
 // Same logic as in adminSales.js - creates user with email as username and mobile as password
-async function findOrCreateCustomer(email, mobileNumber, customerName, client) {
+// shopId required for multi-shop (Sahara/Anand)
+async function findOrCreateCustomer(email, mobileNumber, customerName, client, shopId) {
+  if (!shopId) shopId = 1;
   try {
     console.log('[findOrCreateCustomer] Starting with:', { email, mobileNumber, customerName });
     
@@ -150,8 +152,8 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, client) {
       : 'id, email, phone';
       
     let customerResult = await client.query(
-      `SELECT ${userSelect} FROM users WHERE LOWER(email) = $1 AND role_id >= 3 LIMIT 1`,
-      [normalizedEmail]
+      `SELECT ${userSelect} FROM users WHERE LOWER(email) = $1 AND role_id >= 3 AND shop_id = $2 LIMIT 1`,
+      [normalizedEmail, shopId]
     );
 
     if (customerResult.rows.length > 0) {
@@ -159,21 +161,22 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, client) {
       customer.was_auto_created = false;
       console.log('[findOrCreateCustomer] Found existing customer by email:', customer.id);
       
-      // Update customer_profiles
-      let profileQuery = `INSERT INTO customer_profiles (user_id, full_name, email, phone`;
-      let profileValues = [customer.id, customerName.trim(), customer.email || normalizedEmail, customer.phone || normalizedMobile];
+      // Update customer_profiles (shop_id for multi-shop)
+      let profileQuery = `INSERT INTO customer_profiles (user_id, full_name, email, phone, shop_id`;
+      let profileValues = [customer.id, customerName.trim(), customer.email || normalizedEmail, customer.phone || normalizedMobile, shopId];
       
       if (hasIsB2BCol) {
-        profileQuery += `, is_business_customer) VALUES ($1, $2, $3, $4, $5)`;
+        profileQuery += `, is_business_customer) VALUES ($1, $2, $3, $4, $5, $6)`;
         profileValues.push(false);
       } else {
-        profileQuery += `) VALUES ($1, $2, $3, $4)`;
+        profileQuery += `) VALUES ($1, $2, $3, $4, $5)`;
       }
       
       profileQuery += ` ON CONFLICT (user_id) DO UPDATE SET
           full_name = EXCLUDED.full_name,
           email = EXCLUDED.email,
-          phone = EXCLUDED.phone`;
+          phone = EXCLUDED.phone,
+          shop_id = COALESCE(customer_profiles.shop_id, EXCLUDED.shop_id)`;
       
       await client.query(profileQuery, profileValues);
       return customer;
@@ -181,8 +184,8 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, client) {
 
     // Try to find by mobile number (only customers, role_id >= 3)
     customerResult = await client.query(
-      `SELECT ${userSelect} FROM users WHERE phone = $1 AND role_id >= 3 LIMIT 1`,
-      [normalizedMobile]
+      `SELECT ${userSelect} FROM users WHERE phone = $1 AND role_id >= 3 AND shop_id = $2 LIMIT 1`,
+      [normalizedMobile, shopId]
     );
 
     if (customerResult.rows.length > 0) {
@@ -190,21 +193,22 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, client) {
       customer.was_auto_created = false;
       console.log('[findOrCreateCustomer] Found existing customer by phone:', customer.id);
       
-      // Update customer_profiles
-      let profileQuery = `INSERT INTO customer_profiles (user_id, full_name, email, phone`;
-      let profileValues = [customer.id, customerName.trim(), customer.email || normalizedEmail, customer.phone || normalizedMobile];
+      // Update customer_profiles (shop_id for multi-shop)
+      let profileQuery = `INSERT INTO customer_profiles (user_id, full_name, email, phone, shop_id`;
+      let profileValues = [customer.id, customerName.trim(), customer.email || normalizedEmail, customer.phone || normalizedMobile, shopId];
       
       if (hasIsB2BCol) {
-        profileQuery += `, is_business_customer) VALUES ($1, $2, $3, $4, $5)`;
+        profileQuery += `, is_business_customer) VALUES ($1, $2, $3, $4, $5, $6)`;
         profileValues.push(false);
       } else {
-        profileQuery += `) VALUES ($1, $2, $3, $4)`;
+        profileQuery += `) VALUES ($1, $2, $3, $4, $5)`;
       }
       
       profileQuery += ` ON CONFLICT (user_id) DO UPDATE SET
           full_name = EXCLUDED.full_name,
           email = EXCLUDED.email,
-          phone = EXCLUDED.phone`;
+          phone = EXCLUDED.phone,
+          shop_id = COALESCE(customer_profiles.shop_id, EXCLUDED.shop_id)`;
       
       await client.query(profileQuery, profileValues);
       return customer;
@@ -223,15 +227,15 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, client) {
     const customerRoleId = roleResult.rows[0].id;
     const hashedPassword = await bcrypt.hash(normalizedMobile, 10);
 
-    // Insert user
-    let userInsertQuery = `INSERT INTO users (full_name, email, phone, password, role_id, is_active`;
-    let userValues = [customerName.trim(), normalizedEmail, normalizedMobile, hashedPassword, customerRoleId, true];
+    // Insert user (shop_id for multi-shop)
+    let userInsertQuery = `INSERT INTO users (full_name, email, phone, password, role_id, is_active, shop_id`;
+    let userValues = [customerName.trim(), normalizedEmail, normalizedMobile, hashedPassword, customerRoleId, true, shopId];
     
     if (hasUserTypeCol) {
-      userInsertQuery += `, user_type) VALUES ($1, $2, $3, $4, $5, $6, $7)`;
+      userInsertQuery += `, user_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`;
       userValues.push('b2c');
     } else {
-      userInsertQuery += `) VALUES ($1, $2, $3, $4, $5, $6)`;
+      userInsertQuery += `) VALUES ($1, $2, $3, $4, $5, $6, $7)`;
     }
     
     userInsertQuery += ` RETURNING id, email, phone`;
@@ -247,15 +251,15 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, client) {
     newUser.was_auto_created = true;
     console.log('[findOrCreateCustomer] Auto-created customer user:', { id: newUser.id, email: newUser.email, phone: newUser.phone });
 
-    // Also create entry in customer_profiles table
-    let profileInsertQuery = `INSERT INTO customer_profiles (user_id, full_name, email, phone`;
-    let profileInsertValues = [newUser.id, customerName.trim(), normalizedEmail, normalizedMobile];
+    // Also create entry in customer_profiles table (shop_id for multi-shop)
+    let profileInsertQuery = `INSERT INTO customer_profiles (user_id, full_name, email, phone, shop_id`;
+    let profileInsertValues = [newUser.id, customerName.trim(), normalizedEmail, normalizedMobile, shopId];
     
     if (hasIsB2BCol) {
-      profileInsertQuery += `, is_business_customer) VALUES ($1, $2, $3, $4, $5)`;
+      profileInsertQuery += `, is_business_customer) VALUES ($1, $2, $3, $4, $5, $6)`;
       profileInsertValues.push(false);
     } else {
-      profileInsertQuery += `) VALUES ($1, $2, $3, $4)`;
+      profileInsertQuery += `) VALUES ($1, $2, $3, $4, $5)`;
     }
     
     profileInsertQuery += ` ON CONFLICT (user_id) DO UPDATE SET
@@ -458,7 +462,8 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
           finalCustomerEmail,
           customerMobileNumber,
           customerName,
-          client
+          client,
+          req.shop_id
         );
         console.log('[ChargingService] Customer found/created:', { id: customer.id, email: customer.email, was_auto_created: customer.was_auto_created });
       } catch (customerError) {
@@ -690,7 +695,8 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
           finalCustomerEmail,
           customerMobileNumber,
           customerName,
-          client
+          client,
+          req.shop_id
         );
         console.log('[ChargingService] Customer updated/created on edit:', { id: customer.id, email: customer.email });
       } catch (customerError) {

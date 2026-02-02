@@ -628,8 +628,9 @@ router.post("/signup/create", async (req, res) => {
     );
 
     const userId = userResult.rows[0].id;
+    const signupShopId = (await client.query('SELECT COALESCE(MIN(id), 1) as id FROM shops')).rows[0]?.id || 1;
 
-    // Insert into customer_profiles table
+    // Insert into customer_profiles table (shop_id for multi-shop consistency)
     try {
       // Check if pincode column exists
       const pincodeCheck = await client.query(`
@@ -645,8 +646,8 @@ router.post("/signup/create", async (req, res) => {
         await client.query(
           `INSERT INTO customer_profiles (
             user_id, full_name, email, phone, state, city, address, pincode,
-            is_business_customer, company_name, gst_number, company_address
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            is_business_customer, company_name, gst_number, company_address, shop_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
           ON CONFLICT (user_id) DO UPDATE SET
             full_name = EXCLUDED.full_name,
             email = EXCLUDED.email,
@@ -672,14 +673,15 @@ router.post("/signup/create", async (req, res) => {
             hasGstBool ? company_name.trim() : null,
             hasGstBool ? gst_number.trim() : null,
             hasGstBool ? company_address.trim() : null,
+            signupShopId,
           ]
         );
       } else {
         await client.query(
           `INSERT INTO customer_profiles (
             user_id, full_name, email, phone, state, city, address,
-            is_business_customer, company_name, gst_number, company_address
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            is_business_customer, company_name, gst_number, company_address, shop_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           ON CONFLICT (user_id) DO UPDATE SET
             full_name = EXCLUDED.full_name,
             email = EXCLUDED.email,
@@ -703,6 +705,7 @@ router.post("/signup/create", async (req, res) => {
             hasGstBool ? company_name.trim() : null,
             hasGstBool ? gst_number.trim() : null,
             hasGstBool ? company_address.trim() : null,
+            signupShopId,
           ]
         );
       }

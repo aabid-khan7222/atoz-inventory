@@ -68,10 +68,10 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
       const isBusinessCustomer = isBusinessCustomerType(customer.user_type);
       await client.query(
         `INSERT INTO customer_profiles (
-          user_id, full_name, email, phone, is_business_customer
-        ) VALUES ($1, $2, $3, $4, $5)
+          user_id, full_name, email, phone, is_business_customer, shop_id
+        ) VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (user_id) DO NOTHING`,
-        [customer.id, customerName, customer.email || email.toLowerCase(), customer.phone || mobileNumber, isBusinessCustomer]
+        [customer.id, customerName, customer.email || email.toLowerCase(), customer.phone || mobileNumber, isBusinessCustomer, shopId]
       );
     }
     return customer;
@@ -95,10 +95,10 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
       const isBusinessCustomer = isBusinessCustomerType(customer.user_type);
       await client.query(
         `INSERT INTO customer_profiles (
-          user_id, full_name, email, phone, is_business_customer
-        ) VALUES ($1, $2, $3, $4, $5)
+          user_id, full_name, email, phone, is_business_customer, shop_id
+        ) VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (user_id) DO NOTHING`,
-        [customer.id, customerName, customer.email || email.toLowerCase(), customer.phone || mobileNumber, isBusinessCustomer]
+        [customer.id, customerName, customer.email || email.toLowerCase(), customer.phone || mobileNumber, isBusinessCustomer, shopId]
       );
     }
     return customer;
@@ -132,14 +132,14 @@ async function findOrCreateCustomer(email, mobileNumber, customerName, salesType
   newUser.was_auto_created = true;
   console.log('[findOrCreateCustomer] Auto-created customer user:', { id: newUser.id, email: newUser.email, phone: newUser.phone });
 
-  // Also create entry in customer_profiles table
+  // Also create entry in customer_profiles table (shop_id for multi-shop)
   const isBusinessCustomer = isBusinessCustomerType(userType);
   await client.query(
     `INSERT INTO customer_profiles (
-      user_id, full_name, email, phone, is_business_customer
-    ) VALUES ($1, $2, $3, $4, $5)
+      user_id, full_name, email, phone, is_business_customer, shop_id
+    ) VALUES ($1, $2, $3, $4, $5, $6)
     ON CONFLICT (user_id) DO NOTHING`,
-    [newUser.id, customerName, email.toLowerCase(), mobileNumber, isBusinessCustomer]
+    [newUser.id, customerName, email.toLowerCase(), mobileNumber, isBusinessCustomer, shopId]
   );
 
   return newUser;
@@ -253,13 +253,13 @@ router.post('/', requireAuth, requireShop, async (req, res) => {
           const user = userResult.rows[0];
           const isBusinessCustomer = (user.user_type || '').toLowerCase() === 'b2b';
           
-          // Create customer_profiles entry
+          // Create customer_profiles entry (shop_id for multi-shop)
           await client.query(
             `INSERT INTO customer_profiles (
-              user_id, full_name, email, phone, is_business_customer
-            ) VALUES ($1, $2, $3, $4, $5)
+              user_id, full_name, email, phone, is_business_customer, shop_id
+            ) VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (user_id) DO NOTHING`,
-            [user.id, user.full_name, user.email, user.phone, isBusinessCustomer]
+            [user.id, user.full_name, user.email, user.phone, isBusinessCustomer, req.shop_id]
           );
         }
       }
