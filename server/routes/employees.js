@@ -63,10 +63,11 @@ router.post('/', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (re
       [full_name, email || null, phone, address || null, designation || null, joining_date || null, salary || null, req.shop_id]
     );
 
+    const shopId = req.shop_id ?? 1;
     await db.query(
-      `INSERT INTO employee_history (employee_id, history_type, description, created_by)
-       VALUES ($1, 'update', 'Employee created', $2)`,
-      [rows[0].id, req.user_id ?? req.user?.id]
+      `INSERT INTO employee_history (employee_id, history_type, description, created_by, shop_id)
+       VALUES ($1, 'update', 'Employee created', $2, $3)`,
+      [rows[0].id, req.user_id ?? req.user?.id, shopId]
     );
 
     res.status(201).json(rows[0]);
@@ -106,10 +107,11 @@ router.put('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (
     }
 
     // Add to history
+    const shopId = req.shop_id ?? 1;
     await db.query(
-      `INSERT INTO employee_history (employee_id, history_type, description, created_by)
-       VALUES ($1, 'update', 'Employee details updated', $2)`,
-      [id, req.user_id ?? req.user?.id]
+      `INSERT INTO employee_history (employee_id, history_type, description, created_by, shop_id)
+       VALUES ($1, 'update', 'Employee details updated', $2, $3)`,
+      [id, req.user_id ?? req.user?.id, shopId]
     );
 
     res.json(rows[0]);
@@ -137,11 +139,12 @@ router.delete('/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, asyn
     }
 
     // Add to history
+    const shopId = req.shop_id ?? 1;
     try {
       await db.query(
-        `INSERT INTO employee_history (employee_id, history_type, description, created_by)
-         VALUES ($1::INTEGER, 'update', 'Employee deactivated', $2::INTEGER)`,
-        [id, req.user_id ?? req.user?.id]
+        `INSERT INTO employee_history (employee_id, history_type, description, created_by, shop_id)
+         VALUES ($1::INTEGER, 'update', 'Employee deactivated', $2::INTEGER, $3)`,
+        [id, req.user_id ?? req.user?.id, shopId]
       );
     } catch (historyErr) {
       console.error('Failed to add deactivation history (non-critical):', historyErr.message);
@@ -172,11 +175,12 @@ router.patch('/:id/activate', requireAuth, requireShopId, requireSuperAdminOrAdm
     }
 
     // Add to history
+    const shopId = req.shop_id ?? 1;
     try {
       await db.query(
-        `INSERT INTO employee_history (employee_id, history_type, description, created_by)
-         VALUES ($1::INTEGER, 'update', 'Employee activated', $2::INTEGER)`,
-        [id, req.user_id ?? req.user?.id]
+        `INSERT INTO employee_history (employee_id, history_type, description, created_by, shop_id)
+         VALUES ($1::INTEGER, 'update', 'Employee activated', $2::INTEGER, $3)`,
+        [id, req.user_id ?? req.user?.id, shopId]
       );
     } catch (historyErr) {
       console.error('Failed to add activation history (non-critical):', historyErr.message);
@@ -331,13 +335,14 @@ router.post('/:id/attendance', requireAuth, requireShopId, requireSuperAdminOrAd
       );
       rows = result;
     } else {
-      // Insert new record
+      // Insert new record (shop_id for multi-shop)
+      const shopId = req.shop_id ?? 1;
       const result = await db.query(
         `INSERT INTO employee_attendance 
-         (employee_id, attendance_month, total_days, present_days, half_days, absent_days, leave_days, notes)
-         VALUES ($1::INTEGER, $2::DATE, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8)
+         (employee_id, attendance_month, total_days, present_days, half_days, absent_days, leave_days, notes, shop_id)
+         VALUES ($1::INTEGER, $2::DATE, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8, $9)
          RETURNING *`,
-        [id, monthStr, finalTotal, finalPresent, finalHalf, finalAbsent, finalLeave, notes || null]
+        [id, monthStr, finalTotal, finalPresent, finalHalf, finalAbsent, finalLeave, notes || null, shopId]
       );
       rows = result;
     }
@@ -345,12 +350,13 @@ router.post('/:id/attendance', requireAuth, requireShopId, requireSuperAdminOrAd
     // Add to history - build description in JS to avoid PostgreSQL parameter type inference issues
     // Wrap in try-catch so history failure doesn't break the main response
     try {
+      const shopId = req.shop_id ?? 1;
       const monthFormatted = new Date(monthStr + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
       const historyDesc = `Attendance updated for ${monthFormatted}: ${finalPresent} present, ${finalHalf} half day, ${finalAbsent} absent, ${finalLeave} leave`;
       await db.query(
-        `INSERT INTO employee_history (employee_id, history_type, description, created_by)
-         VALUES ($1::INTEGER, 'update', $2, $3::INTEGER)`,
-        [id, historyDesc, req.user_id ?? req.user?.id]
+        `INSERT INTO employee_history (employee_id, history_type, description, created_by, shop_id)
+         VALUES ($1::INTEGER, 'update', $2, $3::INTEGER, $4)`,
+        [id, historyDesc, req.user_id ?? req.user?.id, shopId]
       );
     } catch (historyErr) {
       console.error('Failed to add attendance history (non-critical):', historyErr.message);
@@ -502,17 +508,19 @@ router.post('/:id/daily-attendance', requireAuth, requireShopId, requireSuperAdm
         check_out_time: normalizedCheckOut
       });
       
-      // Use explicit constraint name - more reliable than column names
+      // Use explicit constraint name - more reliable than column names (shop_id for multi-shop)
+      const shopId = req.shop_id ?? 1;
       const attendanceResult = await client.query(
         `INSERT INTO daily_attendance 
-         (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, created_at, updated_at)
-         VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, NOW(), NOW())
+         (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, shop_id, created_at, updated_at)
+         VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, $8, NOW(), NOW())
          ON CONFLICT ON CONSTRAINT daily_attendance_employee_date_unique
          DO UPDATE SET
            status = EXCLUDED.status,
            check_in_time = EXCLUDED.check_in_time,
            check_out_time = EXCLUDED.check_out_time,
            notes = EXCLUDED.notes,
+           shop_id = EXCLUDED.shop_id,
            updated_at = NOW()
          RETURNING *`,
         [
@@ -522,7 +530,8 @@ router.post('/:id/daily-attendance', requireAuth, requireShopId, requireSuperAdm
           normalizedCheckIn,
           normalizedCheckOut,
           normalizedNotes,
-          req.user_id ?? req.user?.id
+          req.user_id ?? req.user?.id,
+          shopId
         ]
       );
       
@@ -579,18 +588,18 @@ router.post('/:id/daily-attendance', requireAuth, requireShopId, requireSuperAdm
       } else {
         await client.query(
           `INSERT INTO employee_attendance 
-           (employee_id, attendance_month, total_days, present_days, half_days, absent_days, leave_days)
-           VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)`,
-          [employeeId, monthStr, totalDays, presentDays, halfDays, absentDays, leaveDays]
+           (employee_id, attendance_month, total_days, present_days, half_days, absent_days, leave_days, shop_id)
+           VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, $8)`,
+          [employeeId, monthStr, totalDays, presentDays, halfDays, absentDays, leaveDays, shopId]
         );
       }
 
-      // Add to history
+      // Add to history (shop_id for multi-shop)
       const historyDescription = `Daily attendance marked: ${status} on ${new Date(attendance_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
       await client.query(
-        `INSERT INTO employee_history (employee_id, history_type, description, created_by)
-         VALUES ($1, 'attendance', $2, $3)`,
-        [employeeId, historyDescription, req.user.id]
+        `INSERT INTO employee_history (employee_id, history_type, description, created_by, shop_id)
+         VALUES ($1, 'attendance', $2, $3, $4)`,
+        [employeeId, historyDescription, req.user?.id ?? req.user_id, shopId]
       );
 
       await client.query('COMMIT');
@@ -629,6 +638,7 @@ router.post('/daily-attendance/bulk', requireAuth, requireShopId, requireSuperAd
     }
 
     const results = [];
+    const shopId = req.shop_id ?? 1;
     const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
@@ -643,18 +653,18 @@ router.post('/daily-attendance/bulk', requireAuth, requireShopId, requireSuperAd
         const normalizedCheckOut = (check_out_time && check_out_time.trim() !== '') ? check_out_time : null;
         const normalizedNotes = (notes && notes.trim() !== '') ? notes : null;
 
-        // Insert or update daily attendance using ON CONFLICT
-        // Use explicit constraint name - more reliable than column names
+        // Insert or update daily attendance using ON CONFLICT (shop_id for multi-shop)
         const attendanceResult = await client.query(
           `INSERT INTO daily_attendance 
-           (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, created_at, updated_at)
-           VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, NOW(), NOW())
+           (employee_id, attendance_date, status, check_in_time, check_out_time, notes, created_by, shop_id, created_at, updated_at)
+           VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, $8, NOW(), NOW())
            ON CONFLICT ON CONSTRAINT daily_attendance_employee_date_unique
            DO UPDATE SET
              status = EXCLUDED.status,
              check_in_time = EXCLUDED.check_in_time,
              check_out_time = EXCLUDED.check_out_time,
              notes = EXCLUDED.notes,
+             shop_id = EXCLUDED.shop_id,
              updated_at = NOW()
            RETURNING *`,
           [
@@ -664,7 +674,8 @@ router.post('/daily-attendance/bulk', requireAuth, requireShopId, requireSuperAd
             normalizedCheckIn,
             normalizedCheckOut,
             normalizedNotes,
-            req.user_id ?? req.user?.id
+            req.user_id ?? req.user?.id,
+            shopId
           ]
         );
 
@@ -719,9 +730,9 @@ router.post('/daily-attendance/bulk', requireAuth, requireShopId, requireSuperAd
         } else {
           await client.query(
             `INSERT INTO employee_attendance 
-             (employee_id, attendance_month, total_days, present_days, half_days, absent_days, leave_days)
-             VALUES ($1, $2::DATE, $3, $4, $5, $6, $7)`,
-            [employee_id, monthStr, totalDays, presentDays, halfDays, absentDays, leaveDays]
+             (employee_id, attendance_month, total_days, present_days, half_days, absent_days, leave_days, shop_id)
+             VALUES ($1, $2::DATE, $3, $4, $5, $6, $7, $8)`,
+            [employee_id, monthStr, totalDays, presentDays, halfDays, absentDays, leaveDays, shopId]
           );
         }
       }
@@ -804,13 +815,14 @@ router.post('/:id/payments', requireAuth, requireShopId, requireSuperAdminOrAdmi
     const empCheck = await db.query('SELECT id FROM employees WHERE id = $1 AND shop_id = $2', [employeeId, req.shop_id]);
     if (!empCheck.rows.length) return res.status(404).json({ error: 'Employee not found' });
 
-    // Insert payment with explicit type casts
+    // Insert payment with explicit type casts (shop_id for multi-shop)
+    const shopId = req.shop_id ?? 1;
     const paymentResult = await db.query(
       `INSERT INTO employee_payments 
-       (employee_id, payment_month, amount, payment_date, payment_method, notes, created_by)
-       VALUES ($1::INTEGER, $2::DATE, $3::DECIMAL, $4::DATE, $5, $6, $7::INTEGER)
+       (employee_id, payment_month, amount, payment_date, payment_method, notes, created_by, shop_id)
+       VALUES ($1::INTEGER, $2::DATE, $3::DECIMAL, $4::DATE, $5, $6, $7::INTEGER, $8)
        RETURNING *`,
-      [employeeId, monthStr, paymentAmount, payment_date, payment_method || null, notes || null, req.user_id ?? req.user?.id]
+      [employeeId, monthStr, paymentAmount, payment_date, payment_method || null, notes || null, req.user_id ?? req.user?.id, shopId]
     );
 
     // Add to history - build description in JS to avoid PostgreSQL parameter type inference issues
@@ -818,9 +830,9 @@ router.post('/:id/payments', requireAuth, requireShopId, requireSuperAdminOrAdmi
       const monthFormatted = new Date(monthStr + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
       const historyDesc = `Payment of ₹${paymentAmount} for ${monthFormatted}`;
       await db.query(
-        `INSERT INTO employee_history (employee_id, history_type, description, amount, reference_id, created_by)
-         VALUES ($1::INTEGER, $2, $3, $4::DECIMAL, $5::INTEGER, $6::INTEGER)`,
-        [employeeId, 'payment', historyDesc, paymentAmount, paymentResult.rows[0].id, req.user_id ?? req.user?.id]
+        `INSERT INTO employee_history (employee_id, history_type, description, amount, reference_id, created_by, shop_id)
+         VALUES ($1::INTEGER, $2, $3, $4::DECIMAL, $5::INTEGER, $6::INTEGER, $7)`,
+        [employeeId, 'payment', historyDesc, paymentAmount, paymentResult.rows[0].id, req.user_id ?? req.user?.id, shopId]
       );
     } catch (historyErr) {
       console.error('Failed to add payment history (non-critical):', historyErr.message);
@@ -891,12 +903,13 @@ router.delete('/payments/:paymentId', requireAuth, requireShopId, requireSuperAd
         );
       }
 
-      // Add to history
+      // Add to history (shop_id for multi-shop)
+      const shopId = req.shop_id ?? 1;
       const historyDescription = `Payment of ₹${paymentAmount.toFixed(2)} for ${new Date(monthStr).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} - DELETED`;
       await client.query(
-        `INSERT INTO employee_history (employee_id, history_type, description, amount, created_by)
-         VALUES ($1, 'payment', $2, $3, $4)`,
-        [payment.employee_id, historyDescription, -paymentAmount, req.user_id ?? req.user?.id]
+        `INSERT INTO employee_history (employee_id, history_type, description, amount, created_by, shop_id)
+         VALUES ($1, 'payment', $2, $3, $4, $5)`,
+        [payment.employee_id, historyDescription, -paymentAmount, req.user_id ?? req.user?.id, shopId]
       );
 
       await client.query('COMMIT');
