@@ -1190,30 +1190,31 @@ router.get('/sales-items', requireAuth, requireShopId, requireSuperAdminOrAdmin,
     let paramCount = 1;
 
     if (productTypeId) {
+      paramCount++;
       query += ` AND p.product_type_id = $${paramCount}`;
       params.push(productTypeId);
-      paramCount++;
     }
 
     if (salesType && salesType !== 'all') {
+      paramCount++;
       query += ` AND si.sales_type = $${paramCount}`;
       params.push(salesType);
-      paramCount++;
     }
 
     if (dateFrom) {
+      paramCount++;
       query += ` AND si.purchase_date >= $${paramCount}`;
       params.push(dateFrom);
-      paramCount++;
     }
 
     if (dateTo) {
+      paramCount++;
       query += ` AND si.purchase_date <= $${paramCount}`;
       params.push(dateTo + ' 23:59:59');
-      paramCount++;
     }
 
     if (search) {
+      paramCount++;
       query += ` AND (
         si.NAME ILIKE $${paramCount} OR
         si.SKU ILIKE $${paramCount} OR
@@ -1222,10 +1223,13 @@ router.get('/sales-items', requireAuth, requireShopId, requireSuperAdminOrAdmin,
         si.customer_mobile_number ILIKE $${paramCount}
       )`;
       params.push(`%${search}%`);
-      paramCount++;
     }
 
-    query += ` ORDER BY si.created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    paramCount++;
+    const limitParam = paramCount;
+    paramCount++;
+    const offsetParam = paramCount;
+    query += ` ORDER BY si.created_at DESC LIMIT $${limitParam} OFFSET $${offsetParam}`;
     params.push(parseInt(limit), offset);
 
     console.log('📊 Executing sales items query');
