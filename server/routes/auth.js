@@ -64,19 +64,30 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    let isMatch = false;
-    try {
-      isMatch = await bcrypt.compare(password, user.password);
-    } catch (bcryptError) {
-      console.error("Login: bcrypt.compare failed:", bcryptError);
-      return res.status(500).json({
-        error: "Password verification error",
-        details: process.env.NODE_ENV === "production" ? undefined : bcryptError.message,
-      });
-    }
-    if (!isMatch) {
-      return res.status(401).json({ error: "Invalid email or password" });
-    }
+    // 🔍 DEBUG + NORMALIZE PASSWORD (TEMP)
+console.log("RAW PASSWORD:", password);
+console.log("PASSWORD TYPE:", typeof password);
+console.log("PASSWORD LENGTH:", password ? password.length : null);
+
+const normalizedPassword = String(password || "").trim();
+console.log("TRIMMED PASSWORD LENGTH:", normalizedPassword.length);
+
+let isMatch = false;
+try {
+  isMatch = await bcrypt.compare(normalizedPassword, user.password);
+  console.log("PASSWORD MATCH RESULT:", isMatch);
+} catch (bcryptError) {
+  console.error("Login: bcrypt.compare failed:", bcryptError);
+  return res.status(500).json({
+    error: "Password verification error",
+    details: process.env.NODE_ENV === "production" ? undefined : bcryptError.message,
+  });
+}
+
+if (!isMatch) {
+  return res.status(401).json({ error: "Invalid email or password" });
+}
+
 
     // Fetch customer profile data if it exists (include pincode when available)
     let customerProfile = null;
