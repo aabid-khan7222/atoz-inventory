@@ -3,7 +3,10 @@
  * Fix passwords for Sahara Battery & Anand Battery admin/super-admin users.
  * Run this if login fails with "Invalid email or password" for these users.
  *
- * Usage: node server/scripts/fix-sahara-anand-passwords.js
+ * Local:  node server/scripts/fix-sahara-anand-passwords.js  (uses .env DATABASE_URL_LOCAL)
+ * Render: In Dashboard → Backend service → Shell, run:
+ *         NODE_ENV=production node server/scripts/fix-sahara-anand-passwords.js
+ *         (uses DATABASE_URL from Render env)
  */
 
 require("dotenv").config();
