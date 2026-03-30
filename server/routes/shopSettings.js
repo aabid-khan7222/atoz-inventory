@@ -30,11 +30,7 @@ router.get('/', requireAuth, requireAdmin, requireShopId, async (req, res) => {
       [shopId]
     );
     if (result.rows.length === 0) {
-      // New shop without settings - return shop name from shops table
-      const shopRow = await db.query(`SELECT name FROM shops WHERE id = $1`, [shopId]);
-      if (shopRow.rows.length > 0) {
-        return res.json({ ...getDefaultShop(), shop_name: shopRow.rows[0].name });
-      }
+      // Single-shop: no shops table dependency
       return res.json(getDefaultShop());
     }
     const row = result.rows[0];
@@ -160,13 +156,6 @@ async function getShop(shopId) {
            FROM shop_settings WHERE id = 1`
         );
     if (result.rows.length === 0) {
-      // For new shops without shop_settings, use name from shops table
-      if (shopId != null) {
-        const shopRow = await db.query(`SELECT name FROM shops WHERE id = $1`, [shopId]);
-        if (shopRow.rows.length > 0) {
-          return { shop_name: shopRow.rows[0].name, address_line1: '', address_line2: '', address_line3: '', city: '', pincode: '', state: '', state_code: '', phone: '', email: '', gstin: '' };
-        }
-      }
       return getDefaultShop();
     }
     const row = result.rows[0];

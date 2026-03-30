@@ -37,10 +37,10 @@ router.post("/login", async (req, res) => {
     console.log("LOGIN HANDLER HIT");
     console.log("LOGIN EMAIL:", emailLower);
 
+    // Single-shop: do not depend on `shops` table.
     const query = `
-      SELECT u.*, s.name AS shop_name
+      SELECT u.*
       FROM users u
-      LEFT JOIN shops s ON s.id = u.shop_id
       WHERE LOWER(u.email) = $1
       LIMIT 1;
     `;
@@ -56,7 +56,6 @@ router.post("/login", async (req, res) => {
       return res.status(403).json({ error: "Account is inactive" });
     }
     if (user.shop_id == null) user.shop_id = 1;
-    if (!user.shop_name) user.shop_name = "A To Z Battery";
     user.role_name = user.role_name || (user.role_id === 1 ? "Super Admin" : user.role_id === 2 ? "Admin" : "Customer");
 
     const storedPassword = (user.password || "").trim();
@@ -137,7 +136,7 @@ if (!isMatch) {
     }
 
     const shopId = user.shop_id != null ? Number(user.shop_id) : 1;
-    const shopName = user.shop_name || 'A To Z Battery';
+    const shopName = 'A To Z Battery';
     const userType = user.user_type || (Number(user.role_id) <= 2 ? 'admin' : 'b2c');
 
     const payload = {
@@ -432,13 +431,11 @@ router.get("/me", requireAuth, requireShop, async (req, res) => {
           u.avatar_url,
           u.shop_id,
           u.user_type,
-          r.role_name,
-          s.name as shop_name
+          r.role_name
        FROM users u
        JOIN roles r ON u.role_id = r.id
-       LEFT JOIN shops s ON u.shop_id = s.id
-       WHERE u.id = $1 AND u.shop_id = $2`,
-      [userId, req.shop_id]
+       WHERE u.id = $1`,
+      [userId]
     );
 
     if (rows.length === 0) {
@@ -471,7 +468,7 @@ router.get("/me", requireAuth, requireShop, async (req, res) => {
     const userWithProfile = {
       ...user,
       shop_id: user.shop_id != null ? Number(user.shop_id) : 1,
-      shop_name: user.shop_name || 'A To Z Battery',
+      shop_name: 'A To Z Battery',
       avatar_url: user.avatar_url || null, // Include avatar URL
       ...(customerProfile ? {
         phone: customerProfile.phone,
@@ -612,7 +609,7 @@ router.post("/signup/create", async (req, res) => {
       `INSERT INTO users (
         full_name, email, phone, password, role_id, is_active,
         state, city, address, shop_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE((SELECT MIN(id) FROM shops), 1))
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 1)
       RETURNING id, full_name, email, phone, role_id`,
       [
         full_name.trim(),
@@ -628,7 +625,7 @@ router.post("/signup/create", async (req, res) => {
     );
 
     const userId = userResult.rows[0].id;
-    const signupShopId = (await client.query('SELECT COALESCE(MIN(id), 1) as id FROM shops')).rows[0]?.id || 1;
+    const signupShopId = 1;
 
     // Insert into customer_profiles table (shop_id for multi-shop consistency)
     try {

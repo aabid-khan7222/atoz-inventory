@@ -109,12 +109,10 @@ const requireAuth = verifyJWT;
 // requireShop: MUST run after verifyJWT. Rejects if shop_id missing (401).
 // No API should work without shop context — prevents cross-shop data access.
 function requireShop(req, res, next) {
-  if (req.shop_id == null || req.shop_id === undefined) {
-    return res.status(401).json({
-      error: "Shop context required",
-      details: "Your session does not have shop context. Please log in again.",
-    });
-  }
+  // Single-shop mode: treat shop_id as optional and default to 1.
+  // This keeps backward compatibility with code paths that expect req.shop_id,
+  // while allowing deployments that do NOT have a shops table.
+  if (req.shop_id == null || req.shop_id === undefined) req.shop_id = 1;
   next();
 }
 
