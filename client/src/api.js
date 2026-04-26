@@ -766,6 +766,32 @@ export async function getSalesItems(filters = {}) {
   }
 }
 
+export async function updateSalesItem(id, body) {
+  return await request(`/admin-sales/sales-items/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body || {}),
+  });
+}
+
+export async function deleteSalesItem(id) {
+  return await request(`/admin-sales/sales-items/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function updatePurchase(id, body) {
+  return await request(`/purchases/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body || {}),
+  });
+}
+
+export async function deletePurchase(id) {
+  return await request(`/purchases/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
 // Commission Agents API functions
 export async function getCommissionAgents(search = '') {
   try {
@@ -1883,6 +1909,10 @@ const api = {
   getSoldBatteries,
   adminSellStock,
   getSalesItems,
+  updateSalesItem,
+  deleteSalesItem,
+  updatePurchase,
+  deletePurchase,
   getCustomers,
   getCustomerById,
   getInvoiceById,

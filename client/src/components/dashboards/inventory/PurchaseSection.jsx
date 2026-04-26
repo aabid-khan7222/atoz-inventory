@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../api';
+import { useAuth } from '../../../contexts/AuthContext';
 import { getFormState, saveFormState } from '../../../utils/formStateManager';
+import Swal from 'sweetalert2';
 import './InventorySection.css';
 
 const STORAGE_KEY = 'purchaseSectionState';
 
 const PurchaseSection = ({ onBack }) => {
+  const { user } = useAuth();
+  const canManage = user?.role_id === 1 || user?.role_id === 2;
+
   // Load saved state using utility (automatically handles refresh detection)
   const savedState = getFormState(STORAGE_KEY);
   const [purchases, setPurchases] = useState([]);
@@ -21,7 +26,9 @@ const PurchaseSection = ({ onBack }) => {
   const [sortConfig, setSortConfig] = useState(() => savedState?.sortConfig || { field: 'purchase_date', direction: 'desc' });
   const [pagination, setPagination] = useState(() => savedState?.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 });
   const [stats, setStats] = useState(null);
-  
+  const [editingPurchase, setEditingPurchase] = useState(null);
+  const [savingPurchase, setSavingPurchase] = useState(false);
+
   const [isInitialMount, setIsInitialMount] = useState(true);
   
   // Save state to sessionStorage
@@ -151,6 +158,72 @@ const PurchaseSection = ({ onBack }) => {
     return typeMap[productTypeId] || 'Unknown';
   };
 
+  const openEditPurchase = (p) => {
+    const dp = parseFloat(p.dp) || 0;
+    const pv = parseFloat(p.purchase_value) || 0;
+    const discAmt = Math.max(0, dp - pv);
+    const discPct = dp > 0 ? Math.round((discAmt / dp) * 10000) / 100 : 0;
+    setEditingPurchase({
+      id: p.id,
+      purchase_date_edit: p.purchase_date ? String(p.purchase_date).slice(0, 10) : '',
+      supplier_name_edit: p.supplier_name ?? '',
+      dp_edit: String(dp),
+      purchase_value_edit: String(pv),
+      discount_amount_edit: String(Math.round(discAmt * 100) / 100),
+      discount_percent_edit: String(discPct),
+    });
+  };
+
+  const saveEditPurchase = async () => {
+    if (!editingPurchase) return;
+    setSavingPurchase(true);
+    try {
+      const dp = parseFloat(editingPurchase.dp_edit);
+      const pv = parseFloat(editingPurchase.purchase_value_edit);
+      if (!Number.isFinite(dp) || dp < 0 || !Number.isFinite(pv) || pv < 0) {
+        await Swal.fire('Error', 'DP and purchase value must be valid numbers.', 'error');
+        return;
+      }
+      const discAmt = Math.max(0, dp - pv);
+      const discPct = dp > 0 ? Math.round((discAmt / dp) * 10000) / 100 : 0;
+      await api.updatePurchase(editingPurchase.id, {
+        supplier_name: editingPurchase.supplier_name_edit?.trim() || null,
+        purchase_date: editingPurchase.purchase_date_edit || undefined,
+        dp,
+        purchase_value: pv,
+        discount_amount: Math.round(discAmt * 100) / 100,
+        discount_percent: discPct,
+      });
+      await Swal.fire('Saved', 'Purchase updated.', 'success');
+      setEditingPurchase(null);
+      fetchPurchases();
+    } catch (e) {
+      await Swal.fire('Error', e.message || 'Update failed', 'error');
+    } finally {
+      setSavingPurchase(false);
+    }
+  };
+
+  const confirmDeletePurchase = async (p) => {
+    const r = await Swal.fire({
+      title: 'Delete this purchase?',
+      html: '<p>Allowed only if this unit is still in <strong>available stock</strong> (not sold).</p><p>Stock row and product quantity will be reduced.</p>',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626',
+    });
+    if (!r.isConfirmed) return;
+    try {
+      await api.deletePurchase(p.id);
+      await Swal.fire('Deleted', 'Purchase removed.', 'success');
+      fetchPurchases();
+    } catch (e) {
+      await Swal.fire('Error', e.message || 'Delete failed', 'error');
+    }
+  };
+
   return (
     <div className="inventory-section">
       <div className="section-header">
@@ -205,9 +278,9 @@ const PurchaseSection = ({ onBack }) => {
                   className="filter-input purchase-date-input"
                 />
               </div>
-            </div>ad
+            </div>
             <div className="filter-group purchase-date-group">
-ad              <label>Date To</label>
+              <label>Date To</label>
               <div className="purchase-date-input-wrapper">
                 <svg className="purchase-date-calendar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -321,6 +394,9 @@ ad              <label>Date To</label>
                     >
                       Discount
                     </th>
+                    {canManage && (
+                      <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -366,11 +442,46 @@ ad              <label>Date To</label>
                             )}
                           </div>
                         </td>
+                        {canManage && (
+                          <td style={{ padding: '0.75rem', verticalAlign: 'middle', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            <button
+                              type="button"
+                              onClick={() => openEditPurchase(purchase)}
+                              style={{
+                                marginRight: '0.35rem',
+                                padding: '0.35rem 0.6rem',
+                                fontSize: '0.8rem',
+                                background: '#2563eb',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '0.35rem',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => confirmDeletePurchase(purchase)}
+                              style={{
+                                padding: '0.35rem 0.6rem',
+                                fontSize: '0.8rem',
+                                background: '#dc2626',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '0.35rem',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="10" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={canManage ? 11 : 10} style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
                         <div className="no-data">
                           <div className="no-data-icon">📋</div>
                           <h3>No Purchases Found</h3>
@@ -441,6 +552,96 @@ ad              <label>Date To</label>
               </div>
             )}
           </>
+        )}
+
+        {editingPurchase && (
+          <div
+            className="purchase-edit-overlay"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.45)',
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '1rem',
+            }}
+            role="presentation"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setEditingPurchase(null);
+            }}
+          >
+            <div
+              style={{
+                background: '#fff',
+                borderRadius: '0.75rem',
+                maxWidth: '420px',
+                width: '100%',
+                padding: '1.25rem',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+              }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="purchase-edit-title"
+            >
+              <h3 id="purchase-edit-title" style={{ margin: '0 0 1rem', fontSize: '1.1rem' }}>Edit purchase</h3>
+              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Supplier</label>
+              <input
+                className="filter-input"
+                style={{ width: '100%', marginBottom: '0.75rem' }}
+                value={editingPurchase.supplier_name_edit}
+                onChange={(e) => setEditingPurchase((prev) => ({ ...prev, supplier_name_edit: e.target.value }))}
+              />
+              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Purchase date</label>
+              <input
+                type="date"
+                className="filter-input"
+                style={{ width: '100%', marginBottom: '0.75rem' }}
+                value={editingPurchase.purchase_date_edit}
+                onChange={(e) => setEditingPurchase((prev) => ({ ...prev, purchase_date_edit: e.target.value }))}
+              />
+              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>DP</label>
+              <input
+                type="number"
+                className="filter-input"
+                style={{ width: '100%', marginBottom: '0.75rem' }}
+                value={editingPurchase.dp_edit}
+                onChange={(e) => setEditingPurchase((prev) => ({ ...prev, dp_edit: e.target.value }))}
+              />
+              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Purchase value</label>
+              <input
+                type="number"
+                className="filter-input"
+                style={{ width: '100%', marginBottom: '0.75rem' }}
+                value={editingPurchase.purchase_value_edit}
+                onChange={(e) => setEditingPurchase((prev) => ({ ...prev, purchase_value_edit: e.target.value }))}
+              />
+              <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 1rem' }}>
+                Discount is derived from DP minus purchase value.
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button type="button" className="retry-button" onClick={() => setEditingPurchase(null)} disabled={savingPurchase}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveEditPurchase}
+                  disabled={savingPurchase}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: savingPurchase ? '#94a3b8' : '#059669',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: savingPurchase ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {savingPurchase ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

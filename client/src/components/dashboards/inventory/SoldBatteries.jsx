@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { API_BASE } from '../../../api';
+import { useAuth } from '../../../contexts/AuthContext';
 import Swal from 'sweetalert2';
 import { getFormState, saveFormState } from '../../../utils/formStateManager';
 import './InventorySection.css';
@@ -9,7 +10,12 @@ const STORAGE_KEY = 'soldBatteriesState';
 
 const SoldBatteries = ({ onBack }) => {
   const navigate = useNavigate();
-  
+  const { user } = useAuth();
+  const canManage = user?.role_id === 1 || user?.role_id === 2;
+
+  const [editingSale, setEditingSale] = useState(null);
+  const [savingSale, setSavingSale] = useState(false);
+
   // Load saved state using utility (automatically handles refresh detection)
   const savedState = getFormState(STORAGE_KEY);
   const [selectedCategory, setSelectedCategory] = useState(() => savedState?.selectedCategory || 'all');
@@ -255,6 +261,72 @@ const SoldBatteries = ({ onBack }) => {
     navigate(`/invoice/${invoiceNumber}?returnTo=sold-batteries`);
   };
 
+  const openEditSale = (battery) => {
+    const pd = battery.purchase_date || battery.created_at || battery.sold_date;
+    const dateStr = pd ? String(pd).slice(0, 10) : '';
+    const mrp = parseFloat(battery.MRP ?? battery.mrp ?? 0) || 0;
+    const fin = parseFloat(battery.final_amount ?? battery.amount ?? 0) || 0;
+    setEditingSale({
+      id: battery.id,
+      customer_name: battery.customer_name || '',
+      customer_mobile_number: battery.customer_mobile_number || battery.customer_phone || '',
+      customer_vehicle_number: battery.customer_vehicle_number || battery.vehicle_number || '',
+      purchase_date: dateStr,
+      mrp: String(mrp),
+      final_amount: String(fin),
+      payment_method: battery.payment_method || 'cash',
+    });
+  };
+
+  const saveEditSale = async () => {
+    if (!editingSale) return;
+    setSavingSale(true);
+    try {
+      const mrp = parseFloat(editingSale.mrp);
+      const finalAmount = parseFloat(editingSale.final_amount);
+      if (!Number.isFinite(mrp) || mrp < 0 || !Number.isFinite(finalAmount) || finalAmount < 0) {
+        await Swal.fire('Error', 'MRP and final amount must be valid numbers.', 'error');
+        return;
+      }
+      await api.updateSalesItem(editingSale.id, {
+        customer_name: editingSale.customer_name.trim(),
+        customer_mobile_number: String(editingSale.customer_mobile_number).trim(),
+        customer_vehicle_number: editingSale.customer_vehicle_number?.trim() || null,
+        purchase_date: editingSale.purchase_date || undefined,
+        mrp,
+        final_amount: finalAmount,
+        payment_method: editingSale.payment_method,
+      });
+      await Swal.fire('Saved', 'Sale line updated.', 'success');
+      setEditingSale(null);
+      fetchSoldBatteries();
+    } catch (e) {
+      await Swal.fire('Error', e.message || 'Update failed', 'error');
+    } finally {
+      setSavingSale(false);
+    }
+  };
+
+  const confirmDeleteSale = async (battery) => {
+    const r = await Swal.fire({
+      title: 'Void this sale line?',
+      html: '<p>Inventory will be <strong>restored</strong> for this serial (except water / N/A lines). Product quantity will increase.</p><p>This cannot be undone from the UI.</p>',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, void',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626',
+    });
+    if (!r.isConfirmed) return;
+    try {
+      await api.deleteSalesItem(battery.id);
+      await Swal.fire('Done', 'Sale voided and stock restored where applicable.', 'success');
+      fetchSoldBatteries();
+    } catch (e) {
+      await Swal.fire('Error', e.message || 'Void failed', 'error');
+    }
+  };
+
   // Group batteries by invoice_number
   const groupedByInvoice = () => {
     const groups = {};
@@ -391,6 +463,7 @@ const SoldBatteries = ({ onBack }) => {
                     </th>
                     <th>Commission</th>
                     <th>Old Battery Trade-In</th>
+                    {canManage && <th style={{ width: '130px', textAlign: 'center' }}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -571,6 +644,43 @@ const SoldBatteries = ({ onBack }) => {
                             <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>—</span>
                           )}
                         </td>
+                        {canManage && (
+                          <td style={{ textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                            <button
+                              type="button"
+                              onClick={() => openEditSale(battery)}
+                              style={{
+                                marginRight: '0.35rem',
+                                padding: '0.35rem 0.55rem',
+                                fontSize: '0.78rem',
+                                fontWeight: 500,
+                                backgroundColor: '#2563eb',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '0.4rem',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => confirmDeleteSale(battery)}
+                              style={{
+                                padding: '0.35rem 0.55rem',
+                                fontSize: '0.78rem',
+                                fontWeight: 500,
+                                backgroundColor: '#dc2626',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '0.4rem',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))
                   ))}
@@ -620,6 +730,127 @@ const SoldBatteries = ({ onBack }) => {
                 <span style={{ color: '#059669' }}>{formatCurrency(
                   getFilteredBatteries().reduce((sum, b) => sum + (parseFloat(b.final_amount || b.amount) || 0), 0)
                 )}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {editingSale && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.45)',
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '1rem',
+            }}
+            role="presentation"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setEditingSale(null);
+            }}
+          >
+            <div
+              style={{
+                background: '#fff',
+                borderRadius: '0.75rem',
+                maxWidth: '440px',
+                width: '100%',
+                padding: '1.25rem',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+              }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="sold-edit-title"
+            >
+              <h3 id="sold-edit-title" style={{ margin: '0 0 1rem', fontSize: '1.1rem' }}>Edit sale line</h3>
+              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 1rem' }}>
+                Customer, date, MRP, final amount, and payment method. Serial and product are not changed here — use Delete to void and sell again if needed.
+              </p>
+              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Customer name</label>
+              <input
+                className="filter-input"
+                style={{ width: '100%', marginBottom: '0.65rem' }}
+                value={editingSale.customer_name}
+                onChange={(e) => setEditingSale((s) => ({ ...s, customer_name: e.target.value }))}
+              />
+              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Mobile</label>
+              <input
+                className="filter-input"
+                style={{ width: '100%', marginBottom: '0.65rem' }}
+                value={editingSale.customer_mobile_number}
+                onChange={(e) => setEditingSale((s) => ({ ...s, customer_mobile_number: e.target.value }))}
+              />
+              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Vehicle number</label>
+              <input
+                className="filter-input"
+                style={{ width: '100%', marginBottom: '0.65rem' }}
+                value={editingSale.customer_vehicle_number}
+                onChange={(e) => setEditingSale((s) => ({ ...s, customer_vehicle_number: e.target.value }))}
+              />
+              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Sold date</label>
+              <input
+                type="date"
+                className="filter-input"
+                style={{ width: '100%', marginBottom: '0.65rem' }}
+                value={editingSale.purchase_date}
+                onChange={(e) => setEditingSale((s) => ({ ...s, purchase_date: e.target.value }))}
+              />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.65rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>MRP</label>
+                  <input
+                    type="number"
+                    className="filter-input"
+                    style={{ width: '100%' }}
+                    value={editingSale.mrp}
+                    onChange={(e) => setEditingSale((s) => ({ ...s, mrp: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Final amount</label>
+                  <input
+                    type="number"
+                    className="filter-input"
+                    style={{ width: '100%' }}
+                    value={editingSale.final_amount}
+                    onChange={(e) => setEditingSale((s) => ({ ...s, final_amount: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Payment</label>
+              <select
+                className="filter-select"
+                style={{ width: '100%', marginBottom: '1rem' }}
+                value={editingSale.payment_method}
+                onChange={(e) => setEditingSale((s) => ({ ...s, payment_method: e.target.value }))}
+              >
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="upi">UPI</option>
+                <option value="credit">Credit</option>
+              </select>
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button type="button" className="retry-button" onClick={() => setEditingSale(null)} disabled={savingSale}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveEditSale}
+                  disabled={savingSale}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: savingSale ? '#94a3b8' : '#059669',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: savingSale ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {savingSale ? 'Saving…' : 'Save'}
+                </button>
               </div>
             </div>
           </div>

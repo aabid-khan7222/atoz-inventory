@@ -1286,5 +1286,307 @@ router.get('/sales-items', requireAuth, requireShopId, requireSuperAdminOrAdmin,
   }
 });
 
+/**
+ * Update a single confirmed sales_item row (shop-scoped, admin only).
+ * Does not change serial / product identity — use void + re-sell for that.
+ */
+router.patch('/sales-items/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
+  const salesItemId = parseInt(req.params.id, 10);
+  if (!Number.isFinite(salesItemId) || salesItemId < 1) {
+    return res.status(400).json({ error: 'Invalid sales item id' });
+  }
+
+  const b = req.body || {};
+  const updates = [];
+  const values = [];
+  let n = 1;
+
+  const push = (colSql, val) => {
+    updates.push(`${colSql} = $${n++}`);
+    values.push(val);
+  };
+
+  if (b.customer_name !== undefined) push('customer_name', String(b.customer_name).trim());
+  if (b.customer_mobile_number !== undefined) push('customer_mobile_number', String(b.customer_mobile_number).trim());
+  if (b.customer_vehicle_number !== undefined) {
+    push('customer_vehicle_number', b.customer_vehicle_number ? String(b.customer_vehicle_number).trim() : null);
+  }
+  if (b.purchase_date !== undefined) {
+    const d = b.purchase_date ? new Date(b.purchase_date) : null;
+    if (d && !Number.isNaN(d.getTime())) push('purchase_date', d.toISOString().split('T')[0]);
+    else return res.status(400).json({ error: 'Invalid purchase_date' });
+  }
+  if (b.payment_method !== undefined) {
+    const pm = String(b.payment_method).toLowerCase();
+    if (!['cash', 'card', 'upi', 'credit'].includes(pm)) {
+      return res.status(400).json({ error: 'Invalid payment_method' });
+    }
+    push('payment_method', pm);
+  }
+  if (b.payment_status !== undefined) {
+    const ps = String(b.payment_status).toLowerCase();
+    if (!['paid', 'pending', 'partial'].includes(ps)) {
+      return res.status(400).json({ error: 'Invalid payment_status' });
+    }
+    push('payment_status', ps);
+  }
+
+  let mrpNum;
+  let finalNum;
+  if (b.mrp !== undefined || b.MRP !== undefined) {
+    mrpNum = parseFloat(b.mrp !== undefined ? b.mrp : b.MRP);
+    if (!Number.isFinite(mrpNum) || mrpNum < 0) return res.status(400).json({ error: 'Invalid MRP' });
+    push('mrp', mrpNum);
+    const taxVal = (mrpNum * 0.18) / 1.18;
+    push('tax', Math.round(taxVal * 100) / 100);
+  }
+  if (b.final_amount !== undefined) {
+    finalNum = parseFloat(b.final_amount);
+    if (!Number.isFinite(finalNum) || finalNum < 0) return res.status(400).json({ error: 'Invalid final_amount' });
+    push('final_amount', finalNum);
+  }
+  if (b.discount_amount !== undefined && b.mrp === undefined && b.MRP === undefined && b.final_amount === undefined) {
+    const da = parseFloat(b.discount_amount);
+    if (!Number.isFinite(da) || da < 0) return res.status(400).json({ error: 'Invalid discount_amount' });
+    push('discount_amount', da);
+  }
+
+  const bizCheck = await db.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'sales_item' AND column_name IN (
+      'customer_business_name', 'customer_gst_number', 'customer_business_address',
+      'has_commission', 'commission_agent_id', 'commission_amount'
+    )
+  `);
+  const bizCols = new Set(bizCheck.rows.map((r) => r.column_name));
+
+  if (b.customer_business_name !== undefined && bizCols.has('customer_business_name')) {
+    push('customer_business_name', b.customer_business_name ? String(b.customer_business_name).trim() : null);
+  }
+  if (b.customer_gst_number !== undefined && bizCols.has('customer_gst_number')) {
+    push('customer_gst_number', b.customer_gst_number ? String(b.customer_gst_number).trim() : null);
+  }
+  if (b.customer_business_address !== undefined && bizCols.has('customer_business_address')) {
+    push('customer_business_address', b.customer_business_address ? String(b.customer_business_address).trim() : null);
+  }
+  if (b.has_commission !== undefined && bizCols.has('has_commission')) {
+    push('has_commission', Boolean(b.has_commission));
+  }
+  if (b.commission_agent_id !== undefined && bizCols.has('commission_agent_id')) {
+    const cid = b.commission_agent_id === null || b.commission_agent_id === '' ? null : parseInt(b.commission_agent_id, 10);
+    if (cid !== null && (!Number.isFinite(cid) || cid < 1)) return res.status(400).json({ error: 'Invalid commission_agent_id' });
+    push('commission_agent_id', cid);
+  }
+  if (b.commission_amount !== undefined && bizCols.has('commission_amount')) {
+    const ca = parseFloat(b.commission_amount);
+    if (!Number.isFinite(ca) || ca < 0) return res.status(400).json({ error: 'Invalid commission_amount' });
+    push('commission_amount', ca);
+  }
+
+  if (updates.length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const cur = await client.query(
+      `SELECT * FROM sales_item WHERE id = $1 AND shop_id = $2 FOR UPDATE`,
+      [salesItemId, req.shop_id]
+    );
+    if (cur.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Sales item not found' });
+    }
+    const row = cur.rows[0];
+    const effMrp = mrpNum !== undefined ? mrpNum : parseFloat(row.mrp ?? row.MRP) || 0;
+    const effFinal = finalNum !== undefined ? finalNum : parseFloat(row.final_amount) || 0;
+    if (b.discount_amount === undefined && (b.mrp !== undefined || b.MRP !== undefined || b.final_amount !== undefined)) {
+      const disc = Math.max(0, effMrp - effFinal);
+      updates.push(`discount_amount = $${n++}`);
+      values.push(Math.round(disc * 100) / 100);
+    }
+
+    values.push(salesItemId, req.shop_id);
+    const q = `UPDATE sales_item SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${n++} AND shop_id = $${n++} RETURNING *`;
+    const { rows } = await client.query(q, values);
+    await client.query('COMMIT');
+    res.json({ success: true, item: rows[0] });
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {
+      /* ignore */
+    }
+    console.error('PATCH /sales-items/:id error:', err);
+    res.status(500).json({
+      error: 'Failed to update sales item',
+      details: process.env.NODE_ENV === 'production' ? undefined : err.message,
+    });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * Void a single confirmed sales line: delete sales_item, restore stock + product qty when applicable.
+ */
+router.delete('/sales-items/:id', requireAuth, requireShopId, requireSuperAdminOrAdmin, async (req, res) => {
+  const salesItemId = parseInt(req.params.id, 10);
+  if (!Number.isFinite(salesItemId) || salesItemId < 1) {
+    return res.status(400).json({ error: 'Invalid sales item id' });
+  }
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows } = await client.query(
+      `SELECT si.*, p.product_type_id AS p_product_type_id, p.sku AS p_sku, p.series AS p_series,
+              p.category AS p_category, p.name AS p_name, p.ah_va AS p_ah_va, p.warranty AS p_warranty
+       FROM sales_item si
+       LEFT JOIN products p ON p.id = si.product_id AND p.shop_id = si.shop_id
+       WHERE si.id = $1 AND si.shop_id = $2
+       FOR UPDATE`,
+      [salesItemId, req.shop_id]
+    );
+
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Sales item not found' });
+    }
+
+    const siRow = rows[0];
+    const serialRaw = siRow.serial_number ?? siRow.SERIAL_NUMBER;
+    const serial = serialRaw != null ? String(serialRaw).trim() : '';
+    const qty = Math.max(1, parseInt(siRow.quantity ?? siRow.QUANTITY ?? 1, 10) || 1);
+
+    if (!serial || serial === 'PENDING') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'This line is not a completed sale. Cancel the pending order from the pending-orders flow instead.',
+      });
+    }
+
+    const cat = (siRow.CATEGORY || siRow.category || '').toLowerCase();
+    const isWater =
+      siRow.p_product_type_id === 4 ||
+      cat === 'water' ||
+      serial.toUpperCase() === 'N/A';
+
+    if (!isWater && !siRow.product_id) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'Cannot void this sale line: product link is missing, so stock cannot be restored safely.',
+      });
+    }
+
+    if (!isWater) {
+      const dup = await client.query(
+        `SELECT 1 FROM stock
+         WHERE product_id = $1 AND serial_number = $2 AND shop_id = $3 AND status = 'available' LIMIT 1`,
+        [siRow.product_id, serial, req.shop_id]
+      );
+      if (dup.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'This serial is already in stock. Data may be inconsistent; resolve duplicate stock before voiding this sale.',
+        });
+      }
+    }
+
+    if (!isWater && siRow.product_id) {
+      const pd = siRow.purchase_date ? new Date(siRow.purchase_date) : new Date();
+      const purchaseDateStr = Number.isNaN(pd.getTime()) ? new Date().toISOString().split('T')[0] : pd.toISOString().split('T')[0];
+      const sku = siRow.p_sku || siRow.sku || siRow.SKU;
+      const series = siRow.p_series || siRow.series || siRow.SERIES;
+      const category = siRow.p_category || siRow.category || siRow.CATEGORY;
+      const name = siRow.p_name || siRow.name || siRow.NAME;
+      const ahVa = siRow.p_ah_va || siRow.ah_va || siRow.AH_VA;
+      const warranty = siRow.p_warranty || siRow.warranty || siRow.WARRANTY;
+      const productTypeId = siRow.p_product_type_id || (category ? getProductTypeId(String(category)) : null);
+
+      if (!sku || !name || !siRow.product_id || !productTypeId) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: 'Cannot restore stock: missing product or catalog data for this line.',
+        });
+      }
+
+      await client.query(
+        `INSERT INTO stock (
+          purchase_date, sku, series, category, name, ah_va, quantity,
+          purchased_from, warranty, product_type_id, product_id, serial_number, shop_id, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'available')`,
+        [
+          purchaseDateStr,
+          sku,
+          series || null,
+          category || null,
+          name,
+          ahVa || null,
+          qty,
+          'Returned (sale voided)',
+          warranty || null,
+          productTypeId,
+          siRow.product_id,
+          serial,
+          req.shop_id,
+        ]
+      );
+    }
+
+    if (siRow.product_id) {
+      await client.query(
+        `UPDATE products SET qty = COALESCE(qty, 0) + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND shop_id = $3`,
+        [qty, siRow.product_id, req.shop_id]
+      );
+    }
+
+    if (
+      siRow.commission_agent_id &&
+      parseFloat(siRow.commission_amount || 0) > 0
+    ) {
+      try {
+        const columnCheck = await client.query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'commission_agents' AND column_name = 'total_commission_paid'
+          )
+        `);
+        if (columnCheck.rows[0]?.exists) {
+          const amt = parseFloat(siRow.commission_amount) || 0;
+          await client.query(
+            `UPDATE commission_agents
+             SET total_commission_paid = GREATEST(0, COALESCE(total_commission_paid, 0) - $1),
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2 AND shop_id = $3`,
+            [amt, siRow.commission_agent_id, req.shop_id]
+          );
+        }
+      } catch (e) {
+        console.warn('[void sales-item] commission rollback skipped:', e.message);
+      }
+    }
+
+    await client.query(`DELETE FROM sales_item WHERE id = $1 AND shop_id = $2`, [salesItemId, req.shop_id]);
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Sale line voided; inventory restored where applicable.' });
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {
+      /* ignore */
+    }
+    console.error('DELETE /sales-items/:id error:', err);
+    res.status(500).json({
+      error: 'Failed to void sales item',
+      details: process.env.NODE_ENV === 'production' ? undefined : err.message,
+    });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;
 
